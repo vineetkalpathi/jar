@@ -170,6 +170,17 @@ Storing these would create a second source of truth that can disagree with the f
 | Cooldown weight | decay over recent Draws and Viewings |
 | a Title's "score" | there isn't one — Ratings aggregate at read time per the Rating Policy |
 
+## Keys
+
+Every table has a surrogate `id` — including the ten join tables, which read most
+naturally as being keyed on the columns that carry their meaning. PowerSync requires a
+single primary key column called `id` on every synced table and does not support
+composite keys, so those tables would otherwise not sync at all.
+
+The keys below are therefore written as they are *meant*, and the schema enforces each
+one as a `UNIQUE` constraint rather than a primary key. Nothing about their meaning
+changes; see the migration for the reasoning and the alternative that was rejected.
+
 ## Constraints that carry meaning
 
 1. `Rating` keyed `(userId, titleId, categoryId)` — one score per person per axis, with no Household in it, so opinions travel.
@@ -177,7 +188,7 @@ Storing these would create a second source of truth that can disagree with the f
 3. `RatingCategory.name` unique case-insensitively — comparability depends on it.
 4. `Title.tmdbId` unique where present — two Households adding the same film must converge on one row.
 5. `Title.ownerHouseholdId` set only for hand-entered Titles; null means globally visible.
-6. A Title may not be both Pinned and Excluded in the same Jar — structural, via the `JarOverride` primary key.
+6. A Title may not be both Pinned and Excluded in the same Jar — structural, via `JarOverride`'s unique constraint on `(jarId, titleId)`.
 7. `Candidate` rows are immutable once written apart from `knockedOutAt`.
 8. `RatingCategory.archivedAt` is set, never deleted, while Ratings referencing it exist.
 9. A Filter referencing an archived RatingCategory still resolves.

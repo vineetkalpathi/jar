@@ -19,6 +19,19 @@ A gap in the sync rules leaks another Household's data onto a device even if RLS
 perfect. They must agree, and a mismatch is the most likely serious bug in this
 project.
 
+## Every synced table needs an `id`
+
+PowerSync requires a single text-type primary key column named `id` on every table it
+syncs, and does not support composite keys. Ten of Jar's tables are join tables whose
+natural key is the columns that carry their meaning, so they carry a surrogate `id` and
+enforce that natural key as a `UNIQUE` constraint instead — see
+`supabase/migrations/20260802030158_add_surrogate_ids_for_powersync.sql`.
+
+The consequence to remember when writing the connector: two devices doing the same thing
+offline generate two rows with different ids, and the second upload hits the unique
+constraint. On these tables a unique violation means "already applied", and the
+operation can be dropped rather than retried.
+
 ## 1. Database setup (one-time, against the hosted project)
 
 Run this in the Supabase SQL editor. It is **not** a migration: it contains a
