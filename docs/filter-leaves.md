@@ -45,6 +45,12 @@ Household-owned scalar labels.
 | --- | --- |
 | `tag` | has, does not have |
 
+Tags are **closed-world**, like Viewings and unlike Title Attributes: an untagged Title
+matches `does not have cozy`. ADR-0006's unknown rule covers Attributes and Ratings,
+both of which come from outside the group — but a Tag is the Household's own vocabulary
+on its own Library, so a Title it hasn't called cozy is one the group doesn't consider
+cozy. That is knowledge, not a gap.
+
 ## Ratings
 
 Three-valued: an unrated Title never matches, in either polarity.

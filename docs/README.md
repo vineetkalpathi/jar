@@ -66,6 +66,11 @@ two in sync with real offline support. Jar filters compile to SQL and run agains
 local replica, so the app opens and draws with no network. Reasoning in
 [ADR-0004](./adr/0004-local-first-sync-on-supabase-and-powersync.md).
 
+`npm test` runs the suite. The filter compiler's tests execute their generated SQL
+against a real in-memory SQLite via `node:sqlite`, rather than asserting on the strings
+emitted — filter semantics live in how SQL treats NULL, and a string assertion passes
+happily on SQL that means the wrong thing.
+
 TMDB supplies Title Attributes. Its terms cap caching at six months and require
 attribution — both are obligations, not preferences, and are detailed in
 [ADR-0003](./adr/0003-tmdb-is-a-cached-enrichment-source.md).
