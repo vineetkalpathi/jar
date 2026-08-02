@@ -2,7 +2,7 @@
  * The starter Rating Categories every new Household is seeded with.
  *
  * These ids are fixed constants, mirroring the seed in
- * `supabase/migrations/20260801212846_app_user_provisioning_and_category_seed.sql`.
+ * `supabase/migrations/20260731000000_initial_schema.sql`.
  * Household creation writes `household_category` rows on the device and must work
  * offline — before the `categories` sync stream has necessarily delivered anything —
  * so the client cannot look these up by name at that moment.

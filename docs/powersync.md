@@ -24,8 +24,13 @@ project.
 PowerSync requires a single text-type primary key column named `id` on every table it
 syncs, and does not support composite keys. Ten of Jar's tables are join tables whose
 natural key is the columns that carry their meaning, so they carry a surrogate `id` and
-enforce that natural key as a `UNIQUE` constraint instead — see
-`supabase/migrations/20260802030158_add_surrogate_ids_for_powersync.sql`.
+enforce that natural key as a `UNIQUE` constraint instead.
+
+The alternative was concatenating the composite key into an id inside the sync rules
+(`select *, household_id || '.' || title_id as id from library_entry`). That leaves the
+Postgres schema alone, but the id then exists only on the device, so every write to
+those ten tables becomes a special case in the upload connector — and those ten are
+where nearly all writes land: ratings, viewings, library entries, tags, jar overrides.
 
 The consequence to remember when writing the connector: two devices doing the same thing
 offline generate two rows with different ids, and the second upload hits the unique

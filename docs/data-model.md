@@ -179,7 +179,8 @@ composite keys, so those tables would otherwise not sync at all.
 
 The keys below are therefore written as they are *meant*, and the schema enforces each
 one as a `UNIQUE` constraint rather than a primary key. Nothing about their meaning
-changes; see the migration for the reasoning and the alternative that was rejected.
+changes; [powersync.md](./powersync.md) has the reasoning and the alternative that was
+rejected.
 
 ## Constraints that carry meaning
 

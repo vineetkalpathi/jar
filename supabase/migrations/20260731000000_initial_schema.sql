@@ -9,6 +9,12 @@
 --
 -- Nothing is scoped to one household but readable by another, which is what keeps
 -- these policies simple enough to stay in agreement with the PowerSync sync rules.
+--
+-- Every table has a single `id` primary key, including the join tables whose natural
+-- key is the columns carrying their meaning. PowerSync requires exactly that and does
+-- not support composite keys, so those tables would otherwise not sync at all; their
+-- natural keys are UNIQUE constraints instead, which preserves the meaning. See
+-- docs/powersync.md.
 
 -- Helper functions live here so they are not reachable through the Data API.
 create schema if not exists private;
@@ -47,10 +53,12 @@ create table household (
 );
 
 create table household_member (
+  id           uuid primary key default gen_random_uuid(),
   household_id uuid not null references household (id) on delete cascade,
   user_id      uuid not null references app_user (id) on delete cascade,
   joined_at    timestamptz not null default now(),
-  primary key (household_id, user_id)
+
+  constraint household_member_household_user_key unique (household_id, user_id)
 );
 
 create index household_member_user_idx on household_member (user_id);
@@ -96,10 +104,12 @@ create table person (
 
 -- Normalised rather than a JSON array so `castMember contains` is an indexed lookup.
 create table title_credit (
+  id        uuid primary key default gen_random_uuid(),
   title_id  uuid not null references title (id) on delete cascade,
   person_id uuid not null references person (id) on delete cascade,
   role      credit_role not null,
-  primary key (title_id, person_id, role)
+
+  constraint title_credit_title_person_role_key unique (title_id, person_id, role)
 );
 
 create index title_credit_person_idx on title_credit (person_id);
@@ -108,9 +118,11 @@ create index title_credit_person_idx on title_credit (person_id);
 -- TMDB must always be queried with language=en-US or spellings diverge and saved
 -- Filters stop matching.
 create table title_genre (
+  id       uuid primary key default gen_random_uuid(),
   title_id uuid not null references title (id) on delete cascade,
   genre    text not null,
-  primary key (title_id, genre)
+
+  constraint title_genre_title_genre_key unique (title_id, genre)
 );
 
 create index title_genre_genre_idx on title_genre (genre);
@@ -122,11 +134,13 @@ create index title_genre_genre_idx on title_genre (genre);
 -- "This Household has this Title." The Library is this join, and it is also the
 -- Household's curated set — a group wanting a hand-picked jar curates here.
 create table library_entry (
+  id               uuid primary key default gen_random_uuid(),
   household_id     uuid not null references household (id) on delete cascade,
   title_id         uuid not null references title (id) on delete cascade,
   added_by_user_id uuid references app_user (id) on delete set null,
   added_at         timestamptz not null default now(),
-  primary key (household_id, title_id)
+
+  constraint library_entry_household_title_key unique (household_id, title_id)
 );
 
 create index library_entry_title_idx on library_entry (title_id);
@@ -147,10 +161,12 @@ create unique index tag_household_name_key on tag (household_id, lower(name));
 
 -- Carries household_id explicitly because title_id is global.
 create table title_tag (
+  id           uuid primary key default gen_random_uuid(),
   household_id uuid not null references household (id) on delete cascade,
   title_id     uuid not null references title (id) on delete cascade,
   tag_id       uuid not null references tag (id) on delete cascade,
-  primary key (household_id, title_id, tag_id)
+
+  constraint title_tag_household_title_tag_key unique (household_id, title_id, tag_id)
 );
 
 create index title_tag_tag_idx on title_tag (tag_id);
@@ -171,22 +187,26 @@ create unique index rating_category_name_key on rating_category (lower(name));
 -- Which Categories a Household surfaces in its rating UI and filter builder.
 -- Seeded on household creation from the starter set in src/lib/rating-categories.ts.
 create table household_category (
+  id           uuid primary key default gen_random_uuid(),
   household_id uuid not null references household (id) on delete cascade,
   category_id  uuid not null references rating_category (id) on delete restrict,
-  primary key (household_id, category_id)
+
+  constraint household_category_household_category_key unique (household_id, category_id)
 );
 
 create index household_category_category_idx on household_category (category_id);
 
--- No household appears in the key: that is what lets a Rating travel with its User
--- into every group they join (ADR-0007).
+-- No household appears in the natural key: that is what lets a Rating travel with its
+-- User into every group they join (ADR-0007).
 create table rating (
+  id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references app_user (id) on delete cascade,
   title_id    uuid not null references title (id) on delete cascade,
   category_id uuid not null references rating_category (id) on delete restrict,
   value       smallint not null,
   updated_at  timestamptz not null default now(),
-  primary key (user_id, title_id, category_id),
+
+  constraint rating_user_title_category_key unique (user_id, title_id, category_id),
   constraint rating_value_range check (value between 1 and 10)
 );
 
@@ -225,12 +245,14 @@ create table jar (
 create index jar_household_idx on jar (household_id);
 
 -- Pins and Exclusions share one table so that "a Title may not be both Pinned and
--- Excluded in the same Jar" is enforced by the primary key rather than by a trigger.
+-- Excluded in the same Jar" is enforced by a constraint rather than by a trigger.
 create table jar_override (
+  id       uuid primary key default gen_random_uuid(),
   jar_id   uuid not null references jar (id) on delete cascade,
   title_id uuid not null references title (id) on delete cascade,
   kind     jar_override_kind not null,
-  primary key (jar_id, title_id)
+
+  constraint jar_override_jar_title_key unique (jar_id, title_id)
 );
 
 create index jar_override_kind_idx on jar_override (jar_id, kind);
@@ -264,9 +286,11 @@ create index draw_result_title_idx on draw (result_title_id);
 -- take part in the knock-outs and get a Viewing recorded, while the Household's Filters
 -- and rater populations are untouched. Deliberately unconstrained.
 create table draw_participant (
+  id      uuid primary key default gen_random_uuid(),
   draw_id uuid not null references draw (id) on delete cascade,
   user_id uuid not null references app_user (id) on delete cascade,
-  primary key (draw_id, user_id)
+
+  constraint draw_participant_draw_user_key unique (draw_id, user_id)
 );
 
 create index draw_participant_user_idx on draw_participant (user_id);
@@ -275,14 +299,99 @@ create index draw_participant_user_idx on draw_participant (user_id);
 -- changes. Rows are immutable once written apart from knocked_out_at; enforced in the
 -- application, not here.
 create table draw_candidate (
+  id             uuid primary key default gen_random_uuid(),
   draw_id        uuid not null references draw (id) on delete cascade,
   title_id       uuid not null references title (id) on delete cascade,
   knocked_out_at timestamptz,     -- null means still in play
-  primary key (draw_id, title_id)
+
+  constraint draw_candidate_draw_title_key unique (draw_id, title_id)
 );
 
 -- Cooldown is derived from these rows plus viewings; nothing about it is stored.
 create index draw_candidate_title_idx on draw_candidate (title_id);
+
+-- ---------------------------------------------------------------------------
+-- Provisioning
+--
+-- A trigger rather than a client insert. Writes from the app go through PowerSync's
+-- upload queue, so a client-side "insert my app_user row" would race the first
+-- household_member write and can be arbitrarily delayed offline — while the FK it
+-- satisfies is checked the moment that write lands. Provisioning at the source of
+-- identity removes the ordering problem entirely.
+--
+-- display_name is resolved once, at signup, and never touched again: it is
+-- user-editable through app_user_update, and re-syncing it from auth metadata would
+-- silently revert a rename.
+-- ---------------------------------------------------------------------------
+
+create or replace function private.provision_app_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.app_user (id, display_name)
+  values (
+    new.id,
+    coalesce(
+      nullif(trim(new.raw_user_meta_data ->> 'display_name'), ''),
+      nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
+      'Someone'
+    )
+  )
+  on conflict (id) do nothing;
+
+  return new;
+end;
+$$;
+
+-- Not reachable through the Data API: `private` is granted to authenticated for the
+-- policy helpers, so revoke execute on this one explicitly.
+revoke execute on function private.provision_app_user() from public, authenticated;
+
+create trigger provision_app_user_on_signup
+  after insert on auth.users
+  for each row
+  execute function private.provision_app_user();
+
+-- Anyone who already signed up before this schema existed has no app_user row.
+insert into public.app_user (id, display_name)
+select
+  u.id,
+  coalesce(
+    nullif(trim(u.raw_user_meta_data ->> 'display_name'), ''),
+    nullif(split_part(coalesce(u.email, ''), '@', 1), ''),
+    'Someone'
+  )
+from auth.users u
+on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Starter Rating Categories
+--
+-- The five axes CONTEXT.md names when it defines the concept. Deliberately small:
+-- Categories are a global find-or-create catalogue, so a household wanting "Cosiness"
+-- coins it in one step, whereas a long starter list is clutter every household has to
+-- prune. "Overall" is deliberately absent — a single undifferentiated score is what
+-- Rating Categories exist to replace.
+--
+-- The ids are fixed constants rather than gen_random_uuid(), and are mirrored in
+-- src/lib/rating-categories.ts. Creating a household seeds household_category, and
+-- that write happens on the device, possibly before the categories sync stream has
+-- delivered anything. Fixed ids let the client reference them without a lookup.
+--
+-- Seeding the *global* rows here is right; activating them per household is a client
+-- write, because household creation must work offline.
+-- ---------------------------------------------------------------------------
+
+insert into rating_category (id, name) values
+  ('00000000-0000-4000-8000-000000000001', 'Plot'),
+  ('00000000-0000-4000-8000-000000000002', 'Acting'),
+  ('00000000-0000-4000-8000-000000000003', 'Cinematography'),
+  ('00000000-0000-4000-8000-000000000004', 'Soundtrack'),
+  ('00000000-0000-4000-8000-000000000005', 'Rewatchability')
+on conflict do nothing;
 
 -- ---------------------------------------------------------------------------
 -- Authorisation helpers
@@ -420,6 +529,10 @@ create policy household_select on household for select to authenticated
   using (id in (select private.my_household_ids()));
 -- Anyone signed in may create a household; they add their own membership immediately
 -- after, which is what makes it theirs.
+--
+-- One consequence worth knowing: because the select policy requires a membership that
+-- does not exist yet at that instant, the insert cannot use RETURNING. Generate the id
+-- client-side. See docs/database.md.
 create policy household_insert on household for insert to authenticated
   with check (true);
 create policy household_update on household for update to authenticated
