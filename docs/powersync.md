@@ -99,7 +99,9 @@ connectivity returns — which is where the RLS policies apply.
 | [`src/lib/db/schema.ts`](../src/lib/db/schema.ts) | The local tables, mirroring the Postgres schema |
 | [`src/lib/db/connector.ts`](../src/lib/db/connector.ts) | Supplies the session token and drains the upload queue |
 | [`src/lib/db/database.ts`](../src/lib/db/database.ts) | Opens the database; the one file a web build would replace |
-| [`src/lib/db/values.ts`](../src/lib/db/values.ts) | Ids and timestamps SQLite has no defaults for |
+| [`src/lib/db/ids.ts`](../src/lib/db/ids.ts) | Client-generated primary keys |
+| [`src/lib/db/time.ts`](../src/lib/db/time.ts) | Writing and reading the two timestamp renderings |
+| [`src/lib/db/repositories/`](../src/lib/db/repositories/) | Reads as watchable SQL, writes as functions |
 
 Set `EXPO_PUBLIC_POWERSYNC_URL` to the instance endpoint — see `.env.example`.
 

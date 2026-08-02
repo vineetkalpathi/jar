@@ -206,6 +206,11 @@ the relative weight of "recently drawn" versus "recently watched" are to be tune
 against real use. Cooldown is computed from Draws and Viewings, so tuning it changes no
 stored data.
 
+Starting values are in [`src/lib/draw/cooldown.ts`](../src/lib/draw/cooldown.ts): a
+recent Draw suppresses hard but recovers in weeks, a recent Viewing suppresses less but
+for months. Both strengths are strictly below 1, which is what makes the "never zero"
+rule structural rather than a clamp.
+
 ## Settled during development
 
 **The Filter JSON shape** is [ADR-0009](./adr/0009-filter-json-encoding.md), implemented

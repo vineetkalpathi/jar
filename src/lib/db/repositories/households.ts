@@ -9,7 +9,8 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/react-native";
 import { STARTER_RATING_CATEGORIES } from "../../rating-categories";
 import type { HouseholdRow, RatingCategoryRow } from "../schema";
-import { newId, timestamp } from "../values";
+import { newId } from "../ids";
+import { timestamp } from "../time";
 
 /** Households the signed-in user belongs to. Parameters: `[userId]`. */
 export const HOUSEHOLDS_FOR_USER = `

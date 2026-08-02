@@ -80,7 +80,7 @@ attribution — both are obligations, not preferences, and are detailed in
 Deliberately deferred, and recorded so they aren't mistaken for oversights — all in
 [data-model.md](./data-model.md):
 
-- Cooldown parameters (shape settled, half-life to be tuned against real use)
+- Cooldown parameters (shape settled and starting values chosen in `src/lib/draw/cooldown.ts`; half-life to be tuned against real use)
 
 Genuinely open, needing a product decision:
 
