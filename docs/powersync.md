@@ -42,6 +42,11 @@ operation can be dropped rather than retried.
 Run this in the Supabase SQL editor. It is **not** a migration: it contains a
 credential, and migrations are committed to git.
 
+A copy with verification and teardown queries alongside it is at
+`supabase/snippets/powersync-setup.sql` — fill in the password there and run it from
+your editor. That directory is gitignored, precisely because that is where the real
+password ends up, so the listing below stays the reference copy a fresh clone gets.
+
 ```sql
 -- Replication user. Generate a strong password; store it in your password manager.
 create role powersync_role with replication bypassrls login password '<generated>';
@@ -97,18 +102,22 @@ connectivity returns — which is where the RLS policies apply.
 | File | Role |
 | --- | --- |
 | [`src/lib/db/schema.ts`](../src/lib/db/schema.ts) | The local tables, mirroring the Postgres schema |
+| [`src/lib/db/supabase.ts`](../src/lib/db/supabase.ts) | Auth, and the Data API the upload queue writes through |
 | [`src/lib/db/connector.ts`](../src/lib/db/connector.ts) | Supplies the session token and drains the upload queue |
 | [`src/lib/db/database.ts`](../src/lib/db/database.ts) | Opens the database; the one file a web build would replace |
 | [`src/lib/db/ids.ts`](../src/lib/db/ids.ts) | Client-generated primary keys |
 | [`src/lib/db/time.ts`](../src/lib/db/time.ts) | Writing and reading the two timestamp renderings |
+| [`src/lib/db/constraints.ts`](../src/lib/db/constraints.ts) | The Postgres checks, re-performed before a local write |
 | [`src/lib/db/repositories/`](../src/lib/db/repositories/) | Reads as watchable SQL, writes as functions |
 
 Set `EXPO_PUBLIC_POWERSYNC_URL` to the instance endpoint — see `.env.example`.
 
 Three things stop being enforced once a row is on the device, because SQLite carries
 none of them: **not null, checks and unique constraints**. A rating of 47 inserts
-happily locally and fails on upload, so validation belongs in the repositories rather
-than being assumed from the schema.
+happily locally and fails on upload, so validation cannot be assumed from the schema.
+[`constraints.ts`](../src/lib/db/constraints.ts) re-performs those checks before a local
+write, and the repositories call it — see the note on the upload queue below for what
+happens to a row that slips through.
 
 **A native rebuild is required.** `@op-engineering/op-sqlite` is a native module, so
 `npx expo prebuild --clean` and a fresh `pod install` are needed before the app will
