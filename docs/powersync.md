@@ -1,0 +1,91 @@
+# PowerSync setup
+
+PowerSync keeps a full SQLite replica of a user's data on each device, synced against
+Supabase Postgres, so jar filters run locally and instantly with no network — see
+[ADR-0004](./adr/0004-local-first-sync-on-supabase-and-powersync.md).
+
+## The thing to understand first
+
+PowerSync connects using a role with **`BYPASSRLS`** and reads the write-ahead log
+directly. **Your RLS policies do not constrain what PowerSync replicates.** The two
+authorisation layers guard different paths:
+
+| Layer | Guards | Enforced by |
+| --- | --- | --- |
+| Sync rules (`powersync/sync-rules.yaml`) | what lands on a device — reads | PowerSync |
+| RLS policies (`supabase/migrations/`) | what a client may write back | Supabase Data API |
+
+A gap in the sync rules leaks another Household's data onto a device even if RLS is
+perfect. They must agree, and a mismatch is the most likely serious bug in this
+project.
+
+## 1. Database setup (one-time, against the hosted project)
+
+Run this in the Supabase SQL editor. It is **not** a migration: it contains a
+credential, and migrations are committed to git.
+
+```sql
+-- Replication user. Generate a strong password; store it in your password manager.
+create role powersync_role with replication bypassrls login password '<generated>';
+grant select on all tables in schema public to powersync_role;
+alter default privileges in schema public grant select on tables to powersync_role;
+
+-- Logical replication publication.
+create publication powersync for all tables;
+```
+
+`for all tables` is the simple option and correct at this scale. On large datasets it
+can cause memory spikes, in which case list tables explicitly.
+
+Note `powersync_role` gets `select` on `public` only — it never sees the `private`
+schema, which holds the RLS helper functions and nothing worth replicating.
+
+## 2. Connect the instance
+
+In the PowerSync Dashboard → **Database Connections** → Postgres tab: paste the
+Supabase connection string, replace the credentials with `powersync_role` and its
+password, **Test Connection**, then **Save**. PowerSync bundles Supabase's CA
+certificate, so TLS verification needs no extra configuration.
+
+## 3. Deploy sync rules
+
+The rules live in [`powersync/sync-rules.yaml`](../powersync/sync-rules.yaml), kept in
+this repo so they are reviewable alongside the RLS policies they must agree with.
+Deploy them through the Dashboard's **Sync Streams** view, which validates before
+applying.
+
+They are organised to mirror the scoping in [data-model.md](./data-model.md):
+
+- **household-scoped rows** — only for households the user belongs to
+- **user-scoped rows** — the user's own *plus their co-members'*, because a Filter
+  aggregates the whole household's Ratings and that has to be computable offline
+- **global rows** — narrowed to the subset the user's Libraries actually reference, so
+  a device never replicates the entire title catalogue
+
+> ⚠️ The current file is a **draft** and has not been validated against a live
+> PowerSync instance. Validate it in the Dashboard before relying on it.
+
+## 4. Client auth
+
+Enable Supabase Auth in the PowerSync **Client Auth** settings. Clients then present
+their Supabase session, and `auth.user_id()` inside the sync rules resolves to the
+signed-in user.
+
+## 5. Client wiring
+
+Writes go to local SQLite first and queue for upload through the Supabase Data API when
+connectivity returns — which is where the RLS policies apply. The client needs:
+
+- a **PowerSync schema** (TypeScript) declaring the local SQLite tables, mirroring the
+  Postgres schema
+- a **connector** supplying the Supabase session token and flushing the upload queue
+
+Neither exists yet; both belong with the first application code.
+
+## Verifying the two layers agree
+
+There is no automated check that sync rules and RLS policies grant the same visibility.
+Until there is, the manual test is: sign in as a user in one Household, confirm the
+local SQLite replica contains nothing belonging to another. The RLS half already has a
+test at [`supabase/tests/rls_test.sql`](../supabase/tests/rls_test.sql); the sync half
+does not.
