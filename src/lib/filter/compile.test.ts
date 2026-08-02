@@ -380,6 +380,36 @@ describe("library and draw history", () => {
     ).toEqual(["friends", "unlinked", "walle"]);
   });
 
+  it("reads both timestamp renderings out of the same column", () => {
+    // Rows written on the device use SQLite's canonical form; rows replicated from
+    // Postgres are rendered by PowerSync. Both land in added_at, and julianday returns
+    // NULL on a form it dislikes — which would look exactly like "does not match".
+    db.exec(`
+      insert into title (id, name, runtime) values ('iso', 'ISO row', 90);
+      insert into library_entry (household_id, title_id, added_by_user_id, added_at)
+      values ('house', 'iso', 'alice', '2026-07-15T10:00:00.000Z');
+
+      insert into title (id, name, runtime) values ('offset', 'Offset row', 90);
+      insert into library_entry (household_id, title_id, added_by_user_id, added_at)
+      values ('house', 'offset', 'alice', '2026-07-16 10:00:00+00');
+    `);
+
+    const recent = matching({
+      kind: "predicate",
+      leaf: "addedToLibrary",
+      op: "within",
+      duration: { amount: 1, unit: "month" },
+    });
+
+    expect(recent).toContain("iso");
+    expect(recent).toContain("offset");
+
+    db.exec(`
+      delete from library_entry where title_id in ('iso', 'offset');
+      delete from title where id in ('iso', 'offset');
+    `);
+  });
+
   it("supports absolute windows inclusively at both ends", () => {
     expect(
       matching({

@@ -361,6 +361,14 @@ class Compiler {
    * text. Lexicographic comparison would be correct for dates but is a trap for
    * timestamps, where `2026-08-01T00:00:00Z` and `2026-08-01 00:00:00+00` denote the
    * same instant and sort differently.
+   *
+   * Both renderings genuinely occur in the same column: rows written on the device use
+   * SQLite's canonical form (`src/lib/db/values.ts`), while rows replicated from
+   * Postgres are rendered by PowerSync. `normaliseTime` reduces either to something
+   * `julianday` will parse — which matters because `julianday` returns NULL on a form
+   * it dislikes, and a NULL comparison is indistinguishable from "does not match".
+   * That failure would be invisible: a Jar would simply come back emptier than it
+   * should.
    */
   private time(
     expr: Sql,
@@ -370,7 +378,7 @@ class Compiler {
     >,
     precision: "date" | "timestamp",
   ): string {
-    const col: Sql = () => `julianday(${expr()})`;
+    const col: Sql = () => `julianday(${normaliseTime(expr())})`;
     const bind = (value: string) => `julianday(${this.param(value)})`;
 
     switch (p.op) {
@@ -437,6 +445,19 @@ class Compiler {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Reduces any ISO-8601-ish timestamp to `YYYY-MM-DD HH:MM:SS`, which `julianday` parses
+ * without complaint — dropping the `T` separator, sub-second precision and the zone
+ * suffix, whether that is `Z`, `+00` or `+00:00`.
+ *
+ * Discarding the offset is safe rather than lossy: PowerSync replicates `timestamptz`
+ * in UTC and `values.ts` writes UTC, so every value in these columns is already UTC.
+ * A plain date (`YYYY-MM-DD`) passes through untouched, being shorter than the cut.
+ */
+function normaliseTime(expr: string): string {
+  return `replace(substr(${expr}, 1, 19), 'T', ' ')`;
+}
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);

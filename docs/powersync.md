@@ -92,13 +92,36 @@ signed-in user.
 ## 5. Client wiring
 
 Writes go to local SQLite first and queue for upload through the Supabase Data API when
-connectivity returns — which is where the RLS policies apply. The client needs:
+connectivity returns — which is where the RLS policies apply.
 
-- a **PowerSync schema** (TypeScript) declaring the local SQLite tables, mirroring the
-  Postgres schema
-- a **connector** supplying the Supabase session token and flushing the upload queue
+| File | Role |
+| --- | --- |
+| [`src/lib/db/schema.ts`](../src/lib/db/schema.ts) | The local tables, mirroring the Postgres schema |
+| [`src/lib/db/connector.ts`](../src/lib/db/connector.ts) | Supplies the session token and drains the upload queue |
+| [`src/lib/db/database.ts`](../src/lib/db/database.ts) | Opens the database; the one file a web build would replace |
+| [`src/lib/db/values.ts`](../src/lib/db/values.ts) | Ids and timestamps SQLite has no defaults for |
 
-Neither exists yet; both belong with the first application code.
+Set `EXPO_PUBLIC_POWERSYNC_URL` to the instance endpoint — see `.env.example`.
+
+Three things stop being enforced once a row is on the device, because SQLite carries
+none of them: **not null, checks and unique constraints**. A rating of 47 inserts
+happily locally and fails on upload, so validation belongs in the repositories rather
+than being assumed from the schema.
+
+**A native rebuild is required.** `@op-engineering/op-sqlite` is a native module, so
+`npx expo prebuild --clean` and a fresh `pod install` are needed before the app will
+launch — Expo Go cannot load it.
+
+## The upload queue blocks
+
+It is strictly ordered: a failing write is retried before anything behind it is sent.
+That makes error classification in the connector load-bearing rather than cosmetic. A
+rejected write retried forever wedges the queue, every later change silently stops
+reaching the server, and the app carries on looking perfectly healthy.
+
+`connector.ts` therefore drops permanently-failing operations and logs them, and retries
+only what a later attempt could plausibly fix. `23505` is the expected member of that
+list rather than an exceptional one — see the surrogate id note above.
 
 ## Verifying the two layers agree
 
