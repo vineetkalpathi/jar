@@ -9,6 +9,7 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/react-native";
 import { STARTER_RATING_CATEGORIES } from "../../rating-categories";
 import type { HouseholdRow, RatingCategoryRow } from "../schema";
+import { requiredText } from "../constraints";
 import { newId } from "../ids";
 import { timestamp } from "../time";
 
@@ -60,8 +61,7 @@ export async function createHousehold(
   db: AbstractPowerSyncDatabase,
   input: { name: string; userId: string },
 ): Promise<string> {
-  const name = input.name.trim();
-  if (!name) throw new Error("A household needs a name");
+  const name = requiredText(input.name, "A household");
 
   const householdId = newId();
   const now = timestamp();
@@ -97,9 +97,10 @@ export async function renameHousehold(
   householdId: string,
   name: string,
 ): Promise<void> {
-  const trimmed = name.trim();
-  if (!trimmed) throw new Error("A household needs a name");
-  await db.execute(`update household set name = ? where id = ?`, [trimmed, householdId]);
+  await db.execute(`update household set name = ? where id = ?`, [
+    requiredText(name, "A household"),
+    householdId,
+  ]);
 }
 
 /**

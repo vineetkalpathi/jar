@@ -14,6 +14,7 @@ import {
   type Filter,
 } from "../../filter";
 import type { JarRow, TitleRow } from "../schema";
+import { requiredText } from "../constraints";
 import { newId } from "../ids";
 import { timestamp } from "../time";
 import { getHousehold, memberIds } from "./households";
@@ -107,8 +108,7 @@ export async function createJar(
   db: AbstractPowerSyncDatabase,
   input: { householdId: string; name: string; filter?: Filter | null },
 ): Promise<string> {
-  const name = input.name.trim();
-  if (!name) throw new Error("A jar needs a name");
+  const name = requiredText(input.name, "A jar");
 
   const id = newId();
   await db.execute(
@@ -123,9 +123,10 @@ export async function renameJar(
   jarId: string,
   name: string,
 ): Promise<void> {
-  const trimmed = name.trim();
-  if (!trimmed) throw new Error("A jar needs a name");
-  await db.execute(`update jar set name = ? where id = ?`, [trimmed, jarId]);
+  await db.execute(`update jar set name = ? where id = ?`, [
+    requiredText(name, "A jar"),
+    jarId,
+  ]);
 }
 
 /** Replaces a Jar's Filter. `null` makes it hand-curated: its Pins alone. */

@@ -11,6 +11,7 @@
 
 import type { AbstractPowerSyncDatabase } from "@powersync/react-native";
 import type { RatingRow, TagRow, ViewingRow } from "../schema";
+import { ratingValue, requiredText } from "../constraints";
 import { newId } from "../ids";
 import { date, timestamp } from "../time";
 
@@ -44,8 +45,7 @@ export async function findOrCreateTag(
   householdId: string,
   name: string,
 ): Promise<string> {
-  const trimmed = name.trim();
-  if (!trimmed) throw new Error("A tag needs a name");
+  const trimmed = requiredText(name, "A tag");
 
   const existing = await db.getOptional<{ id: string }>(
     `select id from tag where household_id = ? and lower(name) = lower(?)`,
@@ -136,17 +136,13 @@ export const RATINGS_FOR_TITLE_IN_HOUSEHOLD = `
 /**
  * Sets a User's score for one Title on one Category, replacing any existing one.
  *
- * The 1–10 bound is checked here because SQLite carries no check constraint. Without
- * it, a 47 inserts locally, reads back everywhere as though it were real, and fails
- * only on upload.
+ * The 1–10 bound comes from `constraints.ts`, which mirrors `rating_value_range`.
  */
 export async function rate(
   db: AbstractPowerSyncDatabase,
   input: { userId: string; titleId: string; categoryId: string; value: number },
 ): Promise<void> {
-  if (!Number.isInteger(input.value) || input.value < 1 || input.value > 10) {
-    throw new Error(`A rating must be a whole number from 1 to 10, got ${input.value}`);
-  }
+  const value = ratingValue(input.value);
 
   const existing = await db.getOptional<{ id: string }>(
     `select id from rating where user_id = ? and title_id = ? and category_id = ?`,
@@ -156,7 +152,7 @@ export async function rate(
 
   if (existing) {
     await db.execute(`update rating set value = ?, updated_at = ? where id = ?`, [
-      input.value,
+      value,
       now,
       existing.id,
     ]);
@@ -166,7 +162,7 @@ export async function rate(
   await db.execute(
     `insert into rating (id, user_id, title_id, category_id, value, updated_at)
      values (?, ?, ?, ?, ?, ?)`,
-    [newId(), input.userId, input.titleId, input.categoryId, input.value, now],
+    [newId(), input.userId, input.titleId, input.categoryId, value, now],
   );
 }
 

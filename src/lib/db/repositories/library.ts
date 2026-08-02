@@ -8,6 +8,7 @@
 
 import type { AbstractPowerSyncDatabase } from "@powersync/react-native";
 import type { TitleRow } from "../schema";
+import { releaseYear, requiredText, runtimeMinutes, tmdbId } from "../constraints";
 import { newId } from "../ids";
 import { timestamp } from "../time";
 
@@ -130,9 +131,23 @@ export async function upsertTmdbTitle(
     language?: string | null;
   },
 ): Promise<string> {
+  // TMDB is an external source and its values reach the database unchanged, so they
+  // are normalised here rather than trusted. `runtime` is the one that bites: TMDB
+  // returns 0 for entries it has no data for, which violates title_runtime_positive,
+  // inserts happily into SQLite, and fails only on upload — where the connector drops
+  // it as permanent. The Title would silently never sync.
+  const attrs = {
+    tmdbId: tmdbId(attributes.tmdbId),
+    name: requiredText(attributes.name, "A title"),
+    mediaType: attributes.mediaType,
+    releaseYear: releaseYear(attributes.releaseYear),
+    runtime: runtimeMinutes(attributes.runtime),
+    language: attributes.language?.trim() || null,
+  };
+
   const existing = await db.getOptional<{ id: string }>(
     `select id from title where tmdb_id = ?`,
-    [attributes.tmdbId],
+    [attrs.tmdbId],
   );
   const now = timestamp();
 
@@ -144,11 +159,11 @@ export async function upsertTmdbTitle(
               language = ?, attributes_refreshed_at = ?
        where id = ?`,
       [
-        attributes.name,
-        attributes.mediaType,
-        attributes.releaseYear ?? null,
-        attributes.runtime ?? null,
-        attributes.language ?? null,
+        attrs.name,
+        attrs.mediaType,
+        attrs.releaseYear,
+        attrs.runtime,
+        attrs.language,
         now,
         existing.id,
       ],
@@ -163,12 +178,12 @@ export async function upsertTmdbTitle(
      values (?, ?, ?, ?, ?, ?, ?, ?, null, ?)`,
     [
       id,
-      attributes.tmdbId,
-      attributes.name,
-      attributes.mediaType,
-      attributes.releaseYear ?? null,
-      attributes.runtime ?? null,
-      attributes.language ?? null,
+      attrs.tmdbId,
+      attrs.name,
+      attrs.mediaType,
+      attrs.releaseYear,
+      attrs.runtime,
+      attrs.language,
       now,
       now,
     ],
@@ -188,8 +203,7 @@ export async function createLocalTitle(
   db: AbstractPowerSyncDatabase,
   input: { householdId: string; name: string; userId: string },
 ): Promise<string> {
-  const name = input.name.trim();
-  if (!name) throw new Error("A title needs a name");
+  const name = requiredText(input.name, "A title");
 
   const id = newId();
   const now = timestamp();

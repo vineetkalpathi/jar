@@ -8,6 +8,7 @@
 
 import type { AbstractPowerSyncDatabase } from "@powersync/react-native";
 import { cooldownWeight, weightedSample, type Weighted } from "../../draw/cooldown";
+import { drawSize, nonEmpty } from "../constraints";
 import { newId } from "../ids";
 import type { DrawRow, TitleRow } from "../schema";
 import { parseTimestamp, timestamp } from "../time";
@@ -58,12 +59,8 @@ export async function startDraw(
     random?: () => number;
   },
 ): Promise<string> {
-  if (!Number.isInteger(input.n) || input.n < 1) {
-    throw new Error(`A draw serves at least one candidate, got ${input.n}`);
-  }
-  if (input.participantIds.length === 0) {
-    throw new Error("A draw needs at least one participant");
-  }
+  const wanted = drawSize(input.n);
+  const participantIds = nonEmpty(input.participantIds, "A draw's participants");
 
   const now = input.now ?? new Date();
   const eligible = await weighUp(db, input.jarId, now);
@@ -75,7 +72,7 @@ export async function startDraw(
   }
 
   // Fewer titles than asked for is fine — a Jar with two serves two.
-  const candidates = weightedSample(eligible, input.n, input.random);
+  const candidates = weightedSample(eligible, wanted, input.random);
 
   const drawId = newId();
   await db.writeTransaction(async (tx) => {
@@ -85,7 +82,7 @@ export async function startDraw(
       [drawId, input.jarId, timestamp(now), candidates.length],
     );
 
-    for (const userId of input.participantIds) {
+    for (const userId of participantIds) {
       // A participant who is not a household member is a Guest, and that is allowed:
       // they take part in the knock-outs without touching the Household's vocabulary.
       await tx.execute(
