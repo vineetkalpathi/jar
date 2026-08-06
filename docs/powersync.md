@@ -85,8 +85,21 @@ They are organised to mirror the scoping in [data-model.md](./data-model.md):
 - **global rows** — narrowed to the subset the user's Libraries actually reference, so
   a device never replicates the entire title catalogue
 
-> ⚠️ The current file is a **draft** and has not been validated against a live
-> PowerSync instance. Validate it in the Dashboard before relying on it.
+### Never alias the table being selected from
+
+A row is published under the name it is selected *as*, so `SELECT h.* FROM household h`
+syncs into a local table called `h`. The client declares `household`, so the query
+succeeds, replicates correctly, and lands somewhere nothing reads — an account that
+looks empty rather than broken.
+
+Joined tables are unaffected: their aliases only exist to write the `ON` clause and
+never reach the client. Only the source table is spelled out in full, and every query
+in the file follows that rule. The dashboard validator warns about this, and it caught
+it here on every one of the seven streams.
+
+`src/lib/db/sync-rules.test.ts` now checks it, along with the rest of the agreement
+between this file and `schema.ts`: no aliased sources, nothing published that the
+client does not declare, and nothing declared that never syncs.
 
 ## 4. Client auth
 
@@ -136,8 +149,11 @@ list rather than an exceptional one — see the surrogate id note above.
 
 ## Verifying the two layers agree
 
-There is no automated check that sync rules and RLS policies grant the same visibility.
-Until there is, the manual test is: sign in as a user in one Household, confirm the
+The structural half is automated in `src/lib/db/sync-rules.test.ts` — that the rules and
+the client schema name the same tables. That is the cheap half.
+
+The expensive half, whether the rules and the RLS policies grant the same *visibility*,
+has no automated check. Until it does, the manual test is: sign in as a user in one Household, confirm the
 local SQLite replica contains nothing belonging to another. The RLS half already has a
 test at [`supabase/tests/rls_test.sql`](../supabase/tests/rls_test.sql); the sync half
 does not.

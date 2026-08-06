@@ -1,8 +1,5 @@
 # PowerSync sync rules for Jar
 #
-# ⚠️  DRAFT — not yet validated against a PowerSync instance. Validate in the
-#     PowerSync Dashboard's Sync Streams view before deploying.
-#
 # These rules decide what reaches a device. PowerSync connects with a BYPASSRLS role
 # and reads the write-ahead log, so the RLS policies in supabase/migrations/ do NOT
 # constrain replication — they only guard writes through the Supabase Data API.
@@ -14,6 +11,17 @@
 #                            (Filters aggregate members' Ratings, so they must be local)
 #   global rows            → only the subset the user's libraries actually reference,
 #                            so a device never replicates the whole title catalogue
+#
+# ── Do not alias the table being selected from ──────────────────────────────
+#
+# A row is published under the name it is selected as, so `SELECT h.* FROM household h`
+# syncs into a local table called `h`. src/lib/db/schema.ts declares `household`, so
+# every such query would sync perfectly and land somewhere nothing reads — an account
+# that looks empty rather than broken.
+#
+# Joined tables are different: their aliases exist only to write the ON clause and never
+# reach the client, so `hm`, `le` and friends are kept for brevity. Only the source table
+# is spelled out in full. The dashboard validator warns about this; heed it.
 
 config:
   edition: 3
@@ -24,19 +32,20 @@ streams:
   households:
     auto_subscribe: true
     queries:
-      - SELECT h.* FROM household h
-        INNER JOIN household_member hm ON hm.household_id = h.id
+      - SELECT household.* FROM household
+        INNER JOIN household_member hm ON hm.household_id = household.id
         WHERE hm.user_id = auth.user_id()
 
       # Every membership row of every household I'm in, so the app knows who my
-      # co-members are and can resolve default rater populations.
-      - SELECT peer.* FROM household_member peer
-        INNER JOIN household_member me ON me.household_id = peer.household_id
+      # co-members are and can resolve default rater populations. The second copy of
+      # the table is the one that gets an alias, since the source cannot have one.
+      - SELECT household_member.* FROM household_member
+        INNER JOIN household_member me ON me.household_id = household_member.household_id
         WHERE me.user_id = auth.user_id()
 
       # Display names for those co-members.
-      - SELECT u.* FROM app_user u
-        INNER JOIN household_member peer ON peer.user_id = u.id
+      - SELECT app_user.* FROM app_user
+        INNER JOIN household_member peer ON peer.user_id = app_user.id
         INNER JOIN household_member me ON me.household_id = peer.household_id
         WHERE me.user_id = auth.user_id()
 
@@ -45,20 +54,20 @@ streams:
   library:
     auto_subscribe: true
     queries:
-      - SELECT le.* FROM library_entry le
-        INNER JOIN household_member hm ON hm.household_id = le.household_id
+      - SELECT library_entry.* FROM library_entry
+        INNER JOIN household_member hm ON hm.household_id = library_entry.household_id
         WHERE hm.user_id = auth.user_id()
 
-      - SELECT t.* FROM tag t
-        INNER JOIN household_member hm ON hm.household_id = t.household_id
+      - SELECT tag.* FROM tag
+        INNER JOIN household_member hm ON hm.household_id = tag.household_id
         WHERE hm.user_id = auth.user_id()
 
-      - SELECT tt.* FROM title_tag tt
-        INNER JOIN household_member hm ON hm.household_id = tt.household_id
+      - SELECT title_tag.* FROM title_tag
+        INNER JOIN household_member hm ON hm.household_id = title_tag.household_id
         WHERE hm.user_id = auth.user_id()
 
-      - SELECT hc.* FROM household_category hc
-        INNER JOIN household_member hm ON hm.household_id = hc.household_id
+      - SELECT household_category.* FROM household_category
+        INNER JOIN household_member hm ON hm.household_id = household_category.household_id
         WHERE hm.user_id = auth.user_id()
 
   # --- Global catalogue, narrowed to what my libraries reference -------------
@@ -69,23 +78,23 @@ streams:
   catalogue:
     auto_subscribe: true
     queries:
-      - SELECT ti.* FROM title ti
-        INNER JOIN library_entry le ON le.title_id = ti.id
+      - SELECT title.* FROM title
+        INNER JOIN library_entry le ON le.title_id = title.id
         INNER JOIN household_member hm ON hm.household_id = le.household_id
         WHERE hm.user_id = auth.user_id()
 
-      - SELECT tg.* FROM title_genre tg
-        INNER JOIN library_entry le ON le.title_id = tg.title_id
+      - SELECT title_genre.* FROM title_genre
+        INNER JOIN library_entry le ON le.title_id = title_genre.title_id
         INNER JOIN household_member hm ON hm.household_id = le.household_id
         WHERE hm.user_id = auth.user_id()
 
-      - SELECT tc.* FROM title_credit tc
-        INNER JOIN library_entry le ON le.title_id = tc.title_id
+      - SELECT title_credit.* FROM title_credit
+        INNER JOIN library_entry le ON le.title_id = title_credit.title_id
         INNER JOIN household_member hm ON hm.household_id = le.household_id
         WHERE hm.user_id = auth.user_id()
 
-      - SELECT p.* FROM person p
-        INNER JOIN title_credit tc ON tc.person_id = p.id
+      - SELECT person.* FROM person
+        INNER JOIN title_credit tc ON tc.person_id = person.id
         INNER JOIN library_entry le ON le.title_id = tc.title_id
         INNER JOIN household_member hm ON hm.household_id = le.household_id
         WHERE hm.user_id = auth.user_id()
@@ -102,31 +111,31 @@ streams:
   jars:
     auto_subscribe: true
     queries:
-      - SELECT j.* FROM jar j
-        INNER JOIN household_member hm ON hm.household_id = j.household_id
+      - SELECT jar.* FROM jar
+        INNER JOIN household_member hm ON hm.household_id = jar.household_id
         WHERE hm.user_id = auth.user_id()
 
-      - SELECT jo.* FROM jar_override jo
-        INNER JOIN jar j ON j.id = jo.jar_id
+      - SELECT jar_override.* FROM jar_override
+        INNER JOIN jar j ON j.id = jar_override.jar_id
         INNER JOIN household_member hm ON hm.household_id = j.household_id
         WHERE hm.user_id = auth.user_id()
 
   draws:
     auto_subscribe: true
     queries:
-      - SELECT d.* FROM draw d
+      - SELECT draw.* FROM draw
+        INNER JOIN jar j ON j.id = draw.jar_id
+        INNER JOIN household_member hm ON hm.household_id = j.household_id
+        WHERE hm.user_id = auth.user_id()
+
+      - SELECT draw_participant.* FROM draw_participant
+        INNER JOIN draw d ON d.id = draw_participant.draw_id
         INNER JOIN jar j ON j.id = d.jar_id
         INNER JOIN household_member hm ON hm.household_id = j.household_id
         WHERE hm.user_id = auth.user_id()
 
-      - SELECT dp.* FROM draw_participant dp
-        INNER JOIN draw d ON d.id = dp.draw_id
-        INNER JOIN jar j ON j.id = d.jar_id
-        INNER JOIN household_member hm ON hm.household_id = j.household_id
-        WHERE hm.user_id = auth.user_id()
-
-      - SELECT dc.* FROM draw_candidate dc
-        INNER JOIN draw d ON d.id = dc.draw_id
+      - SELECT draw_candidate.* FROM draw_candidate
+        INNER JOIN draw d ON d.id = draw_candidate.draw_id
         INNER JOIN jar j ON j.id = d.jar_id
         INNER JOIN household_member hm ON hm.household_id = j.household_id
         WHERE hm.user_id = auth.user_id()
@@ -140,12 +149,12 @@ streams:
   opinions:
     auto_subscribe: true
     queries:
-      - SELECT r.* FROM rating r
-        INNER JOIN household_member peer ON peer.user_id = r.user_id
+      - SELECT rating.* FROM rating
+        INNER JOIN household_member peer ON peer.user_id = rating.user_id
         INNER JOIN household_member me ON me.household_id = peer.household_id
         WHERE me.user_id = auth.user_id()
 
-      - SELECT v.* FROM viewing v
-        INNER JOIN household_member peer ON peer.user_id = v.user_id
+      - SELECT viewing.* FROM viewing
+        INNER JOIN household_member peer ON peer.user_id = viewing.user_id
         INNER JOIN household_member me ON me.household_id = peer.household_id
         WHERE me.user_id = auth.user_id()
