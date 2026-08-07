@@ -6,7 +6,6 @@
 
 import { createClient } from "@supabase/supabase-js";
 import Storage from "expo-sqlite/kv-store";
-import "react-native-url-polyfill/auto";
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const key = process.env.EXPO_PUBLIC_SUPABASE_KEY;

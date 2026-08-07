@@ -10,7 +10,8 @@ import type { AbstractPowerSyncDatabase } from "@powersync/react-native";
 import type { TitleRow } from "../schema";
 import { releaseYear, requiredText, runtimeMinutes, tmdbId } from "../constraints";
 import { newId } from "../ids";
-import { timestamp } from "../time";
+import { findOrInsert } from "../upsert";
+import { timestamp } from "../../time";
 
 /**
  * A Household's Library with the facts every list view needs, derived rather than
@@ -76,17 +77,19 @@ export async function addToLibrary(
   db: AbstractPowerSyncDatabase,
   input: { householdId: string; titleId: string; userId: string },
 ): Promise<void> {
-  const existing = await db.getOptional<{ id: string }>(
-    `select id from library_entry where household_id = ? and title_id = ?`,
-    [input.householdId, input.titleId],
-  );
-  if (existing) return;
-
-  await db.execute(
-    `insert into library_entry (id, household_id, title_id, added_by_user_id, added_at)
-     values (?, ?, ?, ?, ?)`,
-    [newId(), input.householdId, input.titleId, input.userId, timestamp()],
-  );
+  await findOrInsert(db, {
+    table: "library_entry",
+    where: {
+      sql: "household_id = ? and title_id = ?",
+      params: [input.householdId, input.titleId],
+    },
+    row: {
+      household_id: input.householdId,
+      title_id: input.titleId,
+      added_by_user_id: input.userId,
+      added_at: timestamp(),
+    },
+  });
 }
 
 /**

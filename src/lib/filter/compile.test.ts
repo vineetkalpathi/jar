@@ -423,6 +423,63 @@ describe("library and draw history", () => {
   });
 });
 
+describe("an empty population matches nothing, in every polarity", () => {
+  // Reachable before household membership has synced. Emitting `user_id in (null)`
+  // instead inverts the negative operators: count(...) = 0 becomes true of every
+  // Title, so `not_by_any` matched the entire Library and `by_all` passed as 0 = 0.
+  const noMembers = { members: [] };
+
+  it("does not let `not_by_any` match the whole library", () => {
+    expect(
+      matching({ kind: "predicate", leaf: "watched", op: "not_by_any" }, noMembers),
+    ).toEqual([]);
+  });
+
+  it("does not let `by_all` pass vacuously", () => {
+    expect(
+      matching({ kind: "predicate", leaf: "watched", op: "by_all" }, noMembers),
+    ).toEqual([]);
+    expect(
+      matching({ kind: "predicate", leaf: "watched", op: "not_by_all" }, noMembers),
+    ).toEqual([]);
+  });
+
+  it("covers watchCount and lastWatched too", () => {
+    expect(
+      matching(
+        { kind: "predicate", leaf: "watchCount", op: "eq", value: 0 },
+        noMembers,
+      ),
+    ).toEqual([]);
+    expect(
+      matching(
+        {
+          kind: "predicate",
+          leaf: "lastWatched",
+          op: "older_than",
+          duration: { amount: 1, unit: "day" },
+        },
+        noMembers,
+      ),
+    ).toEqual([]);
+  });
+
+  it("covers ratings, including is_null", () => {
+    expect(
+      matching(
+        { kind: "predicate", leaf: "rating", categoryId: PLOT, op: "is_null" },
+        noMembers,
+      ),
+    ).toEqual([]);
+    expect(
+      matching(
+        { kind: "predicate", leaf: "rating", categoryId: PLOT, op: "gte", value: 1 },
+        noMembers,
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe("the worked examples from filter-leaves.md", () => {
   it("short weeknight pick", () => {
     expect(

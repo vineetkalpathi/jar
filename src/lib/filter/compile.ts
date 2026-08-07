@@ -32,6 +32,8 @@
  *     one that is then discarded leaves a value with no `?`.
  */
 
+import { date as isoDate, subtract, timestamp as isoTimestamp } from "../time";
+import { lastDrawnInHousehold, lastDrawnInJar, lastWatchedBy } from "./recency";
 import {
   LEAF_SPECS,
   type ComparisonOp,
@@ -69,11 +71,13 @@ type Sql = () => string;
  *
  * This is the Filter half only. Jar contents are
  * `(Library ∩ filter) ∪ Pins − Exclusions` — use `compileJarContents`.
+ *
+ * `filter` is required. A Jar with no Filter is not one whose Filter matches
+ * everything; it is a hand-curated list of its Pins, and only `compileJarContents`
+ * knows that. Accepting null here meant one absent Filter compiled to the whole Library
+ * through this entry point and to nothing through the other.
  */
-export function compileFilter(
-  filter: Filter | null,
-  ctx: CompileContext,
-): CompiledQuery {
+export function compileFilter(filter: Filter, ctx: CompileContext): CompiledQuery {
   const c = new Compiler(ctx);
 
   const sql =
@@ -81,7 +85,7 @@ export function compileFilter(
     `from library_entry le\n` +
     `join title t on t.id = le.title_id\n` +
     `where le.household_id = ${c.param(ctx.householdId)}\n` +
-    `  and (${filter ? c.node(filter.root) : "1"})`;
+    `  and (${c.node(filter.root)})`;
 
   return { sql, params: c.params };
 }
@@ -239,6 +243,7 @@ class Compiler {
 
       case "watched": {
         const people = this.people(p.population);
+        if (people.length === 0) return Compiler.MATCHES_NOTHING;
         const watchers: Sql = () =>
           `(select count(distinct v.user_id) from viewing v\n` +
           `  where v.title_id = t.id and v.user_id in (${this.inList(people)}))`;
@@ -257,6 +262,7 @@ class Compiler {
 
       case "watchCount": {
         const people = this.people(p.population);
+        if (people.length === 0) return Compiler.MATCHES_NOTHING;
         return (
           `(select count(*) from viewing v\n` +
           `  where v.title_id = t.id and v.user_id in (${this.inList(people)}))` +
@@ -270,9 +276,8 @@ class Compiler {
       // explicit, and "never watched" is `watched not_by_any` instead.
       case "lastWatched": {
         const people = this.people(p.population);
-        const lastSeen: Sql = () =>
-          `(select max(v.watched_on) from viewing v\n` +
-          `  where v.title_id = t.id and v.user_id in (${this.inList(people)}))`;
+        if (people.length === 0) return Compiler.MATCHES_NOTHING;
+        const lastSeen: Sql = () => lastWatchedBy(this.inList(people));
         return this.time(lastSeen, p, "date");
       }
 
@@ -295,14 +300,8 @@ class Compiler {
 
         const lastDrawn: Sql = () =>
           scope === "this_jar"
-            ? `(select max(d.drawn_at) from draw_candidate dc\n` +
-              `  join draw d on d.id = dc.draw_id\n` +
-              `  where dc.title_id = t.id and d.jar_id = ${this.param(this.ctx.jarId!)})`
-            : `(select max(d.drawn_at) from draw_candidate dc\n` +
-              `  join draw d on d.id = dc.draw_id\n` +
-              `  join jar j on j.id = d.jar_id\n` +
-              `  where dc.title_id = t.id\n` +
-              `    and j.household_id = ${this.param(this.ctx.householdId)})`;
+            ? lastDrawnInJar(this.param(this.ctx.jarId!))
+            : lastDrawnInHousehold(this.param(this.ctx.householdId));
 
         // "Never drawn" — the one null case the Draw leaf has, because unlike
         // "never watched" there is no other leaf that expresses it.
@@ -327,6 +326,8 @@ class Compiler {
 
   private rating(p: Extract<FilterPredicate, { leaf: "rating" }>): string {
     const raters = this.people(p.raters);
+    if (raters.length === 0) return Compiler.MATCHES_NOTHING;
+
     const coverage = p.coverage ?? this.ctx.coverage;
     const aggregator = p.aggregator ?? this.ctx.aggregator;
 
@@ -363,7 +364,7 @@ class Compiler {
    * same instant and sort differently.
    *
    * Both renderings genuinely occur in the same column: rows written on the device use
-   * SQLite's canonical form (`src/lib/db/values.ts`), while rows replicated from
+   * SQLite's canonical form (`src/lib/time.ts`), while rows replicated from
    * Postgres are rendered by PowerSync. `normaliseTime` reduces either to something
    * `julianday` will parse — which matters because `julianday` returns NULL on a form
    * it dislikes, and a NULL comparison is indistinguishable from "does not match".
@@ -403,25 +404,14 @@ class Compiler {
     }
   }
 
-  /** The instant `duration` before now, formatted for SQLite's date parser. */
+  /**
+   * The instant `duration` before now, formatted for SQLite's date parser.
+   *
+   * The arithmetic clamps rather than rolling over — see `subtract` in `time.ts` for
+   * why 31 March minus one month has to be 28 February and not 3 March.
+   */
   private ago(duration: Duration, precision: "date" | "timestamp"): string {
-    const d = new Date(this.now.getTime());
-
-    switch (duration.unit) {
-      case "day":
-        d.setUTCDate(d.getUTCDate() - duration.amount);
-        break;
-      case "week":
-        d.setUTCDate(d.getUTCDate() - duration.amount * 7);
-        break;
-      case "month":
-        d.setUTCMonth(d.getUTCMonth() - duration.amount);
-        break;
-      case "year":
-        d.setUTCFullYear(d.getUTCFullYear() - duration.amount);
-        break;
-    }
-
+    const d = subtract(this.now, duration.amount, duration.unit);
     return precision === "date" ? isoDate(d) : isoTimestamp(d);
   }
 
@@ -435,13 +425,22 @@ class Compiler {
 
   /** Binds one placeholder per id. Emitted fresh at each occurrence. */
   private inList(ids: string[]): string {
-    // A Household always has at least one member, so the empty case is defence against
-    // a caller passing nothing rather than a state the app can reach. Matching nobody
-    // is the safe direction: it under-fills a Jar instead of leaking another group's
-    // rows into it.
-    if (ids.length === 0) return "null";
     return ids.map((id) => this.param(id)).join(", ");
   }
+
+  /**
+   * SQL matching nothing, for a people-spanning leaf whose population is empty.
+   *
+   * Every such leaf guards on this before building anything, because emitting
+   * `user_id in (null)` instead does not merely under-fill a Jar — it inverts the
+   * negative operators. `count(...) = 0` is then true of every Title, so
+   * `watched not_by_any` matches the entire Library and `watched by_all` passes as
+   * `0 = 0`. ADR-0006 says that leaf means plainly "nobody has seen it".
+   *
+   * A Household always has members, so this is reachable only before membership has
+   * synced. An empty Jar during that window is honest; a full one is not.
+   */
+  private static readonly MATCHES_NOTHING = "0";
 }
 
 // ---------------------------------------------------------------------------
@@ -452,21 +451,11 @@ class Compiler {
  * suffix, whether that is `Z`, `+00` or `+00:00`.
  *
  * Discarding the offset is safe rather than lossy: PowerSync replicates `timestamptz`
- * in UTC and `values.ts` writes UTC, so every value in these columns is already UTC.
+ * in UTC and `time.ts` writes UTC, so every value in these columns is already UTC.
  * A plain date (`YYYY-MM-DD`) passes through untouched, being shorter than the cut.
  */
 function normaliseTime(expr: string): string {
   return `replace(substr(${expr}, 1, 19), 'T', ' ')`;
-}
-
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function isoTimestamp(d: Date): string {
-  // SQLite's canonical form. `julianday` accepts the 'T' variant too, but not every
-  // offset spelling, so normalising here keeps both sides of the comparison agreeing.
-  return d.toISOString().slice(0, 19).replace("T", " ");
 }
 
 /** Absolute `between` is inclusive, so the upper bound extends to the day's end. */

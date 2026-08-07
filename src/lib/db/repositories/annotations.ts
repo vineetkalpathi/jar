@@ -13,7 +13,8 @@ import type { AbstractPowerSyncDatabase } from "@powersync/react-native";
 import type { RatingRow, TagRow, ViewingRow } from "../schema";
 import { ratingValue, requiredText } from "../constraints";
 import { newId } from "../ids";
-import { date, timestamp } from "../time";
+import { findOrInsert } from "../upsert";
+import { date, timestamp } from "../../time";
 
 // ---------------------------------------------------------------------------
 // Tags
@@ -47,35 +48,32 @@ export async function findOrCreateTag(
 ): Promise<string> {
   const trimmed = requiredText(name, "A tag");
 
-  const existing = await db.getOptional<{ id: string }>(
-    `select id from tag where household_id = ? and lower(name) = lower(?)`,
-    [householdId, trimmed],
-  );
-  if (existing) return existing.id;
-
-  const id = newId();
-  await db.execute(`insert into tag (id, household_id, name) values (?, ?, ?)`, [
-    id,
-    householdId,
-    trimmed,
-  ]);
-  return id;
+  return findOrInsert(db, {
+    table: "tag",
+    where: {
+      sql: "household_id = ? and lower(name) = lower(?)",
+      params: [householdId, trimmed],
+    },
+    row: { household_id: householdId, name: trimmed },
+  });
 }
 
 export async function tagTitle(
   db: AbstractPowerSyncDatabase,
   input: { householdId: string; titleId: string; tagId: string },
 ): Promise<void> {
-  const existing = await db.getOptional<{ id: string }>(
-    `select id from title_tag where household_id = ? and title_id = ? and tag_id = ?`,
-    [input.householdId, input.titleId, input.tagId],
-  );
-  if (existing) return;
-
-  await db.execute(
-    `insert into title_tag (id, household_id, title_id, tag_id) values (?, ?, ?, ?)`,
-    [newId(), input.householdId, input.titleId, input.tagId],
-  );
+  await findOrInsert(db, {
+    table: "title_tag",
+    where: {
+      sql: "household_id = ? and title_id = ? and tag_id = ?",
+      params: [input.householdId, input.titleId, input.tagId],
+    },
+    row: {
+      household_id: input.householdId,
+      title_id: input.titleId,
+      tag_id: input.tagId,
+    },
+  });
 }
 
 export async function untagTitle(

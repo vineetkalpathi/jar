@@ -20,6 +20,56 @@ export function date(on: Date = new Date()): string {
   return on.toISOString().slice(0, 10);
 }
 
+export type DurationUnit = "day" | "week" | "month" | "year";
+
+/**
+ * `from` minus a whole number of units, clamping the day to the target month's length.
+ *
+ * The clamp is the entire point. JavaScript's own setters keep the day-of-month fixed
+ * and let an impossible date roll forward, so `setUTCMonth(m - 1)` on 31 March asks for
+ * 31 February and lands on 3 March. A jar filtering `lastWatched older_than 1 month`
+ * would then use a cutoff three days into March and admit Viewings three days old as
+ * though they were over a month old.
+ *
+ * It misfires only when the day-of-month exceeds the target month's length — the 29th
+ * to 31st, and 29 February for years — and always in the direction of admitting titles
+ * that should have been excluded. ADR-0006 makes the relative form the one the builder
+ * offers first, so this is the common path rather than an edge.
+ *
+ * 31 March minus one month is therefore 28 February, not 3 March.
+ */
+export function subtract(from: Date, amount: number, unit: DurationUnit): Date {
+  const result = new Date(from.getTime());
+
+  switch (unit) {
+    case "day":
+      result.setUTCDate(result.getUTCDate() - amount);
+      return result;
+    case "week":
+      result.setUTCDate(result.getUTCDate() - amount * 7);
+      return result;
+    case "month":
+      return subtractMonths(result, amount);
+    case "year":
+      return subtractMonths(result, amount * 12);
+  }
+}
+
+function subtractMonths(date: Date, months: number): Date {
+  const day = date.getUTCDate();
+
+  // Move to the 1st before shifting the month, so the shift itself cannot roll over.
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() - months);
+
+  const lastDayOfTargetMonth = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+
+  date.setUTCDate(Math.min(day, lastDayOfTargetMonth));
+  return date;
+}
+
 /**
  * Parses any of the renderings that reach these columns, returning null for anything
  * unrecognisable rather than an Invalid Date — a bad value should read as "no

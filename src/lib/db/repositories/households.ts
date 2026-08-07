@@ -11,7 +11,8 @@ import { STARTER_RATING_CATEGORIES } from "../../rating-categories";
 import type { HouseholdRow, RatingCategoryRow } from "../schema";
 import { requiredText } from "../constraints";
 import { newId } from "../ids";
-import { timestamp } from "../time";
+import { findOrInsert } from "../upsert";
+import { timestamp } from "../../time";
 
 /** Households the signed-in user belongs to. Parameters: `[userId]`. */
 export const HOUSEHOLDS_FOR_USER = `
@@ -128,16 +129,14 @@ export async function activateCategory(
   householdId: string,
   categoryId: string,
 ): Promise<void> {
-  const existing = await db.getOptional<{ id: string }>(
-    `select id from household_category where household_id = ? and category_id = ?`,
-    [householdId, categoryId],
-  );
-  if (existing) return;
-
-  await db.execute(
-    `insert into household_category (id, household_id, category_id) values (?, ?, ?)`,
-    [newId(), householdId, categoryId],
-  );
+  await findOrInsert(db, {
+    table: "household_category",
+    where: {
+      sql: "household_id = ? and category_id = ?",
+      params: [householdId, categoryId],
+    },
+    row: { household_id: householdId, category_id: categoryId },
+  });
 }
 
 export async function deactivateCategory(

@@ -127,7 +127,11 @@ the service role, at which point those three become select-only.
 
 ## Still to build
 
-**PowerSync sync rules.** [ADR-0004](./adr/0004-local-first-sync-on-supabase-and-powersync.md)
-notes that authorisation is encoded in two places that must agree. The RLS policies here
-are one; the PowerSync sync rules are the other, and they do not exist yet. A mismatch
-shows up as data that syncs but shouldn't, or doesn't sync and should.
+**Agreement between the two authorisation layers.**
+[ADR-0004](./adr/0004-local-first-sync-on-supabase-and-powersync.md) notes that
+authorisation is encoded in two places that must agree: the RLS policies here, and
+[`powersync/sync-rules.yaml`](../powersync/sync-rules.yaml). Both now exist, and
+`src/lib/db/sync-rules.test.ts` checks that the rules and the client schema name the
+same tables — but nothing checks that the rules and the policies grant the same
+*visibility*. A mismatch shows up as data that syncs but shouldn't, or doesn't sync and
+should.

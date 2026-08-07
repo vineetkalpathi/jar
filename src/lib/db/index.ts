@@ -1,7 +1,7 @@
 export * from "./database";
 export * from "./constraints";
 export * from "./ids";
-export * from "./time";
+export * from "../time";
 
 export * as annotations from "./repositories/annotations";
 export * as draws from "./repositories/draws";

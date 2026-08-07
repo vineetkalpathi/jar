@@ -86,8 +86,17 @@ create table title (
   created_at              timestamptz not null default now(),
 
   constraint title_runtime_positive check (runtime is null or runtime > 0),
-  -- A hand-entered title has no TMDB identity, and vice versa.
-  constraint title_unlinked_has_owner check (tmdb_id is not null or owner_household_id is not null)
+  -- Exactly one of these is set. A Title is either TMDB's, and therefore global, or
+  -- hand-entered, and therefore private to the Household that created it — never both
+  -- and never neither.
+  --
+  -- Stated as a biconditional deliberately. `tmdb_id is not null or owner_household_id
+  -- is not null` reads as the same rule and is not: it forbids the case nobody would
+  -- write, an unlinked Title with no owner, while permitting the one the rule actually
+  -- prohibits, a TMDB-linked Title carrying an owner. Such a row is invisible to every
+  -- Household but its owner under title_select, so the film is hidden app-wide and the
+  -- next Household to add it cannot converge on the same row.
+  constraint title_ownership_exclusive check ((tmdb_id is null) <> (owner_household_id is null))
 );
 
 -- Two households adding the same film must converge on one row.

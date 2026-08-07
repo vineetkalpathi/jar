@@ -82,7 +82,9 @@ users and saved Filters stop matching. See
 
 ## Annotations
 
-**Tag** — household vocabulary. Unique on `(householdId, name)`.
+**Tag** — household vocabulary. Unique on `(householdId, name)`, case-insensitive:
+`Cozy` and `cozy` are one Tag, so a Household cannot accumulate two spellings of the
+same idea and then wonder why a Filter misses half its Titles.
 
 **TitleTag** — key `(householdId, titleId, tagId)`. Carries `householdId` explicitly
 because `titleId` is global.

@@ -9,10 +9,13 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/react-native";
 import { cooldownWeight, weightedSample, type Weighted } from "../../draw/cooldown";
 import { drawSize, nonEmpty } from "../constraints";
+import { lastDrawnInJar, lastWatchedBy } from "../../filter/recency";
+import { NotFoundError } from "../errors";
 import { newId } from "../ids";
-import type { DrawRow, TitleRow } from "../schema";
-import { parseTimestamp, timestamp } from "../time";
+import type { DrawRow, JarRow, TitleRow } from "../schema";
+import { parseTimestamp, timestamp } from "../../time";
 import { recordViewing } from "./annotations";
+import { memberIds } from "./households";
 import { jarContentsQuery } from "./jars";
 
 export type DrawOutcome = "in_progress" | "watched" | "abandoned" | "no_pick";
@@ -116,10 +119,19 @@ export async function weighUp(
 ): Promise<Weighted<string>[]> {
   const contents = await jarContentsQuery(db, jarId);
 
+  const jar = await db.getOptional<JarRow>(`select * from jar where id = ?`, [jarId]);
+  if (!jar) throw new NotFoundError(`No jar ${jarId}`);
+  const members = await memberIds(db, jar.household_id!);
+
+  // The two scopings are ADR-0006's, and the fragments are the same ones the filter
+  // compiler emits for `lastDrawn` and `lastWatched` — shared so they cannot drift.
+  //
   // Last drawn is scoped to this Jar, matching the default scope of the `lastDrawn`
-  // filter leaf: another Jar serving it says nothing about this one's rhythm. Last
-  // watched is scoped to the Household instead — "we have seen this recently" is a
-  // fact about the group, not about which Jar it came out of (ADR-0006).
+  // leaf: another Jar serving a Title says nothing about this one's rhythm. Last
+  // watched is scoped to the Household, because "we have seen this recently" is a fact
+  // about the group rather than about where it came from.
+  const watchers = members.map(() => "?").join(", ") || "null";
+
   const rows = await db.getAll<{
     id: string;
     last_drawn_at: string | null;
@@ -127,16 +139,11 @@ export async function weighUp(
   }>(
     `select
        t.id,
-       (select max(d.drawn_at) from draw_candidate dc
-          join draw d on d.id = dc.draw_id
-          where dc.title_id = t.id and d.jar_id = ?)          as last_drawn_at,
-       (select max(v.watched_on) from viewing v
-          join household_member hm on hm.user_id = v.user_id
-          join jar j on j.household_id = hm.household_id
-          where v.title_id = t.id and j.id = ?)               as last_watched_on
+       ${lastDrawnInJar("?")} as last_drawn_at,
+       ${lastWatchedBy(watchers)} as last_watched_on
      from title t
      where t.id in (${contents.sql})`,
-    [jarId, jarId, ...contents.params],
+    [jarId, ...members, ...contents.params],
   );
 
   return rows.map((row) => ({

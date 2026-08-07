@@ -15,8 +15,9 @@ import {
 } from "../../filter";
 import type { JarRow, TitleRow } from "../schema";
 import { requiredText } from "../constraints";
+import { NotFoundError } from "../errors";
 import { newId } from "../ids";
-import { timestamp } from "../time";
+import { timestamp } from "../../time";
 import { getHousehold, memberIds } from "./households";
 
 /** Jars belonging to a Household. Parameters: `[householdId]`. */
@@ -41,7 +42,7 @@ export async function loadCompileContext(
   jarId?: string,
 ): Promise<CompileContext> {
   const household = await getHousehold(db, householdId);
-  if (!household) throw new Error(`No household ${householdId}`);
+  if (!household) throw new NotFoundError(`No household ${householdId}`);
 
   return {
     householdId,
@@ -82,7 +83,7 @@ export async function jarContentsQuery(
   jarId: string,
 ): Promise<CompiledQuery> {
   const jar = await db.getOptional<JarRow>(`select * from jar where id = ?`, [jarId]);
-  if (!jar) throw new Error(`No jar ${jarId}`);
+  if (!jar) throw new NotFoundError(`No jar ${jarId}`);
 
   const contents = compileJarContents(
     { id: jar.id, filter: parseJarFilter(jar) },
