@@ -1,56 +1,48 @@
-# Welcome to your Expo app 👋
+# Jar
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A movie and TV log with customizable ratings, and **jars** — groupings of titles a watch
+group draws from at random when it's time to pick something to watch. Pull a few
+candidates out, knock them out one at a time, watch whatever survives.
+
+Built with [Expo](https://expo.dev) SDK 57 and React Native.
+
+## Documentation
+
+The design is complete and written down; application code is not yet started.
+**[docs/README.md](./docs/README.md)** is the entry point — it gives the reading order
+and a summary of the model.
+
+- **[CONTEXT.md](./CONTEXT.md)** — the glossary. Every domain term, precisely defined.
+- **[docs/data-model.md](./docs/data-model.md)** — entities, scoping, and the constraints that carry meaning.
+- **[docs/filter-leaves.md](./docs/filter-leaves.md)** — the closed catalogue of jar filter predicates.
+- **[docs/adr/](./docs/adr/)** — architecture decision records, with the reasoning behind each choice.
 
 ## Get started
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
 ```bash
-npm run reset-project
+pnpm install
+pnpm start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+From there you can open the app in a
+[development build](https://docs.expo.dev/develop/development-builds/introduction/), an
+[Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/), an
+[iOS simulator](https://docs.expo.dev/workflow/ios-simulator/), or
+[Expo Go](https://expo.dev/go).
 
-### Other setup steps
+Platform-specific builds:
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```bash
+pnpm ios      # expo run:ios
+pnpm android  # expo run:android
+pnpm web      # expo start --web
+```
 
-## Learn more
+Source lives in `src/`, which uses [file-based routing](https://docs.expo.dev/router/introduction)
+via `expo-router`.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Attribution
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+This product uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise
+approved by TMDB. The TMDB logo and this notice must appear in the app's About or
+Credits section — see [ADR-0003](./docs/adr/0003-tmdb-is-a-cached-enrichment-source.md).

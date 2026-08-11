@@ -1,0 +1,12 @@
+# Supabase
+.branches
+.temp
+
+# One-time SQL run by hand against the hosted project. These carry credentials,
+# so they stay out of git — see docs/powersync.md.
+snippets/
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local
