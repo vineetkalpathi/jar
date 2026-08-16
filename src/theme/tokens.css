@@ -1,0 +1,152 @@
+/*
+ * GENERATED FILE — do not edit.
+ *
+ * Written by `pnpm theme` from src/theme/tokens.ts. Change a value there and
+ * re-run; edits made here are lost on the next run.
+ */
+
+@theme {
+  --color-paper: #E9E1D6;
+  --color-paper-deep: #E2D9CC;
+  --color-card: #F8F4ED;
+  --color-chip: #DBD0BF;
+  --color-hairline: #CBBEA9;
+  --color-rim: #BAAB93;
+  --color-rim-deep: #A8977D;
+  --color-ink: #2E2A24;
+  --color-ink-secondary: #6B6155;
+  --color-ink-muted: #8A7F6E;
+  --color-ink-faint: #A79B87;
+  --color-forest: #3F5B4A;
+  --color-forest-pressed: #365040;
+  --color-rust: #A8492F;
+  --color-navy: #2D4356;
+  --color-amber: #C98A3C;
+  --color-dark-bg: #312F29;
+  --color-dark-surface: #423F39;
+  --color-dark-hairline: #57544D;
+  --color-dark-ink: #EBE3D9;
+  --color-dark-ink-secondary: #AEA89E;
+  --color-dark-ink-muted: #A19B92;
+  --color-dark-ink-faint: #6F6A63;
+
+  --font-display: Vollkorn;
+  --font-display-semi: Vollkorn_600SemiBold;
+  --font-ui: AlegreyaSans;
+  --font-ui-medium: AlegreyaSans_500Medium;
+  --font-ui-bold: AlegreyaSans_700Bold;
+  --font-hand: Caveat_600SemiBold;
+
+  --radius-card: 4px;
+  --radius-button: 4px;
+  --radius-sheet: 10px;
+
+  --text-screen-title: 36px;
+  --text-screen-title--line-height: 38px;
+  --text-layer-title: 33px;
+  --text-layer-title--line-height: 35px;
+  --text-section-title: 28px;
+  --text-section-title--line-height: 31px;
+  --text-title-large: 19px;
+  --text-title-large--line-height: 24px;
+  --text-jar-name: 16px;
+  --text-jar-name--line-height: 18px;
+  --text-slip: 21px;
+  --text-slip--line-height: 24px;
+  --text-slip-draw: 22px;
+  --text-slip-draw--line-height: 25px;
+  --text-slip-winner: 42px;
+  --text-slip-winner--line-height: 44px;
+  --text-body: 15px;
+  --text-body--line-height: 23px;
+  --text-button: 16px;
+  --text-meta: 12.5px;
+  --text-meta--line-height: 19px;
+  --text-meta-small: 11.5px;
+  --text-eyebrow: 11px;
+  --text-eyebrow-wide: 10px;
+}
+
+@utility type-screen-title {
+  font-family: Vollkorn;
+  font-size: 36px;
+  line-height: 38px;
+}
+
+@utility type-layer-title {
+  font-family: Vollkorn;
+  font-size: 33px;
+  line-height: 35px;
+}
+
+@utility type-section-title {
+  font-family: Vollkorn;
+  font-size: 28px;
+  line-height: 31px;
+}
+
+@utility type-title-large {
+  font-family: Vollkorn;
+  font-size: 19px;
+  line-height: 24px;
+}
+
+@utility type-jar-name {
+  font-family: Vollkorn;
+  font-size: 16px;
+  line-height: 18px;
+}
+
+@utility type-slip {
+  font-family: Caveat_600SemiBold;
+  font-size: 21px;
+  line-height: 24px;
+}
+
+@utility type-slip-draw {
+  font-family: Caveat_600SemiBold;
+  font-size: 22px;
+  line-height: 25px;
+}
+
+@utility type-slip-winner {
+  font-family: Caveat_600SemiBold;
+  font-size: 42px;
+  line-height: 44px;
+}
+
+@utility type-body {
+  font-family: AlegreyaSans;
+  font-size: 15px;
+  line-height: 23px;
+}
+
+@utility type-button {
+  font-family: AlegreyaSans_700Bold;
+  font-size: 16px;
+}
+
+@utility type-meta {
+  font-family: AlegreyaSans;
+  font-size: 12.5px;
+  line-height: 19px;
+}
+
+@utility type-meta-small {
+  font-family: AlegreyaSans;
+  font-size: 11.5px;
+}
+
+@utility type-eyebrow {
+  font-family: AlegreyaSans_500Medium;
+  font-size: 11px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
+
+@utility type-eyebrow-wide {
+  font-family: AlegreyaSans_500Medium;
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}

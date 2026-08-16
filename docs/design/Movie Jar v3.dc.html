@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Instrument+Serif:ital@0;1&family=Karla:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..700,0..100,0..1&family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Vollkorn:ital,wght@0,400;0,600;1,400&family=Alegreya+Sans:wght@400;500;700&family=Petrona:ital,wght@0,400;0,600;1,400&family=Cabin:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#EDE4D4;font-family:Karla,system-ui,sans-serif;--fd:'Instrument Serif',Georgia,serif;--fu:Karla,system-ui,sans-serif}
+a{color:#2D4356;text-decoration:none}a:hover{color:#3F5B4A}
+@keyframes jitter{0%{transform:translate(0,0) rotate(-3deg)}25%{transform:translate(-6px,4px) rotate(4deg)}50%{transform:translate(5px,-5px) rotate(-5deg)}75%{transform:translate(-4px,-3px) rotate(2deg)}100%{transform:translate(0,0) rotate(-1deg)}}
+@keyframes settle{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes glow{0%,100%{box-shadow:0 2px 10px rgba(46,42,36,.10),0 0 0 0 rgba(201,138,60,.28)}50%{box-shadow:0 2px 14px rgba(46,42,36,.12),0 0 44px 10px rgba(201,138,60,.30)}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes pushin{from{transform:translateX(46px);opacity:.2}to{transform:translateX(0);opacity:1}}
+@keyframes riseup{from{transform:translateY(70px);opacity:.2}to{transform:translateY(0);opacity:1}}
+</style>
+</helmet>
+
+<div style="display:flex;gap:52px;align-items:flex-start;padding:52px 58px 80px;background:#EDE4D4;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.85%27 numOctaves=%274%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23n)%27 opacity=%270.05%27/%3E%3C/svg%3E');min-height:100vh;box-sizing:border-box">
+
+  <div style="display:flex;flex-direction:column;gap:18px;flex:none">
+    <div style="max-width:430px">
+      <div style="font:400 13px/1 Karla;letter-spacing:.14em;text-transform:uppercase;color:#8A7F6E">Movie Jar — v3</div>
+      <div style="font:400 38px/1.05 Vollkorn,Georgia,serif;color:#2E2A24;margin-top:9px">Nine papers,<br>and a jar drawn in one line.</div>
+      <div style="font:400 14px/1.55 Karla;color:#6B6155;margin-top:11px;text-wrap:pretty">Five warm papers across yellow, orange, red and brown, plus the four greens. Flip between them on the same screen rather than judging swatches side by side — a hue that looks bold as a chip usually reads as almost nothing behind content. Currently Clay + Line-drawn.</div>
+    </div>
+
+    <div style="background:#FBF7EF;border:1px solid #D8CBB0;border-radius:5px;padding:13px 15px;display:flex;flex-direction:column;gap:12px">
+      <div>
+        <div style="font:500 10.5px Karla;letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E;margin-bottom:8px">Background — warm</div>
+        <div style="display:flex;gap:9px">
+          <sc-for list="{{ palettesWarm }}" as="pl" hint-placeholder-count="5">
+            <div onClick="{{ pl.pick }}" style="flex:1;cursor:pointer;text-align:center">
+              <div style="height:44px;border-radius:4px;border:{{ pl.rw }}px solid {{ pl.ring }};background:{{ pl.bg }};position:relative;overflow:hidden">
+                <div style="position:absolute;left:6px;right:6px;bottom:6px;height:15px;border-radius:2px;background:{{ pl.card }};border:1px solid {{ pl.bd }}"></div>
+                <div style="position:absolute;left:6px;top:6px;width:16px;height:16px;border-radius:3px;background:{{ pl.jar }}"></div>
+              </div>
+              <div style="font:600 9.5px Karla;color:{{ pl.fg }};margin-top:5px">{{ pl.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font:500 10.5px Karla;letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E;margin:13px 0 8px">Background — green</div>
+        <div style="display:flex;gap:9px">
+          <sc-for list="{{ palettesGreen }}" as="pl" hint-placeholder-count="4">
+            <div onClick="{{ pl.pick }}" style="flex:1;cursor:pointer;text-align:center">
+              <div style="height:44px;border-radius:4px;border:{{ pl.rw }}px solid {{ pl.ring }};background:{{ pl.bg }};position:relative;overflow:hidden">
+                <div style="position:absolute;left:6px;right:6px;bottom:6px;height:15px;border-radius:2px;background:{{ pl.card }};border:1px solid {{ pl.bd }}"></div>
+                <div style="position:absolute;left:6px;top:6px;width:16px;height:16px;border-radius:3px;background:{{ pl.jar }}"></div>
+              </div>
+              <div style="font:600 9.5px Karla;color:{{ pl.fg }};margin-top:5px">{{ pl.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <div style="font:500 10.5px Karla;letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E;margin-bottom:9px">Jar object — live</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <sc-for list="{{ jarStyles }}" as="js" hint-placeholder-count="5">
+            <button onClick="{{ js.pick }}" style="font:500 12px Karla;padding:7px 11px;border:1px solid {{ js.bd }};background:{{ js.bg }};color:{{ js.fg }};border-radius:4px;cursor:pointer">{{ js.name }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="font:500 10.5px Karla;letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E">Type pairing — live</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <sc-for list="{{ pairings }}" as="p" hint-placeholder-count="4">
+          <button onClick="{{ p.pick }}" style="font:500 12px Karla;padding:7px 11px;border:1px solid {{ p.bd }};background:{{ p.bg }};color:{{ p.fg }};border-radius:4px;cursor:pointer;text-align:left">{{ p.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:6px;max-width:430px">
+      <button onClick="{{ swipeLeft }}" style="font:500 12.5px Karla;padding:7px 11px;border:1px solid #D8CBB0;background:#FBF7EF;color:#2E2A24;border-radius:4px;cursor:pointer">← swipe</button>
+      <button onClick="{{ swipeRight }}" style="font:500 12.5px Karla;padding:7px 11px;border:1px solid #D8CBB0;background:#FBF7EF;color:#2E2A24;border-radius:4px;cursor:pointer">swipe →</button>
+      <button onClick="{{ openJar }}" style="font:500 12.5px Karla;padding:7px 11px;border:1px solid #D8CBB0;background:#FBF7EF;color:#2E2A24;border-radius:4px;cursor:pointer">Jar detail</button>
+      <button onClick="{{ openSetup }}" style="font:500 12.5px Karla;padding:7px 11px;border:1px solid #A8492F;background:#A8492F;color:#F4EDE1;border-radius:4px;cursor:pointer">Draw setup ▸</button>
+      <button onClick="{{ openTitle }}" style="font:500 12.5px Karla;padding:7px 11px;border:1px solid #2D4356;background:#2D4356;color:#F4EDE1;border-radius:4px;cursor:pointer">Title detail</button>
+      <button onClick="{{ openRate }}" style="font:500 12.5px Karla;padding:7px 11px;border:1px solid #2D4356;background:#2D4356;color:#F4EDE1;border-radius:4px;cursor:pointer">Rating entry</button>
+      <button onClick="{{ openAdd }}" style="font:500 12.5px Karla;padding:7px 11px;border:1px solid #D8CBB0;background:#FBF7EF;color:#2E2A24;border-radius:4px;cursor:pointer">Add ↑</button>
+    </div>
+
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+      <div style="height:100%;position:relative;overflow:hidden;background:var(--bg);--fd:{{ fd }};--fu:{{ fu }};--bg:{{ bg }};--bg2:{{ bg2 }};--card:{{ card }};--jar:{{ jarC }};--bd:{{ bd }};--rim:{{ rim }};--rim2:{{ rim2 }};--ink0:color-mix(in oklab, var(--bg) 13%, #16140F);--ink1:color-mix(in oklab, var(--bg) 21%, #16140F);--ink2:color-mix(in oklab, var(--bg) 31%, #16140F);--onink:color-mix(in oklab, var(--bg) 93%, #ffffff);--onink2:color-mix(in oklab, var(--bg) 72%, #16140F);--onink3:color-mix(in oklab, var(--bg) 66%, #16140F);--onink4:color-mix(in oklab, var(--bg) 42%, #16140F);font-variation-settings:{{ fvs }};background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27p%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.9%27 numOctaves=%274%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23p)%27 opacity=%270.055%27/%3E%3C/svg%3E')">
+
+        <!-- ══ BASE STRIP: Log · Jars · Library ══ -->
+        <div onPointerDown="{{ onDown }}" onPointerMove="{{ onMove }}" onPointerUp="{{ onUp }}" onPointerCancel="{{ onUp }}" style="position:absolute;inset:0;touch-action:pan-y">
+          <div style="display:flex;width:1206px;height:100%;transform:translateX({{ stripX }}px);transition:{{ stripEase }}">
+
+            <!-- LOG -->
+            <div style="width:402px;flex:none;height:100%;box-sizing:border-box;overflow:auto;padding:76px 0 112px">
+              <div style="padding:10px 24px 0">
+                <div style="font:500 11px var(--fu);letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E">The Bennetts</div>
+                <div style="font:400 36px/1.05 var(--fd);color:#2E2A24;margin-top:5px">Log</div>
+                <div style="font:400 13.5px/1.5 var(--fu);color:#6B6155;margin-top:5px">64 nights, most recent on top.</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:11px;padding:20px 24px">
+                <sc-for list="{{ logRows }}" as="l" hint-placeholder-count="5">
+                  <div style="background:var(--card);border:1px solid var(--bd);border-radius:4px;padding:13px 15px 12px;box-shadow:0 1px 3px rgba(46,42,36,.05);position:relative">
+                    <div style="position:absolute;left:0;top:14px;bottom:14px;width:2px;background:#C98A3C;opacity:{{ l.pin }}"></div>
+                    <div style="font:500 10.5px var(--fu);letter-spacing:.14em;text-transform:uppercase;color:#A79B87">{{ l.date }}</div>
+                    <div style="font:600 24px/1.15 Caveat,cursive;color:#2E2A24;margin-top:3px">{{ l.title }}</div>
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:7px">
+                      <div style="font:400 12.5px var(--fu);color:#8A7F6E">{{ l.who }}</div>
+                      <div style="font:500 15px var(--fu);color:#3F5B4A">{{ l.score }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <!-- JARS -->
+            <div style="width:402px;flex:none;height:100%;box-sizing:border-box;overflow:auto;padding:76px 0 112px">
+              <div style="padding:10px 24px 0">
+                <div style="font:500 11px var(--fu);letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E">The Bennetts · 4 people</div>
+                <div style="font:400 36px/1.05 var(--fd);color:#2E2A24;margin-top:5px">Jars</div>
+                <div style="font:400 13.5px/1.5 var(--fu);color:#6B6155;margin-top:5px">Five jars · 212 titles in the library.</div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 14px;padding:22px 24px">
+                <sc-for list="{{ jars }}" as="j" hint-placeholder-count="5">
+                  <div onClick="{{ j.open }}" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;height:212px">
+
+                    <sc-if value="{{ jsLabel }}" hint-placeholder-val="{{ true }}">
+                      <div style="width:52%;height:11px;background:var(--rim);border:1px solid var(--rim2);border-bottom:none;border-radius:3px 3px 0 0;box-sizing:border-box"></div>
+                      <div style="width:40%;height:9px;background:var(--jar);border-left:1px solid var(--rim);border-right:1px solid var(--rim);box-sizing:border-box"></div>
+                      <div style="width:100%;flex:1;position:relative;overflow:hidden;border:1px solid var(--rim);border-radius:9px 9px 15px 15px;background:linear-gradient(100deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,0) 26%,rgba(255,255,255,0) 72%,rgba(255,255,255,.34) 100%),var(--jar);box-shadow:inset 0 2px 5px rgba(255,255,255,.5),0 2px 8px rgba(46,42,36,.09)">
+                        <div style="position:absolute;left:0;right:0;bottom:0;height:{{ j.fill }}%;background:repeating-linear-gradient(178deg,var(--card) 0 5px,var(--bd) 5px 6px,var(--card) 6px 11px,var(--bd) 11px 12px)"></div>
+                        <div style="position:absolute;left:9px;right:9px;top:46px;background:var(--card);border:1px solid var(--bd);border-radius:2px;padding:8px 7px;text-align:center;transform:rotate({{ j.rot }}deg);box-shadow:0 1px 3px rgba(46,42,36,.09)">
+                          <div style="font:400 17px/1.1 var(--fd);color:#2E2A24">{{ j.name }}</div>
+                          <div style="font:500 9.5px var(--fu);letter-spacing:.1em;text-transform:uppercase;color:#8A7F6E;margin-top:4px">{{ j.count }} slips</div>
+                        </div>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ jsGlass }}">
+                      <div style="width:46%;height:9px;background:rgba(46,42,36,.13);border-radius:4px 4px 1px 1px"></div>
+                      <div style="width:38%;height:12px;background:linear-gradient(90deg,rgba(255,255,255,.6),rgba(255,255,255,.05) 40%,rgba(255,255,255,.35));border-left:1px solid rgba(46,42,36,.14);border-right:1px solid rgba(46,42,36,.14);box-sizing:border-box"></div>
+                      <div style="width:92%;flex:1;position:relative;overflow:hidden;border:1px solid rgba(46,42,36,.15);border-radius:12px 12px 16px 16px;background:linear-gradient(96deg,rgba(255,255,255,.75) 0 5%,rgba(255,255,255,.10) 13%,rgba(255,255,255,0) 34%,rgba(255,255,255,0) 68%,rgba(255,255,255,.22) 84%,rgba(255,255,255,.62) 97%),rgba(255,255,255,.22);box-shadow:0 3px 10px rgba(46,42,36,.10)">
+                        <div style="position:absolute;left:0;right:0;bottom:0;height:{{ j.fill }}%;background:linear-gradient(180deg,rgba(46,42,36,.05),transparent 22%),repeating-linear-gradient(179deg,var(--card) 0 5px,var(--bd) 5px 6px,var(--card) 6px 11px,var(--bd) 11px 12px);opacity:.88"></div>
+                        <div style="position:absolute;left:6px;top:9px;bottom:9px;width:5px;border-radius:4px;background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,.25))"></div>
+                      </div>
+                      <div style="width:100%;text-align:center;padding-top:9px">
+                        <div style="font:400 15px/1.1 var(--fd);color:#2E2A24">{{ j.name }}</div>
+                        <div style="font:500 9.5px var(--fu);letter-spacing:.16em;text-transform:uppercase;color:#6B6155;margin-top:3px">{{ j.count }} slips</div>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ jsRibbed }}">
+                      <div style="width:50%;height:10px;background:var(--rim2);border-radius:3px 3px 0 0"></div>
+                      <div style="width:96%;flex:1;position:relative;overflow:hidden;border:1px solid rgba(46,42,36,.16);border-radius:5px 5px 8px 8px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.5) 0 3px,rgba(255,255,255,.05) 3px 9px,rgba(46,42,36,.04) 9px 10px),rgba(255,255,255,.2);box-shadow:0 3px 10px rgba(46,42,36,.09)">
+                        <div style="position:absolute;left:0;right:0;bottom:0;height:{{ j.fill }}%;background:repeating-linear-gradient(179deg,var(--card) 0 5px,var(--bd) 5px 6px,var(--card) 6px 11px,var(--bd) 11px 12px);opacity:.8"></div>
+                        <div style="position:absolute;left:0;right:0;top:34px;text-align:center;padding:0 8px">
+                          <div style="font:600 10.5px var(--fu);letter-spacing:.18em;text-transform:uppercase;color:rgba(46,42,36,.82)">{{ j.name }}</div>
+                          <div style="height:1px;background:rgba(46,42,36,.22);margin:7px 14px 0"></div>
+                          <div style="font:500 9.5px var(--fu);letter-spacing:.14em;color:rgba(46,42,36,.66);margin-top:6px">{{ j.count }} slips</div>
+                        </div>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ jsLine }}">
+                      <div style="width:44%;height:0;border-top:1.5px solid #2E2A24"></div>
+                      <div style="width:36%;height:11px;border-left:1.5px solid #2E2A24;border-right:1.5px solid #2E2A24;box-sizing:border-box"></div>
+                      <div style="width:88%;flex:1;position:relative;overflow:hidden;border:1.5px solid #2E2A24;border-radius:10px 10px 14px 14px;background:transparent">
+                        <div style="position:absolute;left:0;right:0;bottom:0;height:{{ j.fill }}%;background:rgba(63,91,74,.14);border-top:1.5px solid rgba(46,42,36,.55)"></div>
+                        <div style="position:absolute;left:0;right:0;top:38px;text-align:center;padding:0 8px">
+                          <div style="font:400 16px/1.1 var(--fd);color:#2E2A24">{{ j.name }}</div>
+                          <div style="font:500 9px var(--fu);letter-spacing:.16em;text-transform:uppercase;color:#6B6155;margin-top:4px">{{ j.count }} slips</div>
+                        </div>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ jsSolid }}">
+                      <div style="width:56%;height:13px;background:#3F5B4A;border-radius:4px 4px 0 0"></div>
+                      <div style="width:100%;flex:1;position:relative;overflow:hidden;border-radius:4px 4px 14px 14px;background:linear-gradient(102deg,rgba(255,255,255,.42),rgba(255,255,255,0) 42%),var(--jar);box-shadow:0 3px 12px rgba(46,42,36,.11)">
+                        <div style="position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(46,42,36,.07)"></div>
+                        <div style="position:absolute;left:12px;right:12px;top:40px;text-align:center">
+                          <div style="font:400 17px/1.12 var(--fd);color:#2E2A24">{{ j.name }}</div>
+                          <div style="height:1px;background:rgba(46,42,36,.14);margin:9px 0"></div>
+                          <div style="font:500 9px var(--fu);letter-spacing:.18em;text-transform:uppercase;color:#6B6155">{{ j.count }} slips</div>
+                        </div>
+                      </div>
+                    </sc-if>
+
+                  </div>
+                </sc-for>
+
+                <div style="height:212px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--bd);border-radius:9px 9px 15px 15px;color:#A79B87;font:500 13px var(--fu);cursor:pointer" style-hover="background:var(--card)">＋ New jar</div>
+              </div>
+            </div>
+
+            <!-- LIBRARY -->
+            <div style="width:402px;flex:none;height:100%;box-sizing:border-box;overflow:auto;padding:76px 0 112px">
+              <div style="padding:10px 24px 0">
+                <div style="font:400 36px/1.05 var(--fd);color:#2E2A24">Library</div>
+                <div style="margin-top:12px;display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--bd);border-radius:4px;padding:11px 13px">
+                  <div style="width:12px;height:12px;border:1.5px solid #A79B87;border-radius:50%;flex:none"></div>
+                  <div style="font:400 15px var(--fu);color:#A79B87">Search 212 titles</div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;padding:14px 24px 0">
+                <sc-for list="{{ libraryRows }}" as="r" hint-placeholder-count="7">
+                  <div onClick="{{ r.open }}" style="display:flex;gap:13px;align-items:center;padding:12px 0;border-bottom:1px solid var(--bd);cursor:pointer">
+                    <div style="width:42px;height:62px;flex:none;border-radius:3px;border:1px solid var(--bd);background:repeating-linear-gradient(135deg,var(--jar) 0 5px,var(--bd) 5px 10px)"></div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font:400 18px/1.2 var(--fd);color:#2E2A24">{{ r.title }}</div>
+                      <div style="font:400 12px var(--fu);color:#8A7F6E;margin-top:3px">{{ r.meta }}</div>
+                      <div style="font:400 12px var(--fu);color:#6B6155;margin-top:4px">{{ r.tags }}</div>
+                    </div>
+                    <div style="font:600 15px var(--fu);color:{{ r.scoreColor }};white-space:nowrap">{{ r.score }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ JAR DETAIL (layer) ══ -->
+        <sc-if value="{{ isJar }}">
+        <div style="position:absolute;inset:0;background:var(--bg);box-sizing:border-box;overflow:auto;padding:70px 0 150px;animation:pushin .26s ease-out">
+          <div style="padding:10px 24px 0">
+            <div onClick="{{ closeLayer }}" style="font:500 13px var(--fu);color:#2D4356;cursor:pointer;display:inline-block">‹ Jars</div>
+            <div style="font:400 36px/1.05 var(--fd);color:#2E2A24;margin-top:8px">Friday Night</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+              <div style="font:500 12px var(--fu);color:#3F5B4A;background:var(--card);border:1px solid var(--bd);padding:5px 9px;border-radius:3px">Tagged cozy</div>
+              <div style="font:500 12px var(--fu);color:#3F5B4A;background:var(--card);border:1px solid var(--bd);padding:5px 9px;border-radius:3px">Under 115 min</div>
+              <div style="font:500 12px var(--fu);color:#3F5B4A;background:var(--card);border:1px solid var(--bd);padding:5px 9px;border-radius:3px">Not seen by Nora</div>
+              <div onClick="{{ openFilter }}" style="font:500 12px var(--fu);color:#2D4356;padding:5px 9px;border:1px dashed var(--bd);border-radius:3px;cursor:pointer">Edit filter</div>
+            </div>
+            <div style="font:400 12.5px/1.5 var(--fu);color:#8A7F6E;margin-top:11px">24 titles · 3 pinned · 1 excluded · last drawn 6 days ago</div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:9px;padding:18px 24px">
+            <sc-for list="{{ jarSlips }}" as="s" hint-placeholder-count="7">
+              <div style="background:var(--card);border:1px solid var(--bd);border-radius:4px;padding:11px 13px;display:flex;align-items:center;gap:11px;box-shadow:0 1px 3px rgba(46,42,36,.05)">
+                <div style="flex:1;min-width:0">
+                  <div style="font:600 21px/1.15 Caveat,cursive;color:#2E2A24">{{ s.title }}</div>
+                  <div style="font:400 11.5px var(--fu);color:#A79B87;margin-top:2px">{{ s.meta }}</div>
+                </div>
+                <div onClick="{{ s.open }}" style="flex:none;width:26px;height:26px;border-radius:50%;border:1px solid var(--bd);color:#6B6155;font:400 14px/24px var(--fd);text-align:center;cursor:pointer;background:var(--bg)" style-hover="background:var(--jar);color:#2E2A24">i</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 24px 40px;background:linear-gradient(to top,var(--bg) 60%,transparent)">
+            <div onClick="{{ openSetup }}" style="background:#3F5B4A;color:#F7F2E7;text-align:center;padding:16px;border-radius:4px;font:600 16px var(--fu);letter-spacing:.02em;cursor:pointer;box-shadow:0 2px 8px rgba(46,42,36,.14)" style-hover="background:#365040">Shake the jar</div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ══ DRAW SETUP (sheet) ══ -->
+        <sc-if value="{{ isSetup }}">
+        <div style="position:absolute;inset:0;background:rgba(46,42,36,.32);display:flex;align-items:flex-end;animation:fadein .2s ease-out">
+          <div style="width:100%;background:var(--bg);border-top:1px solid var(--bd);border-radius:10px 10px 0 0;padding:20px 24px 46px;box-sizing:border-box;animation:riseup .3s cubic-bezier(.2,.8,.3,1)">
+            <div style="width:42px;height:4px;border-radius:3px;background:var(--bd);margin:0 auto 16px"></div>
+            <div style="font:400 28px/1.1 var(--fd);color:#2E2A24">How many slips?</div>
+            <div style="font:400 13px/1.5 var(--fu);color:#8A7F6E;margin-top:5px">Friday Night has 24 in it.</div>
+
+            <div style="display:flex;gap:9px;margin-top:18px">
+              <sc-for list="{{ counts }}" as="n" hint-placeholder-count="4">
+                <div onClick="{{ n.pick }}" style="flex:1;text-align:center;padding:15px 0 13px;border:1px solid {{ n.bd }};background:{{ n.bg }};border-radius:4px;cursor:pointer">
+                  <div style="font:400 28px/1 var(--fd);color:{{ n.fg }}">{{ n.n }}</div>
+                  <div style="font:500 10px var(--fu);letter-spacing:.1em;text-transform:uppercase;color:{{ n.sub }};margin-top:5px">slips</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div onClick="{{ pickSaucy }}" style="margin-top:11px;display:flex;align-items:center;gap:12px;padding:14px 15px;border:1px solid {{ saucyBd }};background:{{ saucyBg }};border-radius:4px;cursor:pointer">
+              <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid {{ saucyDot }};flex:none;display:flex;align-items:center;justify-content:center">
+                <div style="width:9px;height:9px;border-radius:50%;background:{{ saucyDotFill }}"></div>
+              </div>
+              <div style="flex:1">
+                <div style="font:400 19px/1.15 var(--fd);color:{{ saucyFg }}">I'm feelin' saucy</div>
+                <div style="font:400 12px var(--fu);color:#8A7F6E;margin-top:2px">One slip, straight out of the jar. No knocking out.</div>
+              </div>
+            </div>
+
+            <div onClick="{{ startDraw }}" style="margin-top:16px;background:#3F5B4A;color:#F7F2E7;text-align:center;padding:16px;border-radius:4px;font:600 16px var(--fu);cursor:pointer">{{ setupCta }}</div>
+            <div onClick="{{ dismissSheet }}" style="text-align:center;font:500 13px var(--fu);color:#8A7F6E;margin-top:12px;cursor:pointer">Not yet</div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ══ DRAW: shake ══ -->
+        <sc-if value="{{ isShake }}">
+        <div style="position:absolute;inset:0;background:var(--bg2)">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+            <div style="position:relative;width:280px;height:280px">
+              <div style="position:absolute;left:30px;top:40px;width:150px;height:34px;background:var(--card);border:1px solid var(--bd);border-radius:3px;animation:jitter .42s ease-in-out infinite"></div>
+              <div style="position:absolute;left:90px;top:98px;width:170px;height:34px;background:var(--card);border:1px solid var(--bd);border-radius:3px;animation:jitter .5s ease-in-out infinite"></div>
+              <div style="position:absolute;left:16px;top:154px;width:190px;height:34px;background:var(--card);border:1px solid var(--bd);border-radius:3px;animation:jitter .46s ease-in-out infinite"></div>
+              <div style="position:absolute;left:74px;top:212px;width:140px;height:34px;background:var(--card);border:1px solid var(--bd);border-radius:3px;animation:jitter .55s ease-in-out infinite"></div>
+            </div>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:120px;text-align:center">
+            <div style="font:400 26px/1.2 var(--fd);color:#6B6155">Shaking the jar…</div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ══ DRAW: knock out ══ -->
+        <sc-if value="{{ isKnock }}">
+        <div style="position:absolute;inset:0;background:var(--bg2);box-sizing:border-box;overflow:auto;padding:74px 0 30px">
+          <div style="padding:10px 24px 0;text-align:center">
+            <div style="font:500 11px var(--fu);letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E">Friday Night · {{ drawN }} drawn</div>
+            <div style="font:400 29px/1.1 var(--fd);color:#2E2A24;margin-top:6px">{{ headline }}</div>
+            <div style="font:400 13px/1.5 var(--fu);color:#6B6155;margin-top:4px">Tap a slip to knock it out. Not tonight — not forever.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:{{ gridCols }};gap:11px;padding:20px 24px">
+            <sc-for list="{{ candidates }}" as="c" hint-placeholder-count="8">
+              <div onClick="{{ c.knock }}" style="position:relative;cursor:pointer;min-height:104px;padding:13px 12px;border-radius:4px;border:1px solid var(--bd);background:var(--card);display:flex;flex-direction:column;justify-content:space-between;transition:opacity .3s ease,transform .3s ease;animation:settle .35s ease-out both;opacity:{{ c.opacity }};transform:rotate({{ c.rot }}deg) scale({{ c.scale }});box-shadow:0 2px 8px rgba(46,42,36,.08)">
+                <div style="font:600 22px/1.15 Caveat,cursive;color:#2E2A24">{{ c.title }}</div>
+                <div style="font:400 11.5px var(--fu);color:#8A7F6E">{{ c.meta }}</div>
+                <sc-if value="{{ c.out }}">
+                  <div style="position:absolute;left:8px;right:8px;top:50%;height:2px;background:#A8492F;transform:rotate(-4deg)"></div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+          <div style="text-align:center;padding-bottom:14px">
+            <span onClick="{{ closeLayer }}" style="font:500 13px var(--fu);color:#8A7F6E;cursor:pointer;border-bottom:1px solid var(--bd);padding-bottom:2px">Put them back</span>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ══ DRAW: pause ══ -->
+        <sc-if value="{{ isPause }}">
+        <div style="position:absolute;inset:0;background:var(--bg2);display:flex;align-items:center;justify-content:center">
+          <div style="width:8px;height:8px;border-radius:50%;background:#C98A3C;animation:glow 1.2s ease-in-out infinite"></div>
+        </div>
+        </sc-if>
+
+        <!-- ══ DRAW: reveal ══ -->
+        <sc-if value="{{ isReveal }}">
+        <div style="position:absolute;inset:0;background:var(--bg2);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:70px 28px 60px;animation:fadein .5s ease-out">
+          <div style="font:500 11px var(--fu);letter-spacing:.18em;text-transform:uppercase;color:#8A7F6E">Tonight</div>
+          <div style="margin-top:20px;width:100%;background:var(--card);border:1px solid var(--bd);border-radius:5px;padding:34px 24px 30px;text-align:center;animation:glow 3s ease-in-out infinite;position:relative">
+            <div style="position:absolute;left:50%;top:-11px;width:74px;height:24px;background:var(--jar);border:1px solid var(--bd);transform:translateX(-50%) rotate(-1.5deg)"></div>
+            <div style="font:700 42px/1.05 Caveat,cursive;color:#2E2A24">{{ winner }}</div>
+            <div style="font:400 13px var(--fu);color:#8A7F6E;margin-top:11px">{{ winnerMeta }}</div>
+          </div>
+          <div style="font:400 12.5px/1.5 var(--fu);color:#8A7F6E;margin-top:14px;text-align:center">{{ revealSub }}</div>
+          <div style="width:100%;margin-top:24px;display:flex;flex-direction:column;gap:9px">
+            <div onClick="{{ openTitle }}" style="background:#3F5B4A;color:#F7F2E7;text-align:center;padding:15px;border-radius:4px;font:600 15.5px var(--fu);cursor:pointer">Start watching</div>
+            <div onClick="{{ openSetup }}" style="text-align:center;padding:13px;border-radius:4px;font:500 14px var(--fu);color:#2D4356;border:1px solid var(--bd);cursor:pointer">Shake again</div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ══ FILTER BUILDER (layer) ══ -->
+        <sc-if value="{{ isFilter }}">
+        <div style="position:absolute;inset:0;background:var(--bg);box-sizing:border-box;overflow:auto;padding:70px 0 40px;animation:pushin .26s ease-out">
+          <div style="padding:10px 24px 0">
+            <div onClick="{{ openJar }}" style="font:500 13px var(--fu);color:#2D4356;cursor:pointer;display:inline-block">‹ Friday Night</div>
+            <div style="font:400 33px/1.05 var(--fd);color:#2E2A24;margin-top:8px">What goes in</div>
+          </div>
+          <div style="padding:18px 24px;display:flex;flex-direction:column">
+            <sc-for list="{{ predicates }}" as="p" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;align-items:stretch">
+                <sc-if value="{{ p.showJoin }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;align-items:center;gap:10px;padding:9px 0">
+                    <div style="width:1px;height:14px;background:var(--bd);margin-left:18px"></div>
+                    <div onClick="{{ p.toggleJoin }}" style="font:700 11px var(--fu);letter-spacing:.14em;color:#6B6155;background:var(--jar);border:1px solid var(--bd);padding:3px 9px;border-radius:3px;cursor:pointer">{{ p.join }}</div>
+                  </div>
+                </sc-if>
+                <div style="background:var(--card);border:1px solid var(--bd);border-left:3px solid var(--bd);border-radius:4px;padding:13px 14px;box-shadow:0 1px 3px rgba(46,42,36,.05)">
+                  <div style="font:500 10.5px var(--fu);letter-spacing:.15em;text-transform:uppercase;color:#8A7F6E">{{ p.kind }}</div>
+                  <div style="font:400 19px/1.25 var(--fd);color:#2E2A24;margin-top:4px">{{ p.text }}</div>
+                </div>
+              </div>
+            </sc-for>
+            <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;padding:14px;border:1px dashed var(--bd);border-radius:4px;color:#8A7F6E;font:500 13px var(--fu);cursor:pointer" style-hover="background:var(--card)">＋ Add a predicate</div>
+          </div>
+          <div style="margin:0 24px;padding:15px 16px;background:var(--jar);border:1px solid var(--bd);border-radius:4px;display:flex;align-items:baseline;justify-content:space-between">
+            <div style="font:400 30px/1 var(--fd);color:#3F5B4A">24</div>
+            <div style="font:400 13px var(--fu);color:#6B6155">titles match right now</div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ══ ADD A TITLE (rises from the handle) ══ -->
+        <sc-if value="{{ isAdd }}">
+        <div style="position:absolute;inset:0;background:var(--bg);box-sizing:border-box;overflow:auto;padding:70px 0 40px;animation:riseup .3s cubic-bezier(.2,.8,.3,1)">
+          <div style="padding:10px 24px 0">
+            <div onClick="{{ closeLayer }}" style="font:500 13px var(--fu);color:#2D4356;cursor:pointer;display:inline-block">⌄ Close</div>
+            <div style="font:400 33px/1.05 var(--fd);color:#2E2A24;margin-top:8px">Write a slip</div>
+            <div style="margin-top:13px;display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid #3F5B4A;border-radius:4px;padding:12px 13px">
+              <div style="font:600 20px Caveat,cursive;color:#2E2A24">totoro</div>
+              <div style="width:1px;height:18px;background:#3F5B4A;animation:fadein .6s ease-in-out infinite alternate"></div>
+            </div>
+          </div>
+          <div style="padding:16px 24px 0;display:flex;flex-direction:column">
+            <sc-for list="{{ addResults }}" as="a" hint-placeholder-count="4">
+              <div style="display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--bd)">
+                <div style="width:38px;height:56px;flex:none;border-radius:3px;border:1px solid var(--bd);background:repeating-linear-gradient(135deg,var(--jar) 0 5px,var(--bd) 5px 10px)"></div>
+                <div style="flex:1;min-width:0">
+                  <div style="font:400 17px/1.2 var(--fd);color:#2E2A24">{{ a.title }}</div>
+                  <div style="font:400 12px var(--fu);color:#8A7F6E;margin-top:3px">{{ a.meta }}</div>
+                </div>
+                <div style="font:500 12.5px var(--fu);color:#3F5B4A;border:1px solid var(--bd);padding:6px 11px;border-radius:3px;cursor:pointer;background:var(--card)">Add</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin:18px 24px 0;font:400 12.5px/1.5 var(--fu);color:#8A7F6E">Adding drops it in the Library. Jars pick it up on their own if it matches their filter.</div>
+        </div>
+        </sc-if>
+
+        <!-- ══ TITLE DETAIL — the other register ══ -->
+        <sc-if value="{{ isTitle }}">
+        <div style="position:absolute;inset:0;background:var(--ink0);box-sizing:border-box;overflow:auto;padding:70px 0 40px;animation:pushin .26s ease-out">
+          <div style="padding:10px 24px 0">
+            <div onClick="{{ closeLayer }}" style="font:500 13px var(--fu);color:var(--onink2);cursor:pointer;display:inline-block">‹ Back</div>
+          </div>
+          <div style="padding:16px 24px 0;display:flex;gap:16px;align-items:flex-start">
+            <div style="width:104px;height:154px;flex:none;border-radius:3px;border:1px solid var(--ink2);background:repeating-linear-gradient(135deg,var(--ink1) 0 6px,var(--ink2) 6px 12px);display:flex;align-items:flex-end;padding:7px;box-sizing:border-box">
+              <div style="font:400 9px/1.3 ui-monospace,Menlo,monospace;color:var(--onink2)">poster<br>TMDB</div>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font:400 33px/1.02 var(--fd);color:var(--onink)">Paddington 2</div>
+              <div style="font:400 16px/1.3 var(--fd);color:var(--onink3);margin-top:5px">2017 · 103 min</div>
+              <div style="font:400 12.5px/1.5 var(--fu);color:var(--onink3);margin-top:9px">Comedy · Family · Adventure</div>
+              <div style="display:flex;gap:6px;margin-top:11px;flex-wrap:wrap">
+                <div style="font:500 11px var(--fu);color:var(--onink2);border:1px solid var(--ink2);padding:4px 8px;border-radius:3px">cozy</div>
+                <div style="font:500 11px var(--fu);color:var(--onink2);border:1px solid var(--ink2);padding:4px 8px;border-radius:3px">nora-approved</div>
+              </div>
+            </div>
+          </div>
+          <div style="padding:20px 24px 0">
+            <div style="font:400 15px/1.62 var(--fu);color:var(--onink2);text-wrap:pretty">Overview text from TMDB sits here — three or four lines, never more. This screen is read, not handled: no paper, no handwriting, no tape. It is the one place the app steps back and lets the film speak.</div>
+          </div>
+          <div style="margin:24px 24px 0;padding-top:19px;border-top:1px solid var(--ink2)">
+            <div style="font:500 11px var(--fu);letter-spacing:.16em;text-transform:uppercase;color:var(--onink3)">Household rating · average of 4</div>
+            <div style="display:flex;flex-direction:column;gap:13px;margin-top:14px">
+              <sc-for list="{{ ratings }}" as="rt" hint-placeholder-count="4">
+                <div>
+                  <div style="display:flex;justify-content:space-between;align-items:baseline">
+                    <div style="font:400 14.5px var(--fu);color:var(--onink2)">{{ rt.name }}</div>
+                    <div style="font:400 20px/1 var(--fd);color:var(--onink)">{{ rt.value }}</div>
+                  </div>
+                  <div style="height:3px;background:var(--ink1);border-radius:2px;margin-top:6px;overflow:hidden">
+                    <div style="height:100%;background:#C98A3C;width:{{ rt.pct }}%"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div onClick="{{ openRate }}" style="margin:24px 24px 0;padding:15px 16px;border:1px solid var(--ink2);border-radius:4px;display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+            <div style="font:400 14px var(--fu);color:var(--onink2)">In 3 jars · watched twice</div>
+            <div style="font:500 13px var(--fu);color:#C98A3C">Mark a card ›</div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ══ RATING ENTRY — same dark register, marked like a card ══ -->
+        <sc-if value="{{ isRate }}">
+        <div style="position:absolute;inset:0;background:var(--ink0);box-sizing:border-box;overflow:auto;padding:70px 0 40px;animation:riseup .3s cubic-bezier(.2,.8,.3,1)">
+          <div style="padding:10px 24px 0">
+            <div onClick="{{ openTitle }}" style="font:500 13px var(--fu);color:var(--onink3);cursor:pointer;display:inline-block">⌄ Close</div>
+            <div style="font:500 10.5px var(--fu);letter-spacing:.2em;text-transform:uppercase;color:var(--onink3);margin-top:14px">Watched Fri 7 Aug · Sam</div>
+            <div style="font:400 32px/1.05 var(--fd);color:var(--onink);margin-top:6px">Paddington 2</div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:22px;padding:26px 24px 0">
+            <sc-for list="{{ myRatings }}" as="m" hint-placeholder-count="4">
+              <div>
+                <div style="display:flex;align-items:baseline;justify-content:space-between">
+                  <div style="font:500 11px var(--fu);letter-spacing:.18em;text-transform:uppercase;color:var(--onink3)">{{ m.name }}</div>
+                  <div style="font:400 30px/1 var(--fd);color:{{ m.valColor }}">{{ m.label }}</div>
+                </div>
+                <div style="display:flex;gap:4px;margin-top:10px;align-items:flex-end;height:34px">
+                  <sc-for list="{{ m.ticks }}" as="t" hint-placeholder-count="10">
+                    <div onClick="{{ t.set }}" style="flex:1;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px">
+                      <div style="width:100%;height:{{ t.h }}px;border-radius:1px;background:{{ t.c }};transition:height .18s ease,background .18s ease"></div>
+                      <div style="font:500 10px var(--fu);color:{{ t.lc }}">{{ t.n }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="margin:30px 24px 0;padding-top:18px;border-top:1px solid var(--ink2);display:flex;align-items:baseline;justify-content:space-between">
+            <div style="font:500 11px var(--fu);letter-spacing:.18em;text-transform:uppercase;color:var(--onink3)">Your average</div>
+            <div style="font:400 38px/1 var(--fd);color:#C98A3C">{{ myAvg }}</div>
+          </div>
+          <div onClick="{{ openTitle }}" style="margin:20px 24px 0;background:#C98A3C;color:var(--ink0);text-align:center;padding:15px;border-radius:4px;font:600 15.5px var(--fu);cursor:pointer">File the card</div>
+          <div style="font:400 12px/1.5 var(--fu);color:var(--onink3);margin:14px 24px 0;text-align:center">Ticks, not a slider — each number is a detent you feel.</div>
+        </div>
+        </sc-if>
+
+        <!-- ══ THE RAIL — replaces the tab bar ══ -->
+        <sc-if value="{{ showRail }}" hint-placeholder-val="{{ true }}">
+        <div onPointerDown="{{ railDown }}" onPointerMove="{{ railMove }}" onPointerUp="{{ railUp }}" style="position:absolute;left:0;right:0;bottom:0;height:104px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:12px 0 42px;box-sizing:border-box;background:linear-gradient(to top,var(--bg) 55%,transparent);cursor:grab;touch-action:none">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="font:500 10.5px var(--fu);letter-spacing:.14em;text-transform:uppercase;color:{{ railLog }};transition:color .2s">Log</div>
+            <div style="display:flex;align-items:center;gap:5px">
+              <div style="width:{{ dot0w }}px;height:3px;border-radius:2px;background:{{ dot0 }};transition:all .22s"></div>
+              <div style="width:{{ dot1w }}px;height:3px;border-radius:2px;background:{{ dot1 }};transition:all .22s"></div>
+              <div style="width:{{ dot2w }}px;height:3px;border-radius:2px;background:{{ dot2 }};transition:all .22s"></div>
+            </div>
+            <div style="font:500 10.5px var(--fu);letter-spacing:.14em;text-transform:uppercase;color:{{ railLib }};transition:color .2s">Library</div>
+          </div>
+          <div style="margin-top:12px;display:flex;align-items:center;gap:7px;padding:5px 13px;border:1px solid var(--bd);border-radius:20px;background:var(--card)">
+            <div style="font:400 12px var(--fu);color:#8A7F6E">↑</div>
+            <div style="font:500 11px var(--fu);letter-spacing:.1em;text-transform:uppercase;color:#8A7F6E">write a slip</div>
+          </div>
+        </div>
+        </sc-if>
+
+      </div>
+    </x-import>
+  </div>
+
+  <!-- ══ SPEC PANEL ══ -->
+  <div style="width:450px;flex:none;display:flex;flex-direction:column;gap:24px;padding-top:2px">
+
+    <div style="background:#FBF7EF;border:1px solid #D8CBB0;border-radius:5px;padding:22px 24px">
+      <div style="font:500 11px Karla;letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E">Matched to your references — tap to try on the phone</div>
+      <div style="font:400 12.5px/1.5 Karla;color:#6B6155;margin-top:8px;text-wrap:pretty">Both images are the same species: a soft, lowercase-forward serif with ball terminals and slightly wonky curves, sitting on warm paper, with the small stuff set as widely-tracked caps. Here's the closest each font gets.</div>
+
+      <div style="margin-top:14px;padding:14px 0;border-top:1px solid #E2D7BF">
+        <div style="font:600 40px/1 Fraunces,Georgia,serif;font-variation-settings:'SOFT' 100,'WONK' 1,'opsz' 144;color:#A8492F">friday night</div>
+        <div style="font:500 11px 'Alegreya Sans',sans-serif;letter-spacing:.28em;text-transform:uppercase;color:#A8492F;margin-top:9px">24 slips · tagged cozy</div>
+        <div style="font:400 12px/1.5 Karla;color:#8A7F6E;margin-top:9px;text-wrap:pretty"><strong style="color:#2E2A24">Fraunces, wonk on.</strong> This <em>is</em> your references. The SOFT and WONK axes give you the ball terminals and the tilted <em>y</em> of "cozy corner" — it is the only free face that does this properly. Downside: it's had a moment, so it will read as 2023-indie to some. Currently live on the phone.</div>
+      </div>
+
+      <div style="padding:14px 0;border-top:1px solid #E2D7BF">
+        <div style="font:600 38px/1 Newsreader,Georgia,serif;color:#2E2A24">friday night</div>
+        <div style="font:500 11px Cabin,sans-serif;letter-spacing:.28em;text-transform:uppercase;color:#6B6155;margin-top:9px">24 slips · tagged cozy</div>
+        <div style="font:400 12px/1.5 Karla;color:#8A7F6E;margin-top:9px;text-wrap:pretty"><strong style="color:#2E2A24">Newsreader + Cabin.</strong> The same warmth with none of the affectation — softly cupped serifs, big x-height, a lovely italic for years and runtimes. Less "logo", more "the app it belongs to". My pick if you want this to age well.</div>
+      </div>
+
+      <div style="padding:14px 0;border-top:1px solid #E2D7BF">
+        <div style="font:600 38px/1 Vollkorn,Georgia,serif;color:#2E2A24">friday night</div>
+        <div style="font:500 11px 'Alegreya Sans',sans-serif;letter-spacing:.28em;text-transform:uppercase;color:#6B6155;margin-top:9px">24 slips · tagged cozy</div>
+        <div style="font:400 12px/1.5 Karla;color:#8A7F6E;margin-top:9px;text-wrap:pretty"><strong style="color:#2E2A24">Vollkorn + Alegreya Sans.</strong> Closest to the second image — heavier, chunkier, more ink on the page. Good if you want jar names to feel stamped rather than written.</div>
+      </div>
+
+      <div style="padding:14px 0 0;border-top:1px solid #E2D7BF">
+        <div style="font:600 38px/1 Petrona,Georgia,serif;color:#2E2A24">friday night</div>
+        <div style="font:500 11px Cabin,sans-serif;letter-spacing:.28em;text-transform:uppercase;color:#6B6155;margin-top:9px">24 slips · tagged cozy</div>
+        <div style="font:400 12px/1.5 Karla;color:#8A7F6E;margin-top:9px;text-wrap:pretty"><strong style="color:#2E2A24">Petrona + Cabin.</strong> Low-contrast and a bit homemade — the best bridge to your Caveat slips, because it's the one that looks most like it was drawn by a person rather than a foundry.</div>
+      </div>
+    </div>
+
+    <div style="background:#FBF7EF;border:1px solid #D8CBB0;border-radius:5px;padding:22px 24px">
+      <div style="font:500 11px Karla;letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E">The move worth stealing</div>
+      <div style="font:400 13px/1.55 Karla;color:#6B6155;margin-top:9px;text-wrap:pretty">Both references do the same thing with small text: no sans at all — the <em>same serif</em>, uppercase, tracked out to ~0.28em. It's what makes "CAFE & BOOKSTORE" feel like part of the mark instead of a caption. Applied to your metadata:</div>
+      <div style="margin-top:14px;padding:16px;background:#F4EDE1;border:1px solid #D8CBB0;border-radius:4px;text-align:center">
+        <div style="font:500 10px Newsreader,serif;letter-spacing:.3em;text-transform:uppercase;color:#8A7F6E">est · the bennetts · 2019</div>
+        <div style="font:600 34px/1.05 Newsreader,Georgia,serif;color:#2E2A24;margin-top:10px">comfort rewatch</div>
+        <div style="font:500 10px Newsreader,serif;letter-spacing:.3em;text-transform:uppercase;color:#8A7F6E;margin-top:12px">37 slips · rated 8+ by everyone</div>
+      </div>
+      <div style="font:400 12px/1.5 Karla;color:#8A7F6E;margin-top:10px;text-wrap:pretty">Cost: tracked caps are slow to read, so this works for jar labels and section headers and nowhere else. Buttons and list metadata still need the sans.</div>
+    </div>
+
+    <div style="background:#FBF7EF;border:1px solid #D8CBB0;border-radius:5px;padding:22px 24px">
+      <div style="font:500 11px Karla;letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E">The warm papers</div>
+      <div style="font:400 13px/1.55 Karla;color:#6B6155;margin-top:9px;text-wrap:pretty">Same lightness and near-identical chroma across all five, so only the hue changes — that's what makes them swappable without re-tuning anything else. Ink stays <strong style="color:#2E2A24">#2E2A24</strong> throughout.</div>
+      <div style="display:flex;flex-direction:column;gap:11px;margin-top:14px">
+        <div style="font:400 13px/1.5 Karla;color:#6B6155;text-wrap:pretty"><strong style="color:#2E2A24">Butter</strong> — yellow. The warmest and the most "lamp on in the evening". Careful: it's the closest to the amber reveal colour, so the winner's glow loses some of its exclusivity. Would want the reveal accent pushed to rust if you pick this.</div>
+        <div style="font:400 13px/1.5 Karla;color:#6B6155;text-wrap:pretty"><strong style="color:#2E2A24">Clay</strong> — orange. Terracotta, unglazed. Sits under the rust accent beautifully and makes the forest green look deliberate rather than default. The most personal of the warm set, and my pick if you stay warm. Live now.</div>
+        <div style="font:400 13px/1.5 Karla;color:#6B6155;text-wrap:pretty"><strong style="color:#2E2A24">Blush</strong> — red. Dusty rose, softest of the five. Genuinely differentiating because almost nothing in this category goes pink, but it puts a strong personality on every screen — worth living with for a day before committing.</div>
+        <div style="font:400 13px/1.5 Karla;color:#6B6155;text-wrap:pretty"><strong style="color:#2E2A24">Fawn</strong> — brown, hue pulled almost to zero. The quietest option: reads as "unbleached" rather than as a colour. The one to choose if you want the jars and slips to be the only thing anyone notices.</div>
+      </div>
+      <div style="font:400 12.5px/1.5 Karla;color:#8A7F6E;margin-top:14px;padding-top:13px;border-top:1px solid #E2D7BF;text-wrap:pretty"><strong style="color:#2E2A24">The greens</strong> — Sage reads paper-first, Olive sits closest to kraft, Eucalyptus commits (and needs the primary button darkened to #2F4839), Celadon is coolest and stops reading organic altogether. The reason they differentiate isn't the green: it's brown ink on a cool ground, which is a pairing almost nothing in this category does.</div>
+    </div>
+
+    <div style="background:#FBF7EF;border:1px solid #D8CBB0;border-radius:5px;padding:22px 24px">
+      <div style="font:500 11px Karla;letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E">Keeping the two registers related</div>
+      <div style="font:400 13px/1.55 Karla;color:#6B6155;margin-top:9px;text-wrap:pretty">The dark screens no longer have their own colours. Every surface and text tone on title detail and rating entry is now mixed from the <em>active paper</em> — so Clay gives you a warm brown-black, Celadon a cool green-black, Blush a soft red-black. Switch papers and watch the dark screens follow. Same relationship, different hue; nothing to re-pick when you change your mind about the background.</div>
+      <div style="font:400 13px/1.55 Karla;color:#6B6155;margin-top:11px;text-wrap:pretty">Amber (#C98A3C) is the one colour that stays fixed across both registers — winner reveal, and now the rating ticks. It's the app's single "this is the good part" signal, so it shouldn't drift with the paper.</div>
+      <div style="font:400 13px/1.55 Karla;color:#6B6155;margin-top:11px;text-wrap:pretty"><strong style="color:#2E2A24">New: rating entry.</strong> Ten ticks per category, not a slider — tap to set, each number a detent. Reached from title detail via "Mark a card". Try setting Soundtrack; the average recomputes.</div>
+
+      <div style="font:500 11px Karla;letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E;margin-top:20px;padding-top:16px;border-top:1px solid #E2D7BF">The jars</div>
+      <div style="font:400 13px/1.55 Karla;color:#6B6155;margin-top:9px;text-wrap:pretty">The sleek versions all do the same structural thing: <strong style="color:#2E2A24">get the label off the glass.</strong> A taped-on paper label is what makes a jar read craft-fair; the moment the name sits below or is etched into the surface, the object turns into product design and the warmth has to come from the palette and type instead. That's a better division of labour anyway.</div>
+      <div style="display:flex;flex-direction:column;gap:11px;margin-top:14px">
+        <div style="font:400 13px/1.5 Karla;color:#6B6155;text-wrap:pretty"><strong style="color:#2E2A24">Apothecary</strong> — clear glass, thin dark rim, one hard specular highlight, name set beneath in the serif. The most realistic and the most personal: the slips inside become the colour, so a full jar and an empty one look genuinely different. My recommendation.</div>
+        <div style="font:400 13px/1.5 Karla;color:#6B6155;text-wrap:pretty"><strong style="color:#2E2A24">Pressed</strong> — ribbed glass with the name etched straight on in tracked caps. Closest to a real preserving jar, most texture, hardest to read at small sizes.</div>
+        <div style="font:400 13px/1.5 Karla;color:#6B6155;text-wrap:pretty"><strong style="color:#2E2A24">Line-drawn</strong> — your pick, and live now. 1.5px outline, no fill except the tinted contents, name sitting inside the empty upper half. It ties straight back to the line-art storefront in your first reference, and it's the only style that would survive being replaced by a hand-drawn SVG later: swap the outline for your own drawing and everything else — fill level, label position, tap target — still works. If you draw your own, keep the stroke at 1.5px and leave the top 45% clear for the name.</div>
+        <div style="font:400 13px/1.5 Karla;color:#6B6155;text-wrap:pretty"><strong style="color:#2E2A24">Ceramic</strong> — opaque, matte, flat lid. Clean and calm, but you lose the fill level entirely, which is the one piece of information the jar shape was earning you.</div>
+      </div>
+    </div>
+
+    <div style="background:#E8DCC4;border:1px solid #D8CBB0;border-radius:5px;padding:20px 24px">
+      <div style="font:500 11px Karla;letter-spacing:.16em;text-transform:uppercase;color:#8A7F6E">Worth deciding</div>
+      <div style="font:400 13.5px/1.6 Karla;color:#4E463A;margin-top:11px;text-wrap:pretty">1. If you go green, the slips stay cream — that contrast is doing a lot of work. Should the <em>drawn</em> slips in the pick flow stay cream too, or go white to feel freshly pulled?<br>2. Apothecary and Line-drawn both push the app cooler. Worth re-testing the Caveat handwriting against them — it may need to drop to only the winner reveal.<br>3. Tabs vs swipe is still open. If you want, I can build the tab version on the same palette so you're comparing like for like.</div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1070,&quot;height&quot;:1180}}">
+const CANDS = [
+  { title: "Paddington 2", meta: "2017 · 103 min" },
+  { title: "The Grand Budapest Hotel", meta: "2014 · 99 min" },
+  { title: "Chef", meta: "2014 · 114 min" },
+  { title: "Moonstruck", meta: "1987 · 102 min" },
+  { title: "School of Rock", meta: "2003 · 109 min" },
+  { title: "My Neighbor Totoro", meta: "1988 · 86 min" },
+  { title: "Groundhog Day", meta: "1993 · 101 min" },
+  { title: "Big Night", meta: "1996 · 109 min" },
+];
+
+const NOWONK = "normal";
+const PAIRINGS = [
+  { id: "fraunces", label: "Fraunces Wonk + Alegreya", fd: "Fraunces,Georgia,serif", fu: "'Alegreya Sans',system-ui,sans-serif", fvs: "'SOFT' 100, 'WONK' 1, 'opsz' 120" },
+  { id: "newsreader", label: "Newsreader + Cabin", fd: "Newsreader,Georgia,serif", fu: "Cabin,system-ui,sans-serif", fvs: "'opsz' 60" },
+  { id: "vollkorn", label: "Vollkorn + Alegreya", fd: "Vollkorn,Georgia,serif", fu: "'Alegreya Sans',system-ui,sans-serif", fvs: NOWONK },
+  { id: "petrona", label: "Petrona + Cabin", fd: "Petrona,Georgia,serif", fu: "Cabin,system-ui,sans-serif", fvs: NOWONK },
+  { id: "instrument", label: "Instrument + Karla (v1)", fd: "'Instrument Serif',Georgia,serif", fu: "Karla,system-ui,sans-serif", fvs: NOWONK },
+];
+
+const SCREEN_W = 402;
+
+const PALETTES = [
+  { id: "kraft",  name: "Kraft",      group: "warm", note: "v2, for reference",
+    bg: "#F4EDE1", bg2: "#EFE6D5", card: "#FBF7EF", jar: "#E8DCC4", bd: "#D8CBB0", rim: "#C9B896", rim2: "#B9A583" },
+  { id: "butter", name: "Butter",     group: "warm", note: "yellow — lamplight on paper",
+    bg: "#F6EDD3", bg2: "#F0E6C7", card: "#FDF8E9", jar: "#EADCB2", bd: "#DBC99B", rim: "#CBB782", rim2: "#B9A46C" },
+  { id: "clay",   name: "Clay",       group: "warm", note: "orange — terracotta, unglazed",
+    bg: "#F1E3D6", bg2: "#EBDACA", card: "#FCF4EB", jar: "#E4CFBC", bd: "#D6BDA6", rim: "#C6A98E", rim2: "#B39678" },
+  { id: "blush",  name: "Blush",      group: "warm", note: "red — dusty rose, softest",
+    bg: "#F2E4DF", bg2: "#EBDBD5", card: "#FCF3F0", jar: "#E7CFC7", bd: "#D9BDB3", rim: "#C9A99D", rim2: "#B69588" },
+  { id: "fawn",   name: "Fawn",       group: "warm", note: "brown — greige, nearly no hue",
+    bg: "#E9E1D6", bg2: "#E2D9CC", card: "#F8F4ED", jar: "#DBD0BF", bd: "#CBBEA9", rim: "#BAAB93", rim2: "#A8977D" },
+  { id: "sage", group: "green",   name: "Sage paper", note: "greenest cream that still reads warm",
+    bg: "#E7E9DB", bg2: "#E1E4D3", card: "#F6F7EF", jar: "#DADEC7", bd: "#C6CBB2", rim: "#B4BA9E", rim2: "#A2A98C" },
+  { id: "olive", group: "green",  name: "Olive haze", note: "green pulled toward the kraft",
+    bg: "#EAE7D2", bg2: "#E4E0C9", card: "#F8F6EC", jar: "#DDD8BC", bd: "#C9C3A3", rim: "#B7B08E", rim2: "#A69E7B" },
+  { id: "euca", group: "green",   name: "Eucalyptus", note: "committed, low-light room",
+    bg: "#DBE2D5", bg2: "#D4DCCD", card: "#F0F4EB", jar: "#CAD4C1", bd: "#B4C0AA", rim: "#A2B098", rim2: "#8F9E85" },
+  { id: "celadon", group: "green",name: "Celadon",    note: "coolest — the one that stops reading organic",
+    bg: "#E1E9E3", bg2: "#DAE4DC", card: "#F3F8F4", jar: "#CEDBD1", bd: "#B8C7BB", rim: "#A6B7A9", rim2: "#93A697" },
+];
+
+const JARSTYLES = [
+  { id: "label",  name: "Paper label", note: "v2 — kraft jar, taped label" },
+  { id: "glass",  name: "Apothecary",  note: "clear glass, name set beneath" },
+  { id: "ribbed", name: "Pressed",     note: "ribbed glass, etched label" },
+  { id: "line",   name: "Line-drawn",  note: "outline only, ink on paper" },
+  { id: "solid",  name: "Ceramic",     note: "opaque, matte, product-like" },
+];
+
+class Component extends DCLogic {
+  state = {
+    pairing: "vollkorn", palette: "fawn", jarStyle: "line",
+    base: 1,            // 0 Log · 1 Jars · 2 Library
+    dx: 0, dragging: false,
+    layer: null,        // jar | filter | title | add | setup | draw
+    phase: "shake", out: [],
+    drawN: 5, saucy: false,
+    scores: { Plot: 8, Acting: 9, Soundtrack: 0, Rewatchability: 10 },
+  };
+
+  setScore = (k, v) => this.setState({ scores: { ...this.state.scores, [k]: v } });
+
+  componentWillUnmount() { clearTimeout(this._t); }
+
+  // ── horizontal strip drag ──
+  onDown = (e) => {
+    if (this.state.layer) return;
+    this._x = e.clientX; this._y = e.clientY; this._axis = null;
+    this.setState({ dragging: true, dx: 0 });
+  };
+  onMove = (e) => {
+    if (!this.state.dragging) return;
+    const dx = e.clientX - this._x, dy = e.clientY - this._y;
+    if (!this._axis && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) this._axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    if (this._axis !== "x") return;
+    const b = this.state.base;
+    const damp = (b === 0 && dx > 0) || (b === 2 && dx < 0) ? 0.3 : 1;
+    this.setState({ dx: dx * damp });
+  };
+  onUp = () => {
+    if (!this.state.dragging) return;
+    const { dx, base } = this.state;
+    let next = base;
+    if (dx < -60 && base < 2) next = base + 1;
+    if (dx > 60 && base > 0) next = base - 1;
+    this.setState({ dragging: false, dx: 0, base: next });
+  };
+  swipeLeft = () => this.setState({ base: Math.max(0, this.state.base - 1) });
+  swipeRight = () => this.setState({ base: Math.min(2, this.state.base + 1) });
+
+  // ── rail: drag up to add ──
+  railDown = (e) => { this._ry = e.clientY; this._rail = true; };
+  railMove = (e) => {
+    if (!this._rail) return;
+    if (this._ry - e.clientY > 34) { this._rail = false; this.setState({ layer: "add" }); }
+  };
+  railUp = () => { this._rail = false; };
+
+  go = (layer) => { clearTimeout(this._t); this.setState({ layer }); };
+
+  openSheet = () => { this._under = this.state.layer; this.setState({ layer: "setup" }); };
+  dismissSheet = () => { clearTimeout(this._t); this.setState({ layer: this._under || null }); };
+
+  startDraw = () => {
+    clearTimeout(this._t);
+    const n = this.state.saucy ? 1 : this.state.drawN;
+    this.setState({ layer: "draw", phase: "shake", out: [] });
+    this._t = setTimeout(() => {
+      if (n === 1) {
+        this.setState({ phase: "pause" });
+        this._t = setTimeout(() => this.setState({ phase: "reveal" }), 900);
+      } else this.setState({ phase: "knock" });
+    }, 750);
+  };
+
+  knock = (i) => {
+    if (this.state.phase !== "knock") return;
+    const n = this.state.drawN;
+    const out = this.state.out.includes(i) ? this.state.out : this.state.out.concat(i);
+    this.setState({ out });
+    if (out.length >= n - 1) {
+      this._t = setTimeout(() => {
+        this.setState({ phase: "pause" });
+        this._t = setTimeout(() => this.setState({ phase: "reveal" }), 900);
+      }, 420);
+    }
+  };
+
+  renderVals() {
+    const st = this.state;
+    const L = st.layer;
+    const pr = PAIRINGS.find((p) => p.id === st.pairing) || PAIRINGS[0];
+    const pal = PALETTES.find((p) => p.id === st.palette) || PALETTES[0];
+    const n = st.saucy ? 1 : st.drawN;
+    const served = CANDS.slice(0, n);
+    const winnerIdx = served.findIndex((_, i) => !st.out.includes(i));
+    const left = n - st.out.length;
+    const rots = [-1.2, 0.8, 1.4, -0.6, 0.5, -1.5, 1.1, -0.9];
+    const dotOn = "#3F5B4A", dotOff = "#D0C3A9";
+
+    return {
+      fd: pr.fd, fu: pr.fu, fvs: pr.fvs,
+      bg: pal.bg, bg2: pal.bg2, card: pal.card, jarC: pal.jar, bd: pal.bd, rim: pal.rim, rim2: pal.rim2,
+      palettesWarm: PALETTES.filter((p) => p.group === "warm").map((p) => ({
+        name: p.name, bg: p.bg, card: p.card, jar: p.jar, bd: p.bd,
+        pick: () => this.setState({ palette: p.id }),
+        ring: p.id === st.palette ? "#3F5B4A" : p.bd,
+        rw: p.id === st.palette ? 2 : 1,
+        fg: p.id === st.palette ? "#2E2A24" : "#8A7F6E",
+      })),
+      palettesGreen: PALETTES.filter((p) => p.group === "green").map((p) => ({
+        name: p.name, bg: p.bg, card: p.card, jar: p.jar, bd: p.bd,
+        pick: () => this.setState({ palette: p.id }),
+        ring: p.id === st.palette ? "#3F5B4A" : p.bd,
+        rw: p.id === st.palette ? 2 : 1,
+        fg: p.id === st.palette ? "#2E2A24" : "#8A7F6E",
+      })),
+      palettes: PALETTES.map((p) => ({
+        name: p.name, note: p.note, bg: p.bg, card: p.card, jar: p.jar, bd: p.bd,
+        pick: () => this.setState({ palette: p.id }),
+        ring: p.id === st.palette ? "#3F5B4A" : p.bd,
+        rw: p.id === st.palette ? 2 : 1,
+        fg: p.id === st.palette ? "#2E2A24" : "#8A7F6E",
+      })),
+      jarStyles: JARSTYLES.map((j) => ({
+        name: j.name, note: j.note,
+        pick: () => this.setState({ jarStyle: j.id }),
+        bg: j.id === st.jarStyle ? "#3F5B4A" : "#F4EDE1",
+        fg: j.id === st.jarStyle ? "#F7F2E7" : "#2E2A24",
+        bd: j.id === st.jarStyle ? "#3F5B4A" : "#D8CBB0",
+      })),
+      jsLabel: st.jarStyle === "label", jsGlass: st.jarStyle === "glass",
+      jsRibbed: st.jarStyle === "ribbed", jsLine: st.jarStyle === "line",
+      jsSolid: st.jarStyle === "solid",
+      pairings: PAIRINGS.map((p) => ({
+        label: p.label,
+        bg: p.id === st.pairing ? "#3F5B4A" : "#F4EDE1",
+        fg: p.id === st.pairing ? "#F7F2E7" : "#2E2A24",
+        bd: p.id === st.pairing ? "#3F5B4A" : "#D8CBB0",
+        pick: () => this.setState({ pairing: p.id }),
+      })),
+
+      stripX: -st.base * SCREEN_W + st.dx,
+      stripEase: st.dragging ? "none" : "transform .34s cubic-bezier(.25,.9,.3,1)",
+      onDown: this.onDown, onMove: this.onMove, onUp: this.onUp,
+      railDown: this.railDown, railMove: this.railMove, railUp: this.railUp,
+      swipeLeft: this.swipeLeft, swipeRight: this.swipeRight,
+
+      railLog: st.base === 0 ? "#3F5B4A" : "#A79B87",
+      railLib: st.base === 2 ? "#3F5B4A" : "#A79B87",
+      dot0: st.base === 0 ? dotOn : dotOff, dot0w: st.base === 0 ? 20 : 8,
+      dot1: st.base === 1 ? dotOn : dotOff, dot1w: st.base === 1 ? 20 : 8,
+      dot2: st.base === 2 ? dotOn : dotOff, dot2w: st.base === 2 ? 20 : 8,
+
+      isJar: L === "jar", isFilter: L === "filter", isTitle: L === "title",
+      isAdd: L === "add", isSetup: L === "setup", isRate: L === "rate",
+      openRate: () => this.go("rate"),
+      myRatings: Object.keys(st.scores).map((k) => {
+        const v = st.scores[k];
+        return {
+          name: k, label: v ? v.toFixed(1) : "—",
+          valColor: v ? "#C98A3C" : "var(--onink3)",
+          ticks: Array.from({ length: 10 }, (_, i) => {
+            const n = i + 1, on = n <= v;
+            return {
+              n, set: () => this.setScore(k, n),
+              h: on ? 22 : 10,
+              c: on ? "#C98A3C" : "var(--ink2)",
+              lc: n === v ? "#C98A3C" : "var(--onink3)",
+            };
+          }),
+        };
+      }),
+      myAvg: (() => {
+        const v = Object.values(st.scores).filter((x) => x > 0);
+        return v.length ? (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : "—";
+      })(),
+      isShake: L === "draw" && st.phase === "shake",
+      isKnock: L === "draw" && st.phase === "knock",
+      isPause: L === "draw" && st.phase === "pause",
+      isReveal: L === "draw" && st.phase === "reveal",
+      showRail: !L,
+
+      openJar: () => this.go("jar"), openFilter: () => this.go("filter"),
+      openTitle: () => this.go("title"), openAdd: () => this.go("add"),
+      openSetup: this.openSheet, dismissSheet: this.dismissSheet, closeLayer: () => this.go(null),
+      startDraw: this.startDraw,
+
+      counts: [3, 5, 8].map((c) => ({
+        n: c,
+        pick: () => this.setState({ drawN: c, saucy: false }),
+        bg: !st.saucy && st.drawN === c ? "#E8DCC4" : "#FBF7EF",
+        bd: !st.saucy && st.drawN === c ? "#3F5B4A" : "#D8CBB0",
+        fg: !st.saucy && st.drawN === c ? "#2E2A24" : "#6B6155",
+        sub: !st.saucy && st.drawN === c ? "#3F5B4A" : "#A79B87",
+      })),
+      pickSaucy: () => this.setState({ saucy: !st.saucy }),
+      saucyBg: st.saucy ? "#F6E7D6" : "#FBF7EF",
+      saucyBd: st.saucy ? "#A8492F" : "#D8CBB0",
+      saucyFg: st.saucy ? "#A8492F" : "#2E2A24",
+      saucyDot: st.saucy ? "#A8492F" : "#C9B896",
+      saucyDotFill: st.saucy ? "#A8492F" : "transparent",
+      setupCta: st.saucy ? "Just give me one" : "Shake out " + st.drawN,
+
+      drawN: n,
+      gridCols: n <= 3 ? "1fr" : "1fr 1fr",
+      headline: left <= 1 ? "One left" : left + " still standing",
+      winner: winnerIdx >= 0 ? served[winnerIdx].title : served[0].title,
+      winnerMeta: winnerIdx >= 0 ? served[winnerIdx].meta : served[0].meta,
+      revealSub: st.saucy ? "Straight out of the jar. No arguing." : (n - 1) + " knocked out · everything goes back in",
+      candidates: served.map((c, i) => ({
+        title: c.title, meta: c.meta,
+        out: st.out.includes(i),
+        opacity: st.out.includes(i) ? 0.34 : 1,
+        scale: st.out.includes(i) ? 0.94 : 1,
+        rot: st.out.includes(i) ? rots[i] * 3.4 : 0,
+        knock: () => this.knock(i),
+      })),
+
+      jars: [
+        { name: "Friday Night", count: 24, fill: 62, rot: -1.4, open: () => this.go("jar") },
+        { name: "Long Haul", count: 11, fill: 30, rot: 1.2 },
+        { name: "Comfort Rewatch", count: 37, fill: 84, rot: -0.7 },
+        { name: "Nora's Pile", count: 9, fill: 24, rot: 1.6 },
+        { name: "Something New", count: 52, fill: 93, rot: -1.1 },
+      ],
+
+      jarSlips: [
+        { title: "Paddington 2", meta: "2017 · 103 min" },
+        { title: "The Grand Budapest Hotel", meta: "2014 · 99 min" },
+        { title: "Chef", meta: "2014 · 114 min" },
+        { title: "Moonstruck", meta: "1987 · 102 min" },
+        { title: "School of Rock", meta: "2003 · 109 min" },
+        { title: "My Neighbor Totoro", meta: "1988 · 86 min" },
+        { title: "Groundhog Day", meta: "1993 · 101 min" },
+      ].map((x) => ({ ...x, open: () => this.go("title") })),
+
+      predicates: [
+        { kind: "Tag", text: "Tagged cozy", showJoin: false },
+        { kind: "Title attribute", text: "Runtime is under 115 minutes", showJoin: true, join: "AND", toggleJoin: () => {} },
+        { kind: "Viewing", text: "Nora has not watched it", showJoin: true, join: "AND", toggleJoin: () => {} },
+        { kind: "Draw", text: "Not drawn in the last 30 days", showJoin: true, join: "AND", toggleJoin: () => {} },
+      ],
+
+      libraryRows: [
+        { title: "Paddington 2", meta: "2017 · Comedy · 103 min", tags: "cozy · nora-approved", score: "9.1", scoreColor: "#3F5B4A" },
+        { title: "The Grand Budapest Hotel", meta: "2014 · Comedy · 99 min", tags: "cozy · rewatch", score: "8.7", scoreColor: "#3F5B4A" },
+        { title: "Burning", meta: "2018 · Drama · 148 min", tags: "long-haul", score: "—", scoreColor: "#A79B87" },
+        { title: "Moonstruck", meta: "1987 · Romance · 102 min", tags: "date-night", score: "8.2", scoreColor: "#3F5B4A" },
+        { title: "Big Night", meta: "1996 · Drama · 109 min", tags: "food · dads-pick", score: "7.9", scoreColor: "#6B6155" },
+        { title: "My Neighbor Totoro", meta: "1988 · Family · 86 min", tags: "cozy · kids", score: "9.4", scoreColor: "#3F5B4A" },
+        { title: "Heat", meta: "1995 · Crime · 170 min", tags: "dads-pick", score: "6.8", scoreColor: "#6B6155" },
+      ].map((r) => ({ ...r, open: () => this.go("title") })),
+
+      logRows: [
+        { date: "Fri 7 Aug", title: "My Neighbor Totoro", who: "Sam, Nora, Ade, Jo", score: "9.4", pin: 1 },
+        { date: "Sun 2 Aug", title: "Big Night", who: "Sam, Jo", score: "7.9", pin: 0 },
+        { date: "Fri 31 Jul", title: "Moonstruck", who: "All four + 2 guests", score: "8.2", pin: 1 },
+        { date: "Tue 28 Jul", title: "Heat", who: "Ade", score: "6.8", pin: 0 },
+        { date: "Fri 24 Jul", title: "Chef", who: "Sam, Nora, Jo", score: "8.0", pin: 0 },
+      ],
+
+      addResults: [
+        { title: "My Neighbor Totoro", meta: "1988 · Hayao Miyazaki · 86 min" },
+        { title: "Totoro: Making Of", meta: "1990 · Documentary · 42 min" },
+        { title: "Pom Poko", meta: "1994 · Isao Takahata · 119 min" },
+        { title: "Kiki's Delivery Service", meta: "1989 · Hayao Miyazaki · 103 min" },
+      ],
+
+      ratings: [
+        { name: "Plot", value: "8.5", pct: 85 },
+        { name: "Acting", value: "9.0", pct: 90 },
+        { name: "Soundtrack", value: "7.8", pct: 78 },
+        { name: "Rewatchability", value: "9.8", pct: 98 },
+      ],
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -53,15 +53,66 @@ create role powersync_role with replication bypassrls login password '<generated
 grant select on all tables in schema public to powersync_role;
 alter default privileges in schema public grant select on tables to powersync_role;
 
--- Logical replication publication.
-create publication powersync for all tables;
+-- Logical replication publication. Scoped to `public` deliberately — see below.
+create publication powersync for tables in schema public;
 ```
 
-`for all tables` is the simple option and correct at this scale. On large datasets it
-can cause memory spikes, in which case list tables explicitly.
+**Not `for all tables`.** That form publishes every schema in the database, which on
+Supabase means `auth`, `storage`, `realtime`, `vault` and the rest — roughly 55 tables
+against the 19 that are ours. Nothing extra reaches a device, because sync rules decide
+that, but the write-ahead log for all of it is streamed to the PowerSync service, and
+`auth.users` carries password hashes, email addresses and refresh tokens. There is no
+reason to put those on the wire to replicate a film catalogue.
+
+`for tables in schema public` (Postgres 15+) keeps the property that matters — new
+tables are included automatically as migrations add them — without the rest of the
+database coming along. Listing tables explicitly has neither property; see the
+troubleshooting note below for why enumerating them is the wrong fix.
 
 Note `powersync_role` gets `select` on `public` only — it never sees the `private`
 schema, which holds the RLS helper functions and nothing worth replicating.
+
+### If deploying sync rules reports tables "not part of publication"
+
+```
+Table "public"."household" is not part of publication 'powersync'.
+```
+
+The publication exists but is empty, which happens when it was created without
+`for all tables` — Supabase's **Database → Replication** UI creates one that way, and so
+does re-running the block above after the `create role` line has already failed.
+
+Check what is actually published, by schema:
+
+```sql
+select schemaname, count(*)
+from pg_publication_tables
+where pubname = 'powersync'
+group by schemaname
+order by 2 desc;
+```
+
+Want a single row: `public`, 19. Zero rows means the publication is empty and nothing
+replicates. A count near 55 spread across `auth`, `storage` and `realtime` means it was
+created `for all tables` — it works, but see above for why to narrow it.
+
+Either way, recreate rather than adding tables one by one:
+
+```sql
+drop publication if exists powersync;
+create publication powersync for tables in schema public;
+```
+
+`alter publication powersync add table …` for each table named in the error also clears
+it, and is the wrong fix. It enumerates the tables that exist *today*, so the next
+migration adds a table that replicates to nobody — and a table PowerSync never publishes
+is not an error anywhere. It is simply always empty on the device, which reads as
+missing data rather than as a misconfiguration. That is the same silent failure mode
+`src/lib/db/sync-rules.test.ts` exists to catch on the client side.
+
+Expect 19 tables afterwards, matching the `new Table(...)` declarations in
+`src/lib/db/schema.ts`. Then redeploy the sync rules — dropping the publication does not
+drop the replication slot, but the instance needs to re-read the schema.
 
 ## 2. Connect the instance
 

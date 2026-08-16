@@ -2,6 +2,10 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // scripts/build-theme-css.ts is run by Node directly, and Node's type stripping
+    // needs the literal `.ts` on its import. Nothing is emitted from this project, so
+    // allowing the extension costs nothing.
+    "allowImportingTsExtensions": true,
     "types": [
       "jest",
       "node"
@@ -19,6 +23,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "nativewind-env.d.ts"
   ]
 }

@@ -90,6 +90,23 @@ export function tmdbId(value: number): number {
 }
 
 /**
+ * Mirrors the `uuid` column type, which SQLite does not have — every id column is plain
+ * text locally, so a malformed id inserts happily and fails on upload as `22P02`.
+ *
+ * Only worth calling where an id comes from outside the app's own `newId()`: today that
+ * is the household code someone types in to join. Normalised to lower case, since
+ * Postgres renders uuids that way and a comparison against a synced row would otherwise
+ * miss.
+ */
+export function uuid(value: string, subject: string): string {
+  const trimmed = value?.trim().toLowerCase() ?? "";
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(trimmed)) {
+    throw new ConstraintError(`${subject} is not a valid code`);
+  }
+  return trimmed;
+}
+
+/**
  * Not a database constraint — `draw_participant` is deliberately unconstrained so a
  * Guest can take part. But a Draw with nobody in it is meaningless, and the mistake is
  * easier to explain here than to discover later.

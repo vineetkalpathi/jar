@@ -49,6 +49,13 @@ streams:
         INNER JOIN household_member me ON me.household_id = peer.household_id
         WHERE me.user_id = auth.user_id()
 
+      # My own row, unconditionally. The query above reaches it only through a
+      # membership, so a user who belongs to no household yet — every user, between
+      # signing up and creating one — would not receive their own display name on a
+      # fresh install, and the app would offer to onboard someone it cannot name.
+      - SELECT app_user.* FROM app_user
+        WHERE app_user.id = auth.user_id()
+
   # --- Library and vocabulary ------------------------------------------------
 
   library:

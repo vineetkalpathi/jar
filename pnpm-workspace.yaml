@@ -1,0 +1,22 @@
+# react-native-css compiles CSS by running lightningcss twice with custom JS *visitors*
+# (see its compiler/compiler.js). A visitor hands the parsed stylesheet back across the
+# Rust/JS boundary through serde, so it is coupled to lightningcss's internal AST shape,
+# not merely to its public API — and its declared peer range, `>=1.27.0`, is wrong.
+# Bisected: 1.30.1 works, 1.32.0 and 1.33.0 both fail the bundle with
+#
+#   failed to deserialize; expected an object-like struct named Specifier, found ()
+#
+# which points at global.css and names nothing useful. react-native-css carries its own
+# hardcoded guard against 1.30.2 for the same class of reason.
+#
+# The pin is scoped rather than global on purpose. react-native-css resolves lightningcss
+# from @expo/metro-config's directory first (compiler/lightningcss-loader.js), so that is
+# the only copy that has to be old. Tailwind keeps @tailwindcss/node's own exact pin and
+# is unaffected — a blanket override would drag Tailwind back several versions to fix a
+# bug it does not have.
+#
+# Revisit when react-native-css supports a newer lightningcss; this is a NativeWind v5
+# preview constraint. If Expo's own range ever moves past what react-native-css
+# tolerates, this line is what holds it back.
+overrides:
+  "@expo/metro-config>lightningcss": 1.30.1

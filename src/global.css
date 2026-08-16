@@ -1,0 +1,40 @@
+/*
+ * Tailwind entry point. Imported once, by the root layout.
+ *
+ * Everything token-derived lives in `theme/tokens.css`, which is generated from
+ * `theme/tokens.ts` — every `pnpm start` / `pnpm ios` regenerates it, so it cannot go
+ * stale. Only rules that have no token behind them belong in this file.
+ *
+ * The alternative is a `@config "../tailwind.config.ts"` pointing at a JS config that
+ * imports the tokens directly, which removes the generate step. It works — it was
+ * tested — but Tailwind v4 treats JS configs as a compatibility path, and composite
+ * type roles then need `plugin()`/`addUtilities` instead of the `@utility` rules below.
+ * Worth revisiting if the generator ever becomes a nuisance.
+ */
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+@import "nativewind/theme";
+@import "./theme/tokens.css";
+
+@source "./app";
+@source "./components";
+
+/*
+ * The jar outline. 1.5px is the one stroke width in the app that isn't a hairline, and
+ * the design language asks for it to survive even if the drawing becomes an SVG.
+ */
+@utility border-jar {
+  border-width: 1.5px;
+}
+
+/*
+ * A dashed edge, for the "＋ New jar" tile and the "Edit filter" chip — the two places
+ * that read as "not filled in yet".
+ */
+@utility border-dashed-hairline {
+  border-width: 1px;
+  border-style: dashed;
+  border-color: var(--color-hairline);
+}
