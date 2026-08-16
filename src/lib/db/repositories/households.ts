@@ -9,9 +9,10 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/react-native";
 import { STARTER_RATING_CATEGORIES } from "../../rating-categories";
 import type { HouseholdRow, RatingCategoryRow } from "../schema";
-import { requiredText } from "../constraints";
+import { requiredText, uuid } from "../constraints";
 import { newId } from "../ids";
 import { findOrInsert } from "../upsert";
+import { supabase } from "../supabase";
 import { timestamp } from "../../time";
 
 /** Households the signed-in user belongs to. Parameters: `[userId]`. */
@@ -91,6 +92,85 @@ export async function createHousehold(
   });
 
   return householdId;
+}
+
+/**
+ * Whether a join code names a real Household — a direct network call rather than a
+ * PowerSync-managed read.
+ *
+ * Unlike creating a Household, joining has nothing to invent locally: the entire
+ * question is whether the server has a row for this id, and RLS hides that row from
+ * anyone who isn't a member yet, so the local replica can never answer it either way.
+ * `household_id_exists` (see the join-validation migration) is `security definer` and
+ * answers only true/false, so a bad code fails fast without exposing the Household
+ * itself.
+ */
+export async function householdExists(code: string): Promise<boolean> {
+  const householdId = uuid(code, "That household code");
+  const { data, error } = await supabase.rpc("household_id_exists", {
+    check_id: householdId,
+  });
+  if (error) throw error;
+  return data === true;
+}
+
+/**
+ * Adds the signed-in User to an existing Household by its id.
+ *
+ * A stopgap until invites exist. The RLS policy already permits it — a member row whose
+ * `user_id` is your own is always allowed — so this needs no schema change, but it also
+ * means the household id is the credential. Anyone holding one can join. Replace this
+ * with a real `household_invite` before that matters.
+ *
+ * Nothing is validated against the Household itself, because it cannot be: the row is
+ * not on this device until the membership syncs and the `households` stream starts
+ * matching it. A wrong id therefore fails on the server, where the foreign key catches
+ * it, and the connector drops it — leaving a local membership pointing at a Household
+ * that never arrives. `pendingHouseholdIds` is how the UI finds those.
+ */
+export async function joinHousehold(
+  db: AbstractPowerSyncDatabase,
+  input: { householdId: string; userId: string },
+): Promise<string> {
+  const householdId = uuid(input.householdId, "That household code");
+
+  const existing = await db.getOptional<{ id: string }>(
+    `select id from household_member where household_id = ? and user_id = ?`,
+    [householdId, input.userId],
+  );
+  if (existing) return householdId;
+
+  await db.execute(
+    `insert into household_member (id, household_id, user_id, joined_at)
+     values (?, ?, ?, ?)`,
+    [newId(), householdId, input.userId, timestamp()],
+  );
+
+  return householdId;
+}
+
+/**
+ * Households the user has a membership row for but no Household row — a join that has
+ * not come back from the server yet, or one that never will because the id was wrong.
+ *
+ * Parameters: `[userId]`.
+ */
+export const PENDING_HOUSEHOLD_IDS = `
+  select hm.household_id
+  from household_member hm
+  left join household h on h.id = hm.household_id
+  where hm.user_id = ? and h.id is null
+`;
+
+/** Undoes a join that never resolved. Parameters are the same pair as the insert. */
+export async function leaveHousehold(
+  db: AbstractPowerSyncDatabase,
+  input: { householdId: string; userId: string },
+): Promise<void> {
+  await db.execute(
+    `delete from household_member where household_id = ? and user_id = ?`,
+    [input.householdId, input.userId],
+  );
 }
 
 export async function renameHousehold(

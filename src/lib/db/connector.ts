@@ -100,7 +100,13 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
       case UpdateType.PUT: {
         // `id` lives in the entry rather than in opData, and every table has a real id
         // column in Postgres, so this needs no per-table translation.
-        const { error } = await table.upsert({ ...op.opData, id: op.id });
+        //
+        // Must stay a plain insert. `upsert` (ON CONFLICT) and `return=representation`
+        // (RETURNING) both make Postgres apply the table's SELECT policy to the new
+        // row, and `household_select` requires a membership that does not exist yet —
+        // so creating a household 42501s and is dropped. A re-upload then surfaces as
+        // 23505 instead of merging, which is the convergence rule above.
+        const { error } = await table.insert({ ...op.opData, id: op.id });
         return error;
       }
       case UpdateType.PATCH: {

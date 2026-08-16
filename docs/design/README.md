@@ -19,12 +19,28 @@ prototype used to make decisions — it runs in a browser, uses CSS custom prope
 
 The target is **Expo SDK 57 / React Native, expo-router, `src/app/`** (see `README.md` and
 `docs/README.md` in the repo). Recreate the *design* in React Native using the repo's own
-conventions — `StyleSheet.create`, the existing `src/lib` data layer, expo-router file
-routes. Do not port the HTML.
+conventions — Tailwind classNames via NativeWind, the existing `src/lib` data layer,
+expo-router file routes. Do not port the HTML.
+
+**One NativeWind trap, already paid for.** Some third-party components silently drop
+`className` under the v5 polyfill — no error, no warning, the prop is ignored. The one
+found so far is `SafeAreaView` from `react-native-safe-area-context`: its `flex-1` never
+lands, the view collapses to zero height, and *every* screen renders as a blank grey
+page while the components inside it are mounted and correct. `src/components/screen.tsx`
+uses `useSafeAreaInsets()` and plain `View`s instead. If a screen ever goes mysteriously
+blank, suspect a non-`react-native` component with a `className` before suspecting your
+own layout — pass it `style` and see if the screen comes back.
+
+Styling is Tailwind, and the tokens are the only place a value is written down.
+`src/theme/tokens.ts` is authoritative; `pnpm theme` regenerates `src/theme/tokens.css`
+from it, which is what gives `bg-paper`, `text-ink`, `type-slip` and the rest their
+values. Reach for the TypeScript tokens directly only where there is no className for
+what you need — animation durations, the jar's geometry, a colour passed to a native
+prop.
 
 Two RN-specific consequences:
 - `color-mix()` does not exist. The dark register's derived colours are shipped as resolved
-  constants in `theme.ts`.
+  constants in `src/theme/tokens.ts`.
 - The prototype's `--fd` / `--fu` CSS variables become plain `theme.font.display` /
   `theme.font.ui` values.
 
@@ -61,7 +77,7 @@ two registers share a hue. If the paper changes, the dark screens change with it
 Warm greige, hue pulled nearly to zero. Reads as "unbleached" rather than as a colour, which
 keeps the jars and slips the only thing on screen with personality.
 
-Full values, plus the accent set and the derived dark register, are in **`theme.ts`**.
+Full values, plus the accent set and the derived dark register, are in **`src/theme/tokens.ts`**.
 
 Rules that matter more than the hex values:
 - **Never pure white or pure black.** Everything sits slightly warm.
@@ -92,7 +108,7 @@ One further move, borrowed from the user's references: small text can be set in 
 serif*, uppercase, tracked to `0.18–0.28em`, instead of the sans. Use it for jar labels and
 section eyebrows only — tracked caps are slow to read, so buttons and list metadata stay sans.
 
-Sizes and the scale are in `theme.ts`. Base 16px, ratio 1.25.
+Sizes and the scale are in `src/theme/tokens.ts`. Base 16px, ratio 1.25.
 
 ### 4. The jar object — line-drawn
 
@@ -212,6 +228,8 @@ via `expo-font`.
 - `Movie Jar v3.dc.html` — the prototype. Open in a browser. Palette, jar style, and type
   pairing are live switchers in the right-hand panel; the panel also carries the reasoning
   behind each choice and the options that were rejected.
-- `theme.ts` — drop-in tokens for the RN app.
+- `src/theme/tokens.ts` — the tokens, now living in the app. Tailwind reads the same
+  values through `src/theme/tokens.css`, which `pnpm theme` generates from it; never
+  edit the CSS by hand.
 - `ios-frame.jsx` — the fake device bezel the prototype mounts in. Reference only, not part
   of the design.

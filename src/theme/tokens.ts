@@ -2,8 +2,16 @@
  * Movie Jar — design tokens.
  *
  * Source of truth for colour, type and spacing. Derived from the design language
- * decided in `Movie Jar v3.dc.html`; see README.md in this folder for the rules that
- * the values alone don't carry.
+ * decided in `docs/design/Movie Jar v3.dc.html`; see `docs/design/README.md` for the
+ * rules that the values alone don't carry.
+ *
+ * **This file is the only place a colour, face or size is written down.** Tailwind does
+ * not get its own copy: `src/theme/tokens.css` is generated from here by
+ * `pnpm theme` (`scripts/build-theme-css.ts`), so changing a value below and
+ * re-running it updates every `className` in the app. Never hand-edit `tokens.css`.
+ *
+ * Values with no className equivalent — `motion`, `jar`, `shadow` — are imported
+ * directly by the components that need them.
  *
  * Two notes before you edit anything:
  *
