@@ -62,6 +62,34 @@ export type TmdbMovieDetailsRaw = {
   original_language: string;
   spoken_languages: TmdbSpokenLanguage[];
   credits: TmdbCredits;
+  "watch/providers": TmdbWatchProvidersRaw;
+  external_ids: TmdbExternalIdsRaw;
+};
+
+export type TmdbWatchProviderRaw = {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string;
+  display_priority: number;
+};
+
+/** One country's entry in `/watch/providers` — TMDB keys these by ISO 3166-1 code. */
+export type TmdbWatchProviderRegion = {
+  /** Deep link into TMDB's own watch page, not a link to any one provider. */
+  link: string;
+  flatrate?: TmdbWatchProviderRaw[];
+};
+
+export type TmdbWatchProvidersRaw = {
+  results: Record<string, TmdbWatchProviderRegion>;
+};
+
+/**
+ * Only the one field this app reads. TMDB's `/external_ids` also carries Facebook,
+ * Instagram, Twitter, TVDB and Wikidata ids — none of them relevant here.
+ */
+export type TmdbExternalIdsRaw = {
+  imdb_id: string | null;
 };
 
 export type TmdbCreatedBy = { id: number; name: string };
@@ -82,4 +110,6 @@ export type TmdbTvDetailsRaw = {
   spoken_languages: TmdbSpokenLanguage[];
   created_by: TmdbCreatedBy[];
   credits: TmdbCredits;
+  "watch/providers": TmdbWatchProvidersRaw;
+  external_ids: TmdbExternalIdsRaw;
 };

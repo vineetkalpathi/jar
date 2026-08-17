@@ -1,5 +1,6 @@
 import { tmdbGet, TmdbError } from "./client";
 import { posterUrl, backdropUrl } from "./images";
+import { imdbUrl, tmdbUrl } from "./links";
 import { searchTitles } from "./search";
 import { getMovieDetails, getTvDetails } from "./details";
 
@@ -138,6 +139,8 @@ describe("getMovieDetails", () => {
             { id: 8, name: "Writer Person", job: "Writer" },
           ],
         },
+        "watch/providers": { results: {} },
+        external_ids: { imdb_id: null },
       }),
     );
 
@@ -148,6 +151,91 @@ describe("getMovieDetails", () => {
     expect(details.genres).toEqual(["Drama"]);
     expect(details.cast.map((c) => c.name)).toEqual(["First", "Second"]);
     expect(details.directors).toEqual([{ tmdbPersonId: 9, name: "Director Person" }]);
+  });
+
+  it("resolves US flatrate watch providers, ordered by display priority", async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse({
+        id: 42,
+        title: "Some Film",
+        release_date: "2018-03-01",
+        runtime: 100,
+        overview: "",
+        poster_path: null,
+        backdrop_path: null,
+        vote_average: 7.5,
+        genres: [],
+        original_language: "en",
+        spoken_languages: [],
+        credits: { cast: [], crew: [] },
+        "watch/providers": {
+          results: {
+            US: {
+              link: "https://www.themoviedb.org/movie/42/watch",
+              flatrate: [
+                { provider_id: 2, provider_name: "Second", logo_path: "/b.jpg", display_priority: 5 },
+                { provider_id: 1, provider_name: "First", logo_path: "/a.jpg", display_priority: 1 },
+              ],
+              // Present in the real API but not something this app surfaces yet.
+              rent: [{ provider_id: 9, provider_name: "Rentable", logo_path: "/c.jpg", display_priority: 1 }],
+            },
+            CA: {
+              link: "https://www.themoviedb.org/movie/42/watch?locale=CA",
+              flatrate: [
+                { provider_id: 3, provider_name: "Canadian", logo_path: "/d.jpg", display_priority: 1 },
+              ],
+            },
+          },
+        },
+        external_ids: { imdb_id: "tt1234567" },
+      }),
+    );
+
+    const details = await getMovieDetails(42);
+
+    expect(details.watchProviders).toEqual({
+      region: "US",
+      link: "https://www.themoviedb.org/movie/42/watch",
+      flatrate: [
+        { providerId: 1, name: "First", logoPath: "/a.jpg" },
+        { providerId: 2, name: "Second", logoPath: "/b.jpg" },
+      ],
+    });
+    expect(details.imdbId).toBe("tt1234567");
+  });
+
+  it("is null when nothing streams it in the US, even if another region has providers", async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse({
+        id: 42,
+        title: "Some Film",
+        release_date: "2018-03-01",
+        runtime: 100,
+        overview: "",
+        poster_path: null,
+        backdrop_path: null,
+        vote_average: 7.5,
+        genres: [],
+        original_language: "en",
+        spoken_languages: [],
+        credits: { cast: [], crew: [] },
+        "watch/providers": {
+          results: {
+            CA: {
+              link: "https://www.themoviedb.org/movie/42/watch?locale=CA",
+              flatrate: [
+                { provider_id: 3, provider_name: "Canadian", logo_path: "/d.jpg", display_priority: 1 },
+              ],
+            },
+          },
+        },
+        external_ids: { imdb_id: null },
+      }),
+    );
+
+    const details = await getMovieDetails(42);
+
+    expect(details.watchProviders).toBeNull();
   });
 });
 
@@ -168,6 +256,8 @@ describe("getTvDetails", () => {
         spoken_languages: [{ iso_639_1: "en", english_name: "English" }],
         created_by: [{ id: 5, name: "Creator Person" }],
         credits: { cast: [], crew: [] },
+        "watch/providers": { results: {} },
+        external_ids: { imdb_id: null },
       }),
     );
 
@@ -186,5 +276,17 @@ describe("image URLs", () => {
 
   it("composes the base, size and path", () => {
     expect(posterUrl("/x.jpg", "w185")).toBe("https://image.tmdb.org/t/p/w185/x.jpg");
+  });
+});
+
+describe("external links", () => {
+  it("builds a TMDB page from the id and media type, no slug required", () => {
+    expect(tmdbUrl(27205, "movie")).toBe("https://www.themoviedb.org/movie/27205");
+    expect(tmdbUrl(1399, "tv")).toBe("https://www.themoviedb.org/tv/1399");
+  });
+
+  it("returns null for imdbUrl when there's no IMDB match, rather than a broken link", () => {
+    expect(imdbUrl(null)).toBeNull();
+    expect(imdbUrl("tt1375666")).toBe("https://www.imdb.com/title/tt1375666/");
   });
 });

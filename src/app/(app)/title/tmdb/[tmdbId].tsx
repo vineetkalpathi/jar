@@ -8,9 +8,9 @@ import { Loading } from "@/components/loading";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
 import { TagChips } from "@/components/tag-chips";
-import { CastAndCrew, TmdbRating } from "@/components/tmdb-facts";
+import { CastAndCrew, ExternalLinks, TmdbRating, WatchProviders } from "@/components/tmdb-facts";
 import { DarkBody, DarkMeta, DarkTitle } from "@/components/text";
-import { annotations, households, type RatingCategoryRow, type TagRow } from "@/lib/db";
+import { annotations, households, library, type RatingCategoryRow, type TagRow } from "@/lib/db";
 import { useUserId } from "@/lib/auth/session";
 import { useHousehold } from "@/lib/household/active";
 import { getTitleDetails, posterUrl, type TmdbMediaType, type TmdbTitleDetails } from "@/lib/tmdb";
@@ -26,8 +26,10 @@ import { addTmdbTitleToLibrary } from "@/lib/tmdb/import";
  * the two views differ by one section (Library-scoped tags and household ratings,
  * absent until now because there was no Library row to hang them off), not by identity,
  * so a push/replace transition would read as "you went somewhere new" for something
- * that's still the same title on screen. `titleId` tracks whether that Library row now
- * exists; once it does, the same queries `/title/[id]` runs light up here too.
+ * that's still the same title on screen. `titleId` tracks whether that Library row
+ * exists — checked on load (already added, this visit or an earlier one) and set again
+ * after a successful add — and once it's set, the same queries `/title/[id]` runs light
+ * up here too.
  */
 export default function TmdbPreview() {
   const { tmdbId, mediaType } = useLocalSearchParams<{
@@ -62,6 +64,27 @@ export default function TmdbPreview() {
       active = false;
     };
   }, [tmdbId, mediaType]);
+
+  // A local read, not a fetch — resolves near-instantly, well before the TMDB request
+  // above, so this is what decides "Add to library" vs. "Added ✓" on first paint rather
+  // than the button flashing before flipping. Independent of `handleAdd`'s own
+  // `setTitleId`: this is what catches a title reached again after being added in an
+  // earlier visit (or on another device, synced down) — `handleAdd` alone only ever
+  // knew about titles added within this screen instance.
+  useEffect(() => {
+    let active = true;
+    library
+      .libraryEntryForTmdbId(db, { householdId: household.id, tmdbId: Number(tmdbId) })
+      .then((entry) => {
+        if (active && entry) setTitleId(entry.titleId);
+      })
+      .catch((cause) => {
+        console.warn("[title/tmdb] could not check library membership:", cause);
+      });
+    return () => {
+      active = false;
+    };
+  }, [db, household.id, tmdbId]);
 
   // Household-scoped, so this doesn't depend on `titleId` — fetched early, but the
   // household-rating section below stays unmounted until there's a Title to rate.
@@ -141,6 +164,10 @@ export default function TmdbPreview() {
             {details.overview ? <DarkBody>{details.overview}</DarkBody> : null}
             <CastAndCrew cast={details.cast} directors={details.directors} />
           </View>
+
+          <WatchProviders providers={details.watchProviders} />
+
+          <ExternalLinks tmdbId={details.tmdbId} mediaType={details.mediaType} imdbId={details.imdbId} />
 
           {titleId ? <HouseholdRating categories={categories} ratings={ratings} /> : null}
 

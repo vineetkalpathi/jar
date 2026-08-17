@@ -7,7 +7,7 @@ import { Loading } from "@/components/loading";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
 import { TagChips } from "@/components/tag-chips";
-import { CastAndCrew, TmdbRating } from "@/components/tmdb-facts";
+import { CastAndCrew, ExternalLinks, TmdbRating, WatchProviders } from "@/components/tmdb-facts";
 import { DarkBody, DarkMeta, DarkTitle } from "@/components/text";
 import {
   annotations,
@@ -18,7 +18,7 @@ import {
   type TitleRow,
 } from "@/lib/db";
 import { useHousehold } from "@/lib/household/active";
-import { getTitleDetails, posterUrl, type TmdbTitleDetails } from "@/lib/tmdb";
+import { getTitleDetails, posterUrl, type TmdbMediaType, type TmdbTitleDetails } from "@/lib/tmdb";
 
 /**
  * A Title, read — not handled. The design language's own words for the dark register:
@@ -113,6 +113,14 @@ export default function TitleDetail() {
         <Overview title={title} tmdb={tmdb} status={tmdbStatus} />
         <CastAndCrew cast={tmdb?.cast ?? []} directors={tmdb?.directors ?? []} />
       </View>
+
+      <WatchProviders providers={tmdb?.watchProviders ?? null} />
+
+      <ExternalLinks
+        tmdbId={title.tmdb_id}
+        mediaType={title.media_type as TmdbMediaType | null}
+        imdbId={tmdb?.imdbId ?? null}
+      />
 
       <HouseholdRating categories={categories} ratings={ratings} />
     </Screen>

@@ -53,6 +53,29 @@ export const CREDITS_FOR_TITLE = `
   order by tc.role, p.name
 `;
 
+/**
+ * Whether a Household already has a TMDB title in its Library, and the local Title id
+ * if so.
+ *
+ * The two-part check is the point: Titles converge globally on `tmdb_id` (ADR-0007), so
+ * a title can exist on this device because a *different* Household added it, without
+ * this Household having it in its Library. Matching `tmdb_id` alone would say "already
+ * added" for a title this Household has never touched.
+ */
+export async function libraryEntryForTmdbId(
+  db: AbstractPowerSyncDatabase,
+  input: { householdId: string; tmdbId: number },
+): Promise<{ titleId: string } | null> {
+  const row = await db.getOptional<{ title_id: string }>(
+    `select le.title_id
+     from library_entry le
+     join title t on t.id = le.title_id
+     where t.tmdb_id = ? and le.household_id = ?`,
+    [input.tmdbId, input.householdId],
+  );
+  return row ? { titleId: row.title_id } : null;
+}
+
 export type LibraryEntryView = TitleRow & {
   added_at: string | null;
   added_by_user_id: string | null;
