@@ -28,19 +28,31 @@ export function Poster({
   width,
   height,
   register = "paper",
+  fallback,
 }: {
   uri: string | null;
   width: number;
   height: number;
   register?: Register;
+  /**
+   * Replaces the default "TMDB" corner caption when there's no `uri` — a person's
+   * initial for a cast photo, say. Centred rather than corner-anchored, since a
+   * one-character fallback reads as a placeholder either way and doesn't need the
+   * torn-corner-watermark treatment the "TMDB" caption is going for.
+   */
+  fallback?: React.ReactNode;
 }) {
+  const align = uri || !fallback ? "items-end justify-end" : "items-center justify-center";
+
   return (
     <View
       style={{ width, height }}
-      className={`items-end justify-end overflow-hidden rounded-card border ${grounds[register]}`}
+      className={`${align} overflow-hidden rounded-card border ${grounds[register]}`}
     >
       {uri ? (
         <Image source={{ uri }} style={{ width, height }} contentFit="cover" />
+      ) : fallback !== undefined ? (
+        <Text className={`type-title-large ${captions[register]}`}>{fallback}</Text>
       ) : (
         <Text className={`type-meta-small p-1 ${captions[register]}`}>TMDB</Text>
       )}

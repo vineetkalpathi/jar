@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { HouseholdRating, type RatingWithCategory } from "@/components/household-rating";
+import { LibraryStatus } from "@/components/library-status";
 import { Loading } from "@/components/loading";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
@@ -22,11 +23,12 @@ import { getTitleDetails, posterUrl, type TmdbMediaType, type TmdbTitleDetails }
 
 /**
  * A Title, read — not handled. The design language's own words for the dark register:
- * no paper, no handwriting, no tape. Genres come from the local cache (`title_genre`,
- * written by `lib/tmdb/import.ts`), since that's what Jar filters actually match
- * against; the poster, overview, TMDB's own rating and cast/crew are fetched live via
- * `getTitleDetails`, because they're display-only and were never worth caching against
- * ADR-0003's six-month limit.
+ * no paper, no handwriting, no tape. Genres and language come from the local cache
+ * (`title.language`, `title_genre` — written by `lib/tmdb/import.ts`), since those are
+ * what Jar filters actually match against (`language` has its own predicate,
+ * `filter/types.ts`); the poster, overview, TMDB's own rating and cast/crew are fetched
+ * live via `getTitleDetails`, because they're display-only and were never worth caching
+ * against ADR-0003's six-month limit.
  *
  * Left out, deliberately: "in N jars" and the "Mark a card" link to Rating entry.
  * The former has no query yet — it would mean compiling every Jar's filter against one
@@ -85,17 +87,25 @@ export default function TitleDetail() {
 
   return (
     <Screen register="dark" gutter="form" scroll>
-      <View className="gap-3 pb-2 pt-2">
-        <Pressable onPress={() => router.back()}>
-          <DarkMeta>‹ Back</DarkMeta>
+      <View className="flex-row items-center justify-between pb-2 pt-2">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Text className="type-section-title text-dark-ink-secondary">‹</Text>
         </Pressable>
+        {/* Every path into this screen originates from the Household's own Library
+            (a Jar slip, or "View" right after adding) — always true, never a live check. */}
+        <LibraryStatus inLibrary />
       </View>
 
       <View className="flex-row items-start gap-4">
         <Poster
           uri={tmdb ? posterUrl(tmdb.posterPath, "w185") : null}
-          width={104}
-          height={154}
+          width={110}
+          height={163}
           register="dark"
         />
         <View className="flex-1 gap-1.5">
@@ -104,6 +114,7 @@ export default function TitleDetail() {
           {genreRows.length > 0 ? (
             <DarkMeta>{genreRows.map((g) => g.genre).join(" · ")}</DarkMeta>
           ) : null}
+          {title.language ? <DarkMeta>{title.language}</DarkMeta> : null}
           <TmdbRating voteAverage={tmdb?.voteAverage} />
           <TagChips tags={tags} />
         </View>

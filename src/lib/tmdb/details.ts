@@ -14,7 +14,7 @@ import type {
 } from "./types";
 
 export type TmdbPerson = { tmdbPersonId: number; name: string };
-export type TmdbCastMember = TmdbPerson & { character: string };
+export type TmdbCastMember = TmdbPerson & { character: string; profilePath: string | null };
 
 export type TmdbWatchProvider = { providerId: number; name: string; logoPath: string | null };
 
@@ -68,13 +68,18 @@ function languageName(
 }
 
 function topCast(
-  cast: { id: number; name: string; character: string; order: number }[],
+  cast: { id: number; name: string; character: string; order: number; profile_path: string | null }[],
   limit = 10,
 ): TmdbCastMember[] {
   return [...cast]
     .sort((a, b) => a.order - b.order)
     .slice(0, limit)
-    .map((c) => ({ tmdbPersonId: c.id, name: c.name, character: c.character }));
+    .map((c) => ({
+      tmdbPersonId: c.id,
+      name: c.name,
+      character: c.character,
+      profilePath: c.profile_path,
+    }));
 }
 
 function crewDirectors(crew: TmdbCrewCreditRaw[]): TmdbPerson[] {

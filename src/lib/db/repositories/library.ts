@@ -54,25 +54,35 @@ export const CREDITS_FOR_TITLE = `
 `;
 
 /**
- * Whether a Household already has a TMDB title in its Library, and the local Title id
- * if so.
+ * The Library row for a TMDB title, if this Household already has it.
  *
  * The two-part check is the point: Titles converge globally on `tmdb_id` (ADR-0007), so
  * a title can exist on this device because a *different* Household added it, without
  * this Household having it in its Library. Matching `tmdb_id` alone would say "already
  * added" for a title this Household has never touched.
+ *
+ * Exposed as raw SQL — rather than only the wrapper below — so a caller that wants this
+ * to stay live can hand it straight to `useQuery`. That's what fixed a real bug: a
+ * search result added from the TMDB preview screen wasn't reflected back on the results
+ * row, because the two screens' "am I added" checks were unconnected local state. A
+ * `useQuery` on this instead re-runs the moment the write lands, regardless of which
+ * screen made it. Parameters: `[tmdbId, householdId]`.
  */
+export const LIBRARY_ENTRY_FOR_TMDB_ID = `
+  select le.title_id
+  from library_entry le
+  join title t on t.id = le.title_id
+  where t.tmdb_id = ? and le.household_id = ?
+`;
+
 export async function libraryEntryForTmdbId(
   db: AbstractPowerSyncDatabase,
   input: { householdId: string; tmdbId: number },
 ): Promise<{ titleId: string } | null> {
-  const row = await db.getOptional<{ title_id: string }>(
-    `select le.title_id
-     from library_entry le
-     join title t on t.id = le.title_id
-     where t.tmdb_id = ? and le.household_id = ?`,
-    [input.tmdbId, input.householdId],
-  );
+  const row = await db.getOptional<{ title_id: string }>(LIBRARY_ENTRY_FOR_TMDB_ID, [
+    input.tmdbId,
+    input.householdId,
+  ]);
   return row ? { titleId: row.title_id } : null;
 }
 

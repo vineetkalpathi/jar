@@ -36,6 +36,7 @@ export type TmdbCastCreditRaw = {
   name: string;
   character: string;
   order: number;
+  profile_path: string | null;
 };
 
 export type TmdbCrewCreditRaw = {
@@ -90,6 +91,36 @@ export type TmdbWatchProvidersRaw = {
  */
 export type TmdbExternalIdsRaw = {
   imdb_id: string | null;
+};
+
+export type TmdbPersonSearchItem = {
+  id: number;
+  name: string;
+  profile_path: string | null;
+};
+
+/**
+ * One entry from `/person/{id}/combined_credits` — movie and tv shapes merged by TMDB
+ * into one list, which is why the title/date fields are the union of both rather than
+ * either alone. `character` is present on a cast credit, `job` on a crew one; never
+ * both, and TMDB's own inconsistency, not this app's.
+ */
+export type TmdbCombinedCreditRaw = {
+  id: number;
+  media_type: TmdbMediaType;
+  title?: string;
+  name?: string;
+  release_date?: string | null;
+  first_air_date?: string | null;
+  poster_path: string | null;
+  popularity: number;
+  character?: string;
+  job?: string;
+};
+
+export type TmdbCombinedCreditsRaw = {
+  cast: TmdbCombinedCreditRaw[];
+  crew: TmdbCombinedCreditRaw[];
 };
 
 export type TmdbCreatedBy = { id: number; name: string };

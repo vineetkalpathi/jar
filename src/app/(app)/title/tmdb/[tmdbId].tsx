@@ -2,8 +2,8 @@ import { useQuery, usePowerSync } from "@powersync/react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { Button } from "@/components/button";
 import { HouseholdRating, type RatingWithCategory } from "@/components/household-rating";
+import { LibraryStatus } from "@/components/library-status";
 import { Loading } from "@/components/loading";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
@@ -22,14 +22,15 @@ import { addTmdbTitleToLibrary } from "@/lib/tmdb/import";
  * `/title/[id]` reads from the local replica — it has nothing to read for something
  * that was only ever a search result. This screen reads TMDB directly instead.
  *
- * "Add to library" grows this screen in place rather than navigating to `/title/[id]`:
- * the two views differ by one section (Library-scoped tags and household ratings,
- * absent until now because there was no Library row to hang them off), not by identity,
- * so a push/replace transition would read as "you went somewhere new" for something
- * that's still the same title on screen. `titleId` tracks whether that Library row
- * exists — checked on load (already added, this visit or an earlier one) and set again
- * after a successful add — and once it's set, the same queries `/title/[id]` runs light
- * up here too.
+ * The corner `LibraryStatus` toggle grows this screen in place rather than navigating to
+ * `/title/[id]`: the two views differ by one section (Library-scoped tags and household
+ * ratings, absent until now because there was no Library row to hang them off), not by
+ * identity, so a push/replace transition would read as "you went somewhere new" for
+ * something that's still the same title on screen. `titleId` is a live `useQuery`
+ * against `library_entry`, not local state set by `handleAdd` — so it reflects the
+ * Library the moment a write lands, whether that's this screen's own add, an earlier
+ * visit, or another device synced down, and once it's set, the same queries `/title/[id]`
+ * runs light up here too.
  */
 export default function TmdbPreview() {
   const { tmdbId, mediaType } = useLocalSearchParams<{
@@ -42,7 +43,6 @@ export default function TmdbPreview() {
 
   const [details, setDetails] = useState<TmdbTitleDetails | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [titleId, setTitleId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -67,24 +67,14 @@ export default function TmdbPreview() {
 
   // A local read, not a fetch — resolves near-instantly, well before the TMDB request
   // above, so this is what decides "Add to library" vs. "Added ✓" on first paint rather
-  // than the button flashing before flipping. Independent of `handleAdd`'s own
-  // `setTitleId`: this is what catches a title reached again after being added in an
-  // earlier visit (or on another device, synced down) — `handleAdd` alone only ever
-  // knew about titles added within this screen instance.
-  useEffect(() => {
-    let active = true;
-    library
-      .libraryEntryForTmdbId(db, { householdId: household.id, tmdbId: Number(tmdbId) })
-      .then((entry) => {
-        if (active && entry) setTitleId(entry.titleId);
-      })
-      .catch((cause) => {
-        console.warn("[title/tmdb] could not check library membership:", cause);
-      });
-    return () => {
-      active = false;
-    };
-  }, [db, household.id, tmdbId]);
+  // than the button flashing before flipping. Live, not a one-time check: it catches a
+  // title added in an earlier visit, on another device, or — same query, same table —
+  // from the Add-title search row this screen was opened from.
+  const { data: libraryRows } = useQuery<{ title_id: string }>(
+    library.LIBRARY_ENTRY_FOR_TMDB_ID,
+    [Number(tmdbId), household.id],
+  );
+  const titleId = libraryRows[0]?.title_id ?? null;
 
   // Household-scoped, so this doesn't depend on `titleId` — fetched early, but the
   // household-rating section below stays unmounted until there's a Title to rate.
@@ -109,13 +99,13 @@ export default function TmdbPreview() {
     setAdding(true);
     setAddError(null);
     try {
-      const newTitleId = await addTmdbTitleToLibrary(db, {
+      await addTmdbTitleToLibrary(db, {
         tmdbId: Number(tmdbId),
         mediaType,
         householdId: household.id,
         userId,
       });
-      setTitleId(newTitleId);
+      // No local state to set — the `useQuery` above picks up the write on its own.
     } catch (cause) {
       console.warn("[title/tmdb] could not add", tmdbId, cause);
       setAddError("Couldn't add that — try again.");
@@ -126,11 +116,18 @@ export default function TmdbPreview() {
 
   return (
     <Screen register="dark" gutter="form" scroll>
-      <View className="gap-3 pb-2 pt-2">
-        <Pressable onPress={() => router.back()}>
-          <DarkMeta>‹ Back</DarkMeta>
+      <View className="flex-row items-center justify-between pb-2 pt-2">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Text className="type-section-title text-dark-ink-secondary">‹</Text>
         </Pressable>
+        <LibraryStatus inLibrary={!!titleId} busy={adding} onAdd={handleAdd} />
       </View>
+      {addError ? <Text className="type-meta-small pb-2 text-rust">{addError}</Text> : null}
 
       {status === "loading" ? (
         <Loading />
@@ -141,8 +138,8 @@ export default function TmdbPreview() {
           <View className="flex-row items-start gap-4">
             <Poster
               uri={posterUrl(details.posterPath, "w185")}
-              width={104}
-              height={154}
+              width={110}
+              height={163}
               register="dark"
             />
             <View className="flex-1 gap-1.5">
@@ -155,6 +152,7 @@ export default function TmdbPreview() {
               {details.genres.length > 0 ? (
                 <DarkMeta>{details.genres.join(" · ")}</DarkMeta>
               ) : null}
+              {details.language ? <DarkMeta>{details.language}</DarkMeta> : null}
               <TmdbRating voteAverage={details.voteAverage} />
               <TagChips tags={tags} />
             </View>
@@ -170,15 +168,6 @@ export default function TmdbPreview() {
           <ExternalLinks tmdbId={details.tmdbId} mediaType={details.mediaType} imdbId={details.imdbId} />
 
           {titleId ? <HouseholdRating categories={categories} ratings={ratings} /> : null}
-
-          <View className="mt-6 gap-2">
-            {addError ? <Text className="type-meta-small text-rust">{addError}</Text> : null}
-            {titleId ? (
-              <Text className="type-meta text-forest">Added to your library ✓</Text>
-            ) : (
-              <Button label="Add to library" onPress={handleAdd} loading={adding} />
-            )}
-          </View>
         </>
       )}
     </Screen>

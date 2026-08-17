@@ -21,7 +21,7 @@ entry, Log, settings, sign-out UI, household switcher UI, navigation shell (tabs
 ## 0. Pre-flight (automated)
 
 - [ ] `pnpm exec tsc --noEmit` — clean.
-- [ ] `pnpm test` — 113 tests, 9 suites. Note: covers `src/lib` only (filter compile +
+- [ ] `pnpm test` — 122 tests, 9 suites. Note: covers `src/lib` only (filter compile +
       validate, constraints, cooldown, time, sync-rules, the TMDB client and its
       db-wiring). No component or screen tests.
 - [ ] `pnpm theme` regenerates `src/theme/tokens.css` with no diff vs committed file.
@@ -229,28 +229,65 @@ screen wiring, not TMDB's response shapes.
 - [ ] **T9.2** Results merge movies and tv shows, ranked by popularity — not movies-then-tv.
 - [ ] **T9.3** Empty query → hint copy, no request. No results → "No results for …".
       Offline / bad token → rust error text, not a crash.
-- [ ] **T9.4** Add → button becomes a disabled spinner, then "Added ✓" + "View"; the row
-      never reverts to "Add" after (`added` map keyed by `mediaType:tmdbId`).
-- [ ] **T9.5** "View" opens `/title/<id>` for the Title just created — confirm it's the
-      *local* Title id, not the TMDB id, and it's the same row on a second add of the
-      same title (convergence on `tmdb_id`, `library.ts`).
-- [ ] **T9.6** Add the same title twice (two different search sessions) → one Library
-      entry, one Title row — `addToLibrary`'s find-or-insert and `title.tmdb_id`'s
-      uniqueness are both doing their job.
-- [ ] **T9.7** Add failing mid-flight (kill network after the button is tapped) → rust
-      error banner, button returns to "Add" (not stuck spinning), retry works.
-- [ ] **T9.8** `‹ Close` returns to wherever Add was opened from ("+ Add a title" on the
-      Jars grid).
-- [ ] **T9.9** A movie and a tv show with the same title (e.g. search something with both)
+- [ ] **T9.4** Row tap (poster + title, not the Add pill) opens the TMDB preview
+      (`/title/tmdb/[tmdbId]`) before adding; after adding, the same tap opens the real
+      `/title/<id>` instead — confirm it's the *local* Title id, not the TMDB id.
+- [ ] **T9.5** Tap the outlined `+` circle → spinner, then solid green `✓`; never reverts
+      after. Each row's status is its own `useQuery` against `library_entry`
+      (`LIBRARY_ENTRY_FOR_TMDB_ID`), not locally-tracked state — confirm by adding a
+      title from its TMDB preview screen (reached by tapping the row) and backing out:
+      the row here must already show `✓` on return, with no re-fetch or remount needed.
+      Adding the same title twice (two search sessions) → one Library entry, one Title
+      row — `addToLibrary`'s find-or-insert and `title.tmdb_id`'s uniqueness are both
+      doing their job.
+- [ ] **T9.6** Add failing mid-flight (kill network after the circle is tapped) → rust
+      error text under that row, circle returns to outlined `+` (not stuck spinning),
+      retry works.
+- [ ] **T9.7** The lone `‹` top-left (no "Close" label) returns to wherever Add was
+      opened from ("+ Add a title" on the Jars grid). `hitSlop` gives it a real touch
+      target despite the small glyph.
+- [ ] **T9.8** A movie and a tv show with the same title (e.g. search something with both)
       → both appear, distinguishable by the "Movie"/"TV series" meta line.
+- [ ] **T9.9** On the TMDB preview screen (`/title/tmdb/[tmdbId]`, opened by an unadded
+      row): top-right is an outlined green circle with a `+`, not a bottom button. Tap →
+      spinner in the same circle → solid green `✓`, and the household-rating section
+      mounts in place with no navigation. Reopening the same title later (already added)
+      shows `✓` immediately — confirm this resolves from the live
+      `LIBRARY_ENTRY_FOR_TMDB_ID` query, not a re-add.
+- [ ] **T9.10** Searching a person's exact full name (case-insensitive) merges their
+      filmography straight into the results list — no separate "people" section, no
+      navigation to another screen. Meta line for a merged-in credit reads `year · role`
+      (character, or job title for a crew-only credit); a literal title match keeps
+      `year · Movie`/`TV series`. Merged list is one ranked list, not titles-then-credits.
+- [ ] **T9.11** The exact-match rule is deliberately narrow — confirm it holds:
+      - A bare, common word ("Tom") matches no person exactly → plain title search only,
+        no filmography merged in, even though TMDB returns several "Tom ___" people.
+      - A misspelled or partial name ("Tom Hank") → same: no exact match, no merge.
+      - A real one-word stage name that *is* an exact match ("Madonna") → merges, despite
+        being a single word — the rule is exact-match, not "looks like a full name."
+      - Typing an accented name without the accent ("Timothee Chalamet",
+        "Beyonce") still matches TMDB's accented canonical form — `foldName` strips
+        diacritics (and case) from both sides before comparing. An unrelated name close
+        in spelling ("Tom" vs "Tim") must still **not** match.
+- [ ] **T9.12** A title literally named after a person who also gets matched (rare, but
+      possible) → the literal title match wins on a key collision, not the credit
+      (`mergeRows`).
+- [ ] **T9.13** Search a person with a lot of talk-show/awards-show history (most A-list
+      actors) — their real filmography ranks above "Self"/"Himself"/"Herself" credits
+      even when a talk show is individually more popular than a given film (unit-tested
+      in `tmdb.test.ts`; this is the screen-level check that `mergeRows` preserves that
+      ordering rather than re-flattening it by popularity alone). Self-appearances are
+      demoted, not hidden — they still show up, at the bottom.
 
 ## 10. Title detail
 
-- [ ] **T10.1** Opened via a Jar's slip ⓘ, and via Add a title's "View" — both land on
-      the same screen for the same Title id.
+- [ ] **T10.1** Opened via a Jar's slip ⓘ, and via tapping an already-added row on Add a
+      title — both land on the same screen for the same Title id.
 - [ ] **T10.2** Dark register: ground is `dark.bg`, not `paper.bg`; no Caveat anywhere on
       this screen (title, genres and overview are all TMDB-sourced text — ADR-0003's
-      handwriting rule).
+      handwriting rule). Top-left is a lone `‹` (no "Back" label); top-right is a green
+      circle with a `✓` (`LibraryStatus`, always in-library here — every path into this
+      screen originates from the Household's own Library, so it's static, not tappable).
 - [ ] **T10.3** Poster renders from the live TMDB fetch (`getTitleDetails`), not from any
       locally cached path — confirm by checking the schema has no `poster_path` column.
       No `tmdb_id` (a hand-entered Title) → "Not linked to TMDB — added by hand.", no

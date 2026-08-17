@@ -1,6 +1,7 @@
 import { tmdbGet, TmdbError } from "./client";
 import { posterUrl, backdropUrl } from "./images";
 import { imdbUrl, tmdbUrl } from "./links";
+import { getPersonCredits, searchPeople } from "./people";
 import { searchTitles } from "./search";
 import { getMovieDetails, getTvDetails } from "./details";
 
@@ -131,8 +132,8 @@ describe("getMovieDetails", () => {
         spoken_languages: [{ iso_639_1: "fr", english_name: "French" }],
         credits: {
           cast: [
-            { id: 2, name: "Second", character: "B", order: 1 },
-            { id: 1, name: "First", character: "A", order: 0 },
+            { id: 2, name: "Second", character: "B", order: 1, profile_path: null },
+            { id: 1, name: "First", character: "A", order: 0, profile_path: "/first.jpg" },
           ],
           crew: [
             { id: 9, name: "Director Person", job: "Director" },
@@ -150,6 +151,8 @@ describe("getMovieDetails", () => {
     expect(details.language).toBe("French");
     expect(details.genres).toEqual(["Drama"]);
     expect(details.cast.map((c) => c.name)).toEqual(["First", "Second"]);
+    // profile_path rides along on credits.cast for free — no per-person request needed.
+    expect(details.cast.map((c) => c.profilePath)).toEqual(["/first.jpg", null]);
     expect(details.directors).toEqual([{ tmdbPersonId: 9, name: "Director Person" }]);
   });
 
@@ -288,5 +291,228 @@ describe("external links", () => {
   it("returns null for imdbUrl when there's no IMDB match, rather than a broken link", () => {
     expect(imdbUrl(null)).toBeNull();
     expect(imdbUrl("tt1375666")).toBe("https://www.imdb.com/title/tt1375666/");
+  });
+});
+
+describe("searchPeople", () => {
+  it("returns nothing for a blank query without calling TMDB", async () => {
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    expect(await searchPeople("   ")).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("normalises a person result", async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse({
+        page: 1,
+        total_pages: 1,
+        total_results: 1,
+        results: [{ id: 31, name: "Tom Hanks", profile_path: "/hanks.jpg" }],
+      }),
+    );
+
+    expect(await searchPeople("tom hanks")).toEqual([
+      { tmdbPersonId: 31, name: "Tom Hanks", profilePath: "/hanks.jpg" },
+    ]);
+  });
+});
+
+describe("getPersonCredits", () => {
+  it("merges movie and tv credits, using title/character or name/first_air_date as the shape needs", async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse({
+        id: 31,
+        cast: [
+          {
+            id: 13,
+            media_type: "movie",
+            title: "Forrest Gump",
+            release_date: "1994-06-23",
+            poster_path: "/gump.jpg",
+            popularity: 30,
+            character: "Forrest Gump",
+          },
+          {
+            id: 496,
+            media_type: "tv",
+            name: "Family Ties",
+            first_air_date: "1982-09-22",
+            poster_path: "/ties.jpg",
+            popularity: 5,
+            character: "Ned Donnelly",
+          },
+        ],
+        crew: [],
+      }),
+    );
+
+    const credits = await getPersonCredits(31);
+
+    expect(credits).toEqual([
+      {
+        tmdbId: 13,
+        mediaType: "movie",
+        name: "Forrest Gump",
+        releaseYear: 1994,
+        posterPath: "/gump.jpg",
+        popularity: 30,
+        role: "Forrest Gump",
+        selfAppearance: false,
+      },
+      {
+        tmdbId: 496,
+        mediaType: "tv",
+        name: "Family Ties",
+        releaseYear: 1982,
+        posterPath: "/ties.jpg",
+        popularity: 5,
+        role: "Ned Donnelly",
+        selfAppearance: false,
+      },
+    ]);
+  });
+
+  it("prefers the cast credit's character over the crew credit's job for the same title", async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse({
+        id: 1,
+        cast: [
+          {
+            id: 100,
+            media_type: "movie",
+            title: "Actor-Director Film",
+            release_date: "2010-01-01",
+            poster_path: null,
+            popularity: 10,
+            character: "The Lead",
+          },
+        ],
+        crew: [
+          {
+            id: 100,
+            media_type: "movie",
+            title: "Actor-Director Film",
+            release_date: "2010-01-01",
+            poster_path: null,
+            popularity: 10,
+            job: "Director",
+          },
+        ],
+      }),
+    );
+
+    const credits = await getPersonCredits(1);
+
+    expect(credits).toHaveLength(1);
+    expect(credits[0].role).toBe("The Lead");
+  });
+
+  it("ranks by popularity, most popular first", async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse({
+        id: 1,
+        cast: [
+          {
+            id: 1,
+            media_type: "movie",
+            title: "Obscure",
+            release_date: "2001-01-01",
+            poster_path: null,
+            popularity: 2,
+            character: "Extra",
+          },
+          {
+            id: 2,
+            media_type: "movie",
+            title: "Blockbuster",
+            release_date: "2002-01-01",
+            poster_path: null,
+            popularity: 50,
+            character: "Lead",
+          },
+        ],
+        crew: [],
+      }),
+    );
+
+    const credits = await getPersonCredits(1);
+
+    expect(credits.map((c) => c.name)).toEqual(["Blockbuster", "Obscure"]);
+  });
+
+  it("demotes 'Self' cast credits below real roles, even less-popular ones", async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse({
+        id: 1,
+        cast: [
+          // A talk show appearance more popular than the film below it — ranked on
+          // popularity alone this would come first, which is exactly the noise a
+          // prolific person's real filmography needs demoted out of the way.
+          {
+            id: 10,
+            media_type: "tv",
+            name: "The Tonight Show Starring Jimmy Fallon",
+            first_air_date: "2014-02-17",
+            poster_path: null,
+            popularity: 80,
+            character: "Self - Guest",
+          },
+          {
+            id: 11,
+            media_type: "tv",
+            name: "Some Documentary",
+            first_air_date: "2020-01-01",
+            poster_path: null,
+            popularity: 40,
+            character: "Himself",
+          },
+          {
+            id: 12,
+            media_type: "movie",
+            title: "A Real Supporting Role",
+            release_date: "2015-01-01",
+            poster_path: null,
+            popularity: 3,
+            character: "The Neighbor",
+          },
+        ],
+        crew: [],
+      }),
+    );
+
+    const credits = await getPersonCredits(1);
+
+    expect(credits.map((c) => c.name)).toEqual([
+      "A Real Supporting Role",
+      "The Tonight Show Starring Jimmy Fallon",
+      "Some Documentary",
+    ]);
+    expect(credits.map((c) => c.selfAppearance)).toEqual([false, true, true]);
+  });
+
+  it("never treats a crew job as a self-appearance", async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse({
+        id: 1,
+        cast: [],
+        crew: [
+          {
+            id: 20,
+            media_type: "movie",
+            title: "Self Portrait",
+            release_date: "2018-01-01",
+            poster_path: null,
+            popularity: 5,
+            job: "Director",
+          },
+        ],
+      }),
+    );
+
+    const credits = await getPersonCredits(1);
+
+    expect(credits[0].selfAppearance).toBe(false);
   });
 });
