@@ -1,8 +1,8 @@
 import { useQuery, usePowerSync } from "@powersync/react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { FlatList, View } from "react-native";
-import { Button } from "@/components/button";
+import { FlatList, Text, View } from "react-native";
+import { Button, Tappable } from "@/components/button";
 import { Loading } from "@/components/loading";
 import { Screen } from "@/components/screen";
 import { Body, Eyebrow, Hand, LayerTitle, Meta } from "@/components/text";
@@ -81,9 +81,22 @@ function Slip({ title }: { title: TitleRow }) {
     .join(" · ");
 
   return (
-    <View className="gap-0.5 py-3">
-      <Hand>{title.name}</Hand>
-      {meta ? <Meta>{meta}</Meta> : null}
+    <View className="flex-row items-center gap-3 py-3">
+      <View className="flex-1 gap-0.5">
+        <Hand>{title.name}</Hand>
+        {meta ? <Meta>{meta}</Meta> : null}
+      </View>
+      <Tappable
+        accessibilityLabel={`${title.name} details`}
+        onPress={() => router.push(`/title/${title.id}`)}
+      >
+        <View
+          style={{ width: 26, height: 26 }}
+          className="items-center justify-center rounded-full border border-hairline"
+        >
+          <Text className="type-body text-ink-secondary">i</Text>
+        </View>
+      </Tappable>
     </View>
   );
 }

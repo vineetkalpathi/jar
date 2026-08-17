@@ -1,8 +1,8 @@
 # Manual test plan — pages built so far
 
 Covers everything shipped on `design`: boot routing, auth, onboarding, the household
-gate, the Jars grid, Create jar, and Jar detail — plus the theme/typography layer and
-the offline/sync behaviour underneath them.
+gate, the Jars grid, Create jar, Jar detail, Add a title and Title detail — plus the
+theme/typography layer, the TMDB service and the offline/sync behaviour underneath them.
 
 ## What exists
 
@@ -12,15 +12,18 @@ the offline/sync behaviour underneath them.
 | `/sign-in`, `/sign-up`                             | `src/app/(auth)/`       |
 | `/welcome`, `/create-household`, `/join-household` | `src/app/(onboarding)/` |
 | `/jars`, `/create-jar`, `/jar/[id]`                | `src/app/(app)/`        |
+| `/add-title`, `/title/[id]`                        | `src/app/(app)/`        |
 
-Not built, so out of scope: Library/Add title, filter builder, draw flow, Title detail,
-Log, settings, sign-out UI, household switcher UI, navigation shell (tabs/swipe).
+Not built, so out of scope: Library (the browse-and-search-what-you-own screen —
+distinct from Add a title, which searches TMDB), filter builder, draw flow, Rating
+entry, Log, settings, sign-out UI, household switcher UI, navigation shell (tabs/swipe).
 
 ## 0. Pre-flight (automated)
 
 - [ ] `pnpm exec tsc --noEmit` — clean.
-- [ ] `pnpm test` — 97 tests, 6 suites. Note: covers `src/lib` only (filter compile +
-      validate, constraints, cooldown, time, sync-rules). No component or screen tests.
+- [ ] `pnpm test` — 113 tests, 9 suites. Note: covers `src/lib` only (filter compile +
+      validate, constraints, cooldown, time, sync-rules, the TMDB client and its
+      db-wiring). No component or screen tests.
 - [ ] `pnpm theme` regenerates `src/theme/tokens.css` with no diff vs committed file.
 
 ## 1. Environment and data setup
@@ -45,8 +48,11 @@ Pre-flight checks either way:
 
 - [ ] Sync rules deployed and matching `powersync/sync-rules.yaml`; PowerSync dashboard
       shows the instance connected and replicating.
-- [ ] `.env` has all three `EXPO_PUBLIC_*` vars. Blank/missing → app throws at
-      `supabase.ts` on launch (verify the error message names `.env.example`).
+- [ ] `.env` has all four `EXPO_PUBLIC_*` vars. Blank/missing Supabase or PowerSync ones
+      → app throws at `supabase.ts`/`connector.ts` on launch (verify the error message
+      names `.env.example`). A missing `EXPO_PUBLIC_TMDB_API_TOKEN` only throws when
+      Add a title actually searches (`lib/tmdb/client.ts`) — the rest of the app still
+      boots.
 
 ## 2. Boot and routing (`index.tsx`)
 
@@ -71,10 +77,10 @@ logic here.
 
 Sign in (`(auth)/sign-in.tsx`)
 
-- [ ] **T3.1** Valid credentials → lands on `/jars` or `/welcome`. No double navigation.
-- [ ] **T3.2** Wrong password → "That email and password don't match an account.",
+- [x] **T3.1** Valid credentials → lands on `/jars` or `/welcome`. No double navigation.
+- [x] **T3.2** Wrong password → "That email and password don't match an account.",
       shown under the password field, underline turns rust.
-- [ ] **T3.3** Button disabled until both fields non-empty; spinner shows and the label
+- [x] **T3.3** Button disabled until both fields non-empty; spinner shows and the label
       stays put (no width jump) during submit.
 - [ ] **T3.4** Rapid double-tap on Sign in fires one request (`busy` guard).
 - [ ] **T3.5** Email field → `next` focuses password; password `go` submits.
@@ -211,46 +217,100 @@ Seeded expectations (The Sofa, from `seed.sql`) — verify counts exactly:
 - [ ] **T8.10** Rapid back/forward between grid and detail → no stale contents from the
       previously-viewed jar (the `active` guard in the effect).
 
-## 9. Sync, offline and the upload queue
+## 9. Add a title
 
-- [ ] **T9.1** Two devices (or sim + device) signed in as Alice and Bob in The Sofa:
+Requires a working `EXPO_PUBLIC_TMDB_API_TOKEN`. `lib/tmdb/` has its own unit coverage
+against a mocked `fetch` (`tmdb.test.ts`, `import.test.ts`) — this section is about the
+screen wiring, not TMDB's response shapes.
+
+- [ ] **T9.1** Typing debounces (350ms) — confirm via Network tab / log that a fast typist
+      fires one search, not one per keystroke; a slow early response landing after a
+      faster later one never overwrites it (the `active` guard).
+- [ ] **T9.2** Results merge movies and tv shows, ranked by popularity — not movies-then-tv.
+- [ ] **T9.3** Empty query → hint copy, no request. No results → "No results for …".
+      Offline / bad token → rust error text, not a crash.
+- [ ] **T9.4** Add → button becomes a disabled spinner, then "Added ✓" + "View"; the row
+      never reverts to "Add" after (`added` map keyed by `mediaType:tmdbId`).
+- [ ] **T9.5** "View" opens `/title/<id>` for the Title just created — confirm it's the
+      *local* Title id, not the TMDB id, and it's the same row on a second add of the
+      same title (convergence on `tmdb_id`, `library.ts`).
+- [ ] **T9.6** Add the same title twice (two different search sessions) → one Library
+      entry, one Title row — `addToLibrary`'s find-or-insert and `title.tmdb_id`'s
+      uniqueness are both doing their job.
+- [ ] **T9.7** Add failing mid-flight (kill network after the button is tapped) → rust
+      error banner, button returns to "Add" (not stuck spinning), retry works.
+- [ ] **T9.8** `‹ Close` returns to wherever Add was opened from ("+ Add a title" on the
+      Jars grid).
+- [ ] **T9.9** A movie and a tv show with the same title (e.g. search something with both)
+      → both appear, distinguishable by the "Movie"/"TV series" meta line.
+
+## 10. Title detail
+
+- [ ] **T10.1** Opened via a Jar's slip ⓘ, and via Add a title's "View" — both land on
+      the same screen for the same Title id.
+- [ ] **T10.2** Dark register: ground is `dark.bg`, not `paper.bg`; no Caveat anywhere on
+      this screen (title, genres and overview are all TMDB-sourced text — ADR-0003's
+      handwriting rule).
+- [ ] **T10.3** Poster renders from the live TMDB fetch (`getTitleDetails`), not from any
+      locally cached path — confirm by checking the schema has no `poster_path` column.
+      No `tmdb_id` (a hand-entered Title) → "Not linked to TMDB — added by hand.", no
+      poster fetch attempted, no crash.
+- [ ] **T10.4** Genres and tags read from the local cache (`title_genre`, `tag`/`title_tag`)
+      — confirm they render even offline, unlike the overview/poster.
+- [ ] **T10.5** TMDB fetch failure (airplane mode) → "Couldn't reach TMDB for the
+      overview.", rest of the screen (name, year, runtime, genres, tags, ratings) still
+      works from the local replica.
+- [ ] **T10.6** Rating bars: one per the Household's *activated* Categories
+      (`CATEGORIES_FOR_HOUSEHOLD`), even ones with zero ratings on this Title (bar empty,
+      "—"). Amber fill width matches `average / 10`. Eyebrow's rater count is the number
+      of *distinct users*, not the number of rating rows (one user across several
+      categories counts once).
+- [ ] **T10.7** Rating written in Postgres while the screen is open → bar and average
+      update live (plain `useQuery`, no manual refresh).
+- [ ] **T10.8** Navigate to `/title/<random-uuid>` → "That title isn't here.", no crash.
+- [ ] **T10.9** Not yet built, so not testable here: "in N jars", "Mark a card" / Rating
+      entry link (see §14, next blocker to pick up).
+
+## 11. Sync, offline and the upload queue
+
+- [ ] **T11.1** Two devices (or sim + device) signed in as Alice and Bob in The Sofa:
       jar created on one appears on the other within seconds.
-- [ ] **T9.2** Offline on device A: create household + 2 jars, rename nothing, then
+- [ ] **T11.2** Offline on device A: create household + 2 jars, rename nothing, then
       reconnect → all rows land in Postgres in order, no duplicates.
-- [ ] **T9.3** Isolation: Cara (Film Club) sees only Club picks and Film Club's library.
+- [ ] **T11.3** Isolation: Cara (Film Club) sees only Club picks and Film Club's library.
       Confirm The Sofa's titles, tags and ratings are **absent from her local replica**,
       not merely hidden — inspect via a temporary debug query if needed.
-- [ ] **T9.4** Queue-wedge check: force a permanent failure (bad join code, T4.10), then
+- [ ] **T11.4** Queue-wedge check: force a permanent failure (bad join code, T4.10), then
       make a legitimate write. The legitimate write must still reach Postgres.
-- [ ] **T9.7** Regression: every write path is a plain insert. Watch the console through
+- [ ] **T11.7** Regression: every write path is a plain insert. Watch the console through
       create-household → create-jar → join-household; a single `[sync] dropping PUT …
 42501` means the SELECT-policy-on-write problem is back.
-- [ ] **T9.5** Token expiry: leave the app open past the access-token lifetime (or force
+- [ ] **T11.5** Token expiry: leave the app open past the access-token lifetime (or force
       a refresh) → sync reconnects without a sign-out.
-- [ ] **T9.6** **Account switch on one device.** There is no sign-out UI yet, so add a
+- [ ] **T11.6** **Account switch on one device.** There is no sign-out UI yet, so add a
       temporary `signOut()` button or clear app data. Sign in as Alice, then as Bob on
       the same device → Bob must not see any of Alice's rows (`disconnectAndClear`).
       This is a data-leak test; do not skip it.
 
-## 10. Theme, typography and chrome
+## 12. Theme, typography and chrome
 
-- [ ] **T10.1** Splash holds until Vollkorn / Alegreya Sans / Caveat load; no flash of
+- [ ] **T12.1** Splash holds until Vollkorn / Alegreya Sans / Caveat load; no flash of
       system font on any screen.
-- [ ] **T10.2** Simulate a font-load failure (rename an asset) → splash still hides and
+- [ ] **T12.2** Simulate a font-load failure (rename an asset) → splash still hides and
       the app renders in fallback faces.
-- [ ] **T10.3** Caveat appears **only** on slips — never on buttons, titles, labels.
-- [ ] **T10.4** Backgrounds: paper everywhere; no white gaps behind the Stack during
+- [ ] **T12.3** Caveat appears **only** on slips — never on buttons, titles, labels.
+- [ ] **T12.4** Backgrounds: paper everywhere; no white gaps behind the Stack during
       transitions (`contentStyle` bg).
-- [ ] **T10.5** Safe areas: notch/Dynamic Island device and a home-indicator device —
+- [ ] **T12.5** Safe areas: notch/Dynamic Island device and a home-indicator device —
       content clears both; Android status bar not overlapped.
-- [ ] **T10.6** OS dark mode on (`userInterfaceStyle: automatic`) → screens stay paper,
+- [ ] **T12.6** OS dark mode on (`userInterfaceStyle: automatic`) → screens stay paper,
       status bar text stays legible (`style="dark"`).
-- [ ] **T10.7** OS text size at maximum → forms remain usable; jar labels clamp rather
+- [ ] **T12.7** OS text size at maximum → forms remain usable; jar labels clamp rather
       than overflow.
-- [ ] **T10.8** No screen renders as a blank grey page (the `SafeAreaView`/NativeWind
+- [ ] **T12.8** No screen renders as a blank grey page (the `SafeAreaView`/NativeWind
       regression the `Screen` doc warns about) — check every route.
 
-## 11. Platform matrix
+## 13. Platform matrix
 
 |               | iOS sim | Android emulator | Physical device | Web |
 | ------------- | ------- | ---------------- | --------------- | --- |
@@ -264,12 +324,14 @@ Seeded expectations (The Sofa, from `seed.sql`) — verify counts exactly:
   and the back button on every screen — especially that `replace` navigations don't
   leave a returnable form in the stack.
 
-## 12. Blockers to note before starting
+## 14. Blockers to note before starting
 
-1. **No sign-out UI** — T9.6 and repeated auth runs need a temporary button or an app
+1. **No sign-out UI** — T11.6 and repeated auth runs need a temporary button or an app
    reinstall between accounts.
 2. **No household switcher** — `ActiveHousehold.select` is unreachable from the UI, so
    T5.2 is partially untestable.
-3. **No library UI** — every slip in every test must be seeded by SQL.
+3. **No Library browse screen** — titles can now be added in-app (Add a title, §9), but
+   there's still no screen to browse or search what's already in the Library; a slip
+   only becomes visible by landing in a jar whose filter matches it.
 4. **Seed vs hosted mismatch** — `seed.sql` is local-only; port the inserts by hand for
    hosted testing (§1).
