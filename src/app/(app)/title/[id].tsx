@@ -104,8 +104,8 @@ export default function TitleDetail() {
       <View className="flex-row items-start gap-4">
         <Poster
           uri={tmdb ? posterUrl(tmdb.posterPath, "w185") : null}
-          width={110}
-          height={163}
+          width={128}
+          height={190}
           register="dark"
         />
         <View className="flex-1 gap-1.5">

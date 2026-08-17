@@ -61,7 +61,9 @@ export const TitleName = make("type-title-large text-ink");
 // avoided once already (see components/screen.tsx).
 // ---------------------------------------------------------------------------
 
-export const DarkTitle = make("type-layer-title text-dark-ink");
+// Its own size rather than reusing `type-layer-title` — that token is also LayerTitle's
+// (paper, create-jar/jar-detail headers), and shrinking it there wasn't asked for.
+export const DarkTitle = make("type-section-title text-dark-ink");
 export const DarkBody = make("type-body text-dark-ink-secondary");
 export const DarkMeta = make("type-meta text-dark-ink-muted");
 export const DarkEyebrow = make("type-eyebrow text-dark-ink-muted");

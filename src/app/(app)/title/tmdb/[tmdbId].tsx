@@ -138,8 +138,8 @@ export default function TmdbPreview() {
           <View className="flex-row items-start gap-4">
             <Poster
               uri={posterUrl(details.posterPath, "w185")}
-              width={110}
-              height={163}
+              width={128}
+              height={190}
               register="dark"
             />
             <View className="flex-1 gap-1.5">
