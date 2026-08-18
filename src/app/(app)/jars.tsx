@@ -34,11 +34,18 @@ export default function Jars() {
       <View className="gap-1 pb-6 pt-2">
         <Eyebrow>{household.name}</Eyebrow>
         <ScreenTitle>Jars</ScreenTitle>
-        <Meta>
-          {data.length === 0
-            ? "Nothing to draw from yet"
-            : `${data.length} ${data.length === 1 ? "jar" : "jars"}`}
-        </Meta>
+        <View className="flex-row items-baseline justify-between">
+          <Meta>
+            {data.length === 0
+              ? "Nothing to draw from yet"
+              : `${data.length} ${data.length === 1 ? "jar" : "jars"}`}
+          </Meta>
+          <Button
+            label="+ Add a title"
+            variant="quiet"
+            onPress={() => router.push("/add-title")}
+          />
+        </View>
       </View>
 
       <FlatList

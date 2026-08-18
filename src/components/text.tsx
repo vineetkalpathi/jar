@@ -43,3 +43,27 @@ export const EyebrowWide = make("type-eyebrow-wide text-ink-muted");
 
 /** Handwriting. A title someone wrote on a slip — and nowhere else. */
 export const Hand = make("type-slip text-ink");
+
+/**
+ * A TMDB-sourced title where it isn't handwritten on a slip — search results, the
+ * Library list. Display serif, same as `Hand`'s size, but never Caveat: the handwriting
+ * rule is that Caveat marks a person having written something down, and nothing in a
+ * TMDB result was.
+ */
+export const TitleName = make("type-title-large text-ink");
+
+// ---------------------------------------------------------------------------
+// Dark register — Title detail, Rating entry.
+//
+// Same `type-*` scale as the paper components above; only the colour changes. Kept
+// separate rather than a `register` prop on each one, because two colour utilities in
+// one className string resolve by generation order, not JSX order — a real bug this
+// avoided once already (see components/screen.tsx).
+// ---------------------------------------------------------------------------
+
+// Its own size rather than reusing `type-layer-title` — that token is also LayerTitle's
+// (paper, create-jar/jar-detail headers), and shrinking it there wasn't asked for.
+export const DarkTitle = make("type-section-title text-dark-ink");
+export const DarkBody = make("type-body text-dark-ink-secondary");
+export const DarkMeta = make("type-meta text-dark-ink-muted");
+export const DarkEyebrow = make("type-eyebrow text-dark-ink-muted");

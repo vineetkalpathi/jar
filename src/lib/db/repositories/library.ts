@@ -13,6 +13,8 @@ import { newId } from "../ids";
 import { findOrInsert } from "../upsert";
 import { timestamp } from "../../time";
 
+type TmdbPersonInput = { tmdbPersonId: number; name: string };
+
 /**
  * A Household's Library with the facts every list view needs, derived rather than
  * stored: has this User seen it, how many times, and when last.
@@ -50,6 +52,39 @@ export const CREDITS_FOR_TITLE = `
   where tc.title_id = ?
   order by tc.role, p.name
 `;
+
+/**
+ * The Library row for a TMDB title, if this Household already has it.
+ *
+ * The two-part check is the point: Titles converge globally on `tmdb_id` (ADR-0007), so
+ * a title can exist on this device because a *different* Household added it, without
+ * this Household having it in its Library. Matching `tmdb_id` alone would say "already
+ * added" for a title this Household has never touched.
+ *
+ * Exposed as raw SQL — rather than only the wrapper below — so a caller that wants this
+ * to stay live can hand it straight to `useQuery`. That's what fixed a real bug: a
+ * search result added from the TMDB preview screen wasn't reflected back on the results
+ * row, because the two screens' "am I added" checks were unconnected local state. A
+ * `useQuery` on this instead re-runs the moment the write lands, regardless of which
+ * screen made it. Parameters: `[tmdbId, householdId]`.
+ */
+export const LIBRARY_ENTRY_FOR_TMDB_ID = `
+  select le.title_id
+  from library_entry le
+  join title t on t.id = le.title_id
+  where t.tmdb_id = ? and le.household_id = ?
+`;
+
+export async function libraryEntryForTmdbId(
+  db: AbstractPowerSyncDatabase,
+  input: { householdId: string; tmdbId: number },
+): Promise<{ titleId: string } | null> {
+  const row = await db.getOptional<{ title_id: string }>(LIBRARY_ENTRY_FOR_TMDB_ID, [
+    input.tmdbId,
+    input.householdId,
+  ]);
+  return row ? { titleId: row.title_id } : null;
+}
 
 export type LibraryEntryView = TitleRow & {
   added_at: string | null;
@@ -225,6 +260,102 @@ export async function createLocalTitle(
   });
 
   return id;
+}
+
+/**
+ * Finds a Person by their TMDB id, or creates them. `tmdb_person_id` is unique in
+ * Postgres, so two Titles crediting the same actor converge on one row exactly like two
+ * Households adding the same film converge on one Title.
+ */
+export async function findOrCreatePerson(
+  db: AbstractPowerSyncDatabase,
+  person: TmdbPersonInput,
+): Promise<string> {
+  return findOrInsert(db, {
+    table: "person",
+    where: { sql: "tmdb_person_id = ?", params: [person.tmdbPersonId] },
+    row: { tmdb_person_id: person.tmdbPersonId, name: requiredText(person.name, "A person") },
+  });
+}
+
+/**
+ * Replaces a Title's cached genres with `genres`, delete-then-insert inside one
+ * transaction. Never split across two transactions: ADR-0003 requires a refresh to
+ * update in place, and a Title left genre-less between them would drop out of every
+ * `genre = X` Jar until the insert caught up.
+ */
+export async function setTitleGenres(
+  db: AbstractPowerSyncDatabase,
+  titleId: string,
+  genres: string[],
+): Promise<void> {
+  await db.writeTransaction(async (tx) => {
+    await tx.execute(`delete from title_genre where title_id = ?`, [titleId]);
+    for (const genre of genres) {
+      await tx.execute(`insert into title_genre (id, title_id, genre) values (?, ?, ?)`, [
+        newId(),
+        titleId,
+        genre,
+      ]);
+    }
+  });
+}
+
+/**
+ * Replaces a Title's cast and director credits with `cast` and `directors` — same
+ * replace-in-one-transaction shape as `setTitleGenres`, for the same reason. People are
+ * found-or-created first, outside the transaction: `findOrInsert`'s lookup is a
+ * courtesy rather than a guarantee (upsert.ts), so nothing here depends on it running
+ * inside the same atomic unit as the credit rows it feeds.
+ */
+export async function setTitleCredits(
+  db: AbstractPowerSyncDatabase,
+  titleId: string,
+  credits: { cast: TmdbPersonInput[]; directors: TmdbPersonInput[] },
+): Promise<void> {
+  const castIds = await Promise.all(credits.cast.map((p) => findOrCreatePerson(db, p)));
+  const directorIds = await Promise.all(credits.directors.map((p) => findOrCreatePerson(db, p)));
+
+  await db.writeTransaction(async (tx) => {
+    await tx.execute(`delete from title_credit where title_id = ?`, [titleId]);
+    for (const personId of castIds) {
+      await tx.execute(
+        `insert into title_credit (id, title_id, person_id, role) values (?, ?, ?, 'cast')`,
+        [newId(), titleId, personId],
+      );
+    }
+    for (const personId of directorIds) {
+      await tx.execute(
+        `insert into title_credit (id, title_id, person_id, role) values (?, ?, ?, 'director')`,
+        [newId(), titleId, personId],
+      );
+    }
+  });
+}
+
+/**
+ * The full TMDB snapshot for a Title — `upsertTmdbTitle` plus its genres and credits —
+ * written as the three calls ADR-0003's cache needs, whether this is the first import
+ * or a refresh of an existing one.
+ */
+export async function upsertTmdbTitleAttributes(
+  db: AbstractPowerSyncDatabase,
+  attributes: {
+    tmdbId: number;
+    name: string;
+    mediaType: "movie" | "tv";
+    releaseYear?: number | null;
+    runtime?: number | null;
+    language?: string | null;
+    genres: string[];
+    cast: TmdbPersonInput[];
+    directors: TmdbPersonInput[];
+  },
+): Promise<string> {
+  const titleId = await upsertTmdbTitle(db, attributes);
+  await setTitleGenres(db, titleId, attributes.genres);
+  await setTitleCredits(db, titleId, { cast: attributes.cast, directors: attributes.directors });
+  return titleId;
 }
 
 /** Titles due a TMDB refresh, per the six-month cache limit in ADR-0003. */
