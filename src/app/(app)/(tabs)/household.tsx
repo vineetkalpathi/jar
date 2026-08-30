@@ -45,11 +45,23 @@ export default function Household() {
   ]);
 
   const [query, setQuery] = useState("");
+
+  // Library search reaches the same "title or person" way Explore's does — but over the
+  // local Library, not TMDB. The match runs in SQLite (title name OR any credited
+  // person, cast or crew); this query hands back just the matching ids, and the row
+  // data still comes from the always-live `LIBRARY_FOR_HOUSEHOLD` above. Wildcards
+  // escaped so a title with a literal % or _ still matches itself.
+  const needle = query.trim();
+  const { data: matches } = useQuery<{ id: string }>(library.LIBRARY_TITLE_IDS_MATCHING, [
+    household.id,
+    `%${needle.replace(/[\\%_]/g, "\\$&")}%`,
+  ]);
+
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return data;
-    return data.filter((row) => row.name?.toLowerCase().includes(q));
-  }, [data, query]);
+    if (!needle) return data;
+    const ids = new Set(matches.map((m) => m.id));
+    return data.filter((row) => ids.has(row.id));
+  }, [data, matches, needle]);
 
   const count =
     data.length === 0
@@ -75,7 +87,10 @@ export default function Household() {
         data={rows}
         keyExtractor={(row) => row.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: 4, paddingBottom: TAB_BAR_CLEARANCE }}
+        contentContainerStyle={{
+          paddingTop: 4,
+          paddingBottom: TAB_BAR_CLEARANCE,
+        }}
         ItemSeparatorComponent={() => <View className="h-px bg-hairline" />}
         ListHeaderComponent={
           <View className="gap-8 pb-3">
@@ -84,7 +99,10 @@ export default function Household() {
               <MembersStrip householdId={household.id} />
             </View>
 
-            <PlaceholderSection title="Log" note="Recent viewings will land here." />
+            <PlaceholderSection
+              title="Log"
+              note="Recent viewings will land here."
+            />
             <TagsSection householdId={household.id} />
 
             <View className="gap-2">
@@ -100,7 +118,9 @@ export default function Household() {
             </View>
           </View>
         }
-        ListEmptyComponent={<ListEmpty query={query} hasLibrary={data.length > 0} />}
+        ListEmptyComponent={
+          <ListEmpty query={query} hasLibrary={data.length > 0} />
+        }
         renderItem={({ item }) => (
           <LibraryRow row={item} householdId={household.id} userId={userId} />
         )}
@@ -165,7 +185,11 @@ function TagsSection({ householdId }: { householdId: string }) {
       ) : null}
       <TagList>
         {tags.map((tag) => (
-          <Tag key={tag.id} label={tag.name ?? ""} onRemove={() => remove(tag)} />
+          <Tag
+            key={tag.id}
+            label={tag.name ?? ""}
+            onRemove={() => remove(tag)}
+          />
         ))}
         <AddTag label="New tag" onPress={() => setPickerOpen(true)} />
       </TagList>
@@ -199,8 +223,8 @@ function LibrarySearch({
         <SearchField
           value={value}
           onChangeText={onChangeText}
-          placeholder="Search library"
-          accessibilityLabel="Search library"
+          placeholder="Search by title or person"
+          accessibilityLabel="Search library by title or person"
         />
       </View>
       {/* Solid, not outlined — a filled primary action, so it doesn't read as another
@@ -213,7 +237,12 @@ function LibrarySearch({
         className="items-center justify-center rounded-full active:opacity-80"
       >
         <Text
-          style={{ fontFamily: font.uiBold, fontSize: 22, lineHeight: 24, color: paper.card }}
+          style={{
+            fontFamily: font.uiBold,
+            fontSize: 22,
+            lineHeight: 24,
+            color: paper.card,
+          }}
         >
           +
         </Text>
@@ -225,9 +254,19 @@ function LibrarySearch({
 /** A sliders mark — "adjust this household". Drawn, per the no-icon-library rule. */
 function SettingsGlyph({ color = ink.muted }: { color?: string }) {
   return (
-    <View style={{ width: 22, height: 16, justifyContent: "space-between", paddingVertical: 2 }}>
+    <View
+      style={{
+        width: 22,
+        height: 16,
+        justifyContent: "space-between",
+        paddingVertical: 2,
+      }}
+    >
       {[13, 6].map((knobX, i) => (
-        <View key={i} style={{ height: 1.5, borderRadius: 1, backgroundColor: color }}>
+        <View
+          key={i}
+          style={{ height: 1.5, borderRadius: 1, backgroundColor: color }}
+        >
           <View
             style={{
               position: "absolute",

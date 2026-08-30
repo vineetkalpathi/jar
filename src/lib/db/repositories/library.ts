@@ -36,6 +36,33 @@ export const LIBRARY_FOR_HOUSEHOLD = `
   order by t.name
 `;
 
+/**
+ * The ids of the Household's Library titles that match a search term — by title, or by
+ * the name of any credited person (cast or crew), the same "title or person" reach the
+ * Explore search has. `?2` is a pre-escaped LIKE pattern (`%needle%`); an empty Library
+ * search never calls this (the page shows everything unfiltered), so no all-rows guard.
+ *
+ * Returns ids only, deliberately: the page keeps `LIBRARY_FOR_HOUSEHOLD` live for the
+ * row data and its derived seen-counts, and just intersects that list with these ids.
+ *
+ * Parameters: `[householdId, likePattern]`.
+ */
+export const LIBRARY_TITLE_IDS_MATCHING = `
+  select t.id
+  from library_entry le
+  join title t on t.id = le.title_id
+  where le.household_id = ?1
+    and (
+      t.name like ?2 escape '\\'
+      or exists (
+        select 1 from title_credit tc
+        join person p on p.id = tc.person_id
+        where tc.title_id = t.id
+          and p.name like ?2 escape '\\'
+      )
+    )
+`;
+
 /** Everything known about one Title, for a detail view. Parameters: `[titleId]`. */
 export const TITLE_BY_ID = `select * from title where id = ?`;
 

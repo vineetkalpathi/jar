@@ -30,11 +30,18 @@ export const SearchField = forwardRef<TextInput, Props>(function SearchField(pro
         returnKeyType="search"
         className="type-body flex-1 p-0 text-ink"
         {...props}
-        // `type-body`'s 23px paragraph line-height plus Android's font padding pushes the
-        // single line of text down and clips its top/bottom inside the 44px pill. Drop the
-        // paragraph leading and let the field center the line itself.
+        // `type-body`'s 23px paragraph line-height, plus Android font padding, pushes the
+        // single line down and clips its descenders inside the 44px pill. Give the line a
+        // tight explicit leading (a bare `undefined` doesn't reliably beat the utility
+        // class) and zero the vertical padding so the field centers the glyphs itself.
         style={[
-          { lineHeight: undefined, includeFontPadding: false, textAlignVertical: "center" },
+          {
+            lineHeight: 18,
+            paddingTop: 0,
+            paddingBottom: 0,
+            includeFontPadding: false,
+            textAlignVertical: "center",
+          },
           props.style,
         ]}
       />

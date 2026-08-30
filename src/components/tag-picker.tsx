@@ -27,7 +27,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Field } from "./field";
+import { SearchField } from "./search-field";
 import { Eyebrow, Meta } from "./text";
 import { annotations, type TagRow } from "@/lib/db";
 import { accent, font, ink } from "@/theme";
@@ -117,14 +117,13 @@ export function TagPicker({
               {note ? <Meta>{note}</Meta> : null}
             </View>
 
-            <Field
-              label="Search tags"
+            <SearchField
               value={query}
               onChangeText={setQuery}
               placeholder="cozy, date-night, long-haul…"
               autoCapitalize="none"
-              autoCorrect={false}
               autoFocus
+              accessibilityLabel="Search tags"
             />
 
             <ScrollView

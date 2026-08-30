@@ -25,7 +25,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Field } from "./field";
+import { SearchField } from "./search-field";
 import { Eyebrow, Meta } from "./text";
 import { households, type RatingCategoryRow } from "@/lib/db";
 import { accent, font, ink } from "@/theme";
@@ -110,14 +110,13 @@ export function CategoryPicker({
               {note ? <Meta>{note}</Meta> : null}
             </View>
 
-            <Field
-              label="Search axes"
+            <SearchField
               value={query}
               onChangeText={setQuery}
               placeholder="Plot, Tension, Chemistry…"
               autoCapitalize="words"
-              autoCorrect={false}
               autoFocus
+              accessibilityLabel="Search axes"
             />
 
             <ScrollView
