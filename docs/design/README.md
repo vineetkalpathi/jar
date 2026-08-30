@@ -140,7 +140,10 @@ The brief's two-speed rule holds and is implemented:
 - **Navigation: 180–260ms.** Get out of the way.
 - **The draw flow only: slow on purpose.** 750ms shake → knockouts at 300ms each → **900ms
   of nothing** → reveal. The dead pause before the reveal is a feature; do not shorten it.
-- Rating: discrete taps, no interpolation. One detent per whole number.
+- Rating: a continuous horizontal slider that calibrates to one decimal place. The
+  drag itself is smooth; a haptic tick and a taller mark fall on every whole number,
+  so the notches are felt without the value snapping to them. (Supersedes the earlier
+  "discrete taps, one detent per whole number" — kept as a slider since.)
 
 Haptics per the brief's §5 table — they are not in the prototype and need adding in RN
 (`expo-haptics`): light on add, medium "thunk" on knock out, success pattern on reveal, light
@@ -184,12 +187,21 @@ TMDB results with Add buttons. Note beneath: adding puts it in the Library; jars
 themselves if it matches their filter.
 
 **Title detail** (dark) — poster placeholder, title, year/runtime, genres, tags, TMDB
-overview, household rating bars per Rating Category with amber fills, then a footer row
-linking to rating entry.
+overview, then the rating section per Rating Category with amber fills. The section has a
+Mine / Household toggle: **Mine** is one editable slider per Category (see below);
+**Household** is the read-only average across everyone who has rated.
 
-**Rating entry** (dark, rises) — per Rating Category: name in tracked caps, current value as
-a large amber numeral, and a row of **10 tick marks** — tap to set, active ticks tall and
-amber, inactive short and dim. Average recomputes live. Explicitly not a slider.
+**Rating** — folded into the Title detail section above rather than its own screen. One
+rounded capsule per Rating Category (`dark.surface`, hairline border, fully rounded ends
+— a tablet). Everything sits inside the one shape: Category name in tracked caps on the
+left, the value as a large amber numeral on the right, interior whole-number notches
+(taller at 5), and an amber **wash** — a level, not a block — from the left edge to the
+value, capped by a bright 2.5px amber edge. The capsule is the slider: drag anywhere on
+it. The scale is **0–10** and lands on a tenth. The finger-to-value mapping is not
+linear: it flattens approaching every whole number so the handle sticks to the notch
+(with a haptic tick as it drops in), then steepens through the gap so a deliberate move
+still dials in any decimal. Writes on release. (Earlier this was a separate rising layer with 10
+discrete tick marks — "explicitly not a slider". Reversed: it is a slider now.)
 
 ## Navigation — still undecided
 

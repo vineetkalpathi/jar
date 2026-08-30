@@ -32,14 +32,20 @@ export function requiredText(value: string, subject: string): string {
   return trimmed;
 }
 
-/** Mirrors `rating_value_range check (value between 1 and 10)`. */
+/**
+ * Mirrors `rating_value_range check (value between 0 and 10)` and the `numeric(3, 1)`
+ * column, which holds one decimal place and no finer.
+ *
+ * Snaps to a tenth rather than rejecting a longer decimal: the slider works in a
+ * continuous space and rounds on release, so `7.34` reaching here means the caller
+ * trusted this function to do what Postgres would do on store anyway. Only a value
+ * outside 0–10, or not a number at all, is a mistake worth stopping.
+ */
 export function ratingValue(value: number): number {
-  if (!Number.isInteger(value) || value < 1 || value > 10) {
-    throw new ConstraintError(
-      `A rating must be a whole number from 1 to 10, got ${value}`,
-    );
+  if (!Number.isFinite(value) || value < 0 || value > 10) {
+    throw new ConstraintError(`A rating must be between 0 and 10, got ${value}`);
   }
-  return value;
+  return Math.round(value * 10) / 10;
 }
 
 /**

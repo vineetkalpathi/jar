@@ -295,7 +295,8 @@ export const LEAF_SPECS: Record<LeafKind, LeafSpec> = {
     family: "numeric",
     ops: [...COMPARISON, "between", "is_null", "is_not_null"],
     ref: "categoryId",
-    numeric: { integer: true, min: 1, max: 10 },
+    // Ratings carry one decimal place, so a threshold can too ("Plot ≥ 7.5"). Scale 0–10.
+    numeric: { integer: false, min: 0, max: 10 },
     modifiers: ["raters", "coverage", "aggregator"],
   },
   watched: {

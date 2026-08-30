@@ -22,12 +22,18 @@ describe("requiredText", () => {
 });
 
 describe("ratingValue", () => {
-  it("accepts 1 through 10", () => {
-    for (const value of [1, 5, 10]) expect(ratingValue(value)).toBe(value);
+  it("accepts 0 through 10", () => {
+    for (const value of [0, 1, 5, 10]) expect(ratingValue(value)).toBe(value);
   });
 
-  it("rejects out of range and non-integers", () => {
-    for (const bad of [0, 11, -3, 7.5, NaN]) {
+  it("keeps one decimal place and rounds anything finer", () => {
+    expect(ratingValue(7.5)).toBe(7.5);
+    expect(ratingValue(6.24)).toBe(6.2);
+    expect(ratingValue(6.28)).toBe(6.3);
+  });
+
+  it("rejects out of range and non-numbers", () => {
+    for (const bad of [-0.1, 11, -3, NaN]) {
       expect(() => ratingValue(bad)).toThrow(ConstraintError);
     }
   });

@@ -146,7 +146,7 @@ describe("rejects", () => {
     rejects(wrap(and({ kind: "predicate", leaf: "lastWatched", op: "is_null" })));
   });
 
-  it("a rating outside 1–10", () => {
+  it("a rating above 10", () => {
     rejects(
       wrap(and({ kind: "predicate", leaf: "rating", categoryId: CATEGORY, op: "eq", value: 11 })),
     );

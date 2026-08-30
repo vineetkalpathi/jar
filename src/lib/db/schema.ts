@@ -140,7 +140,7 @@ const rating = new Table(
     user_id: column.text,
     title_id: column.text,
     category_id: column.text,
-    value: column.integer, // 1–10, enforced in the repositories
+    value: column.real, // 1.0–10.0 in tenths (numeric(3,1) in Postgres); enforced in the repositories
     updated_at: column.text,
   },
   { indexes: { title: ["title_id", "category_id"], user: ["user_id"] } },

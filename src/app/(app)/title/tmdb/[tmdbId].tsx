@@ -167,7 +167,9 @@ export default function TmdbPreview() {
 
           <ExternalLinks tmdbId={details.tmdbId} mediaType={details.mediaType} imdbId={details.imdbId} />
 
-          {titleId ? <HouseholdRating categories={categories} ratings={ratings} /> : null}
+          {titleId ? (
+            <HouseholdRating titleId={titleId} categories={categories} ratings={ratings} />
+          ) : null}
         </>
       )}
     </Screen>

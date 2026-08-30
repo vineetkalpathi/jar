@@ -135,7 +135,7 @@ export default function TitleDetail() {
         imdbId={tmdb?.imdbId ?? null}
       />
 
-      <HouseholdRating categories={categories} ratings={ratings} />
+      <HouseholdRating titleId={title.id} categories={categories} ratings={ratings} />
     </Screen>
   );
 }
