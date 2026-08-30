@@ -2,6 +2,7 @@ import { Tappable } from "@/components/button";
 import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
+import { SearchField } from "@/components/search-field";
 import { Tag, TagList, TagStrip } from "@/components/tag";
 import { TagPicker } from "@/components/tag-picker";
 import { Body, Eyebrow, EyebrowWide, Meta, ScreenTitle, TitleName } from "@/components/text";
@@ -15,7 +16,7 @@ import { accent, font, ink, paper } from "@/theme";
 import { usePowerSync, useQuery } from "@powersync/react";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Pressable, ScrollView, Text, View } from "react-native";
 
 /**
  * Titles whose missing poster has already been chased this session — so a row that
@@ -258,20 +259,12 @@ function LibrarySearch({
 }) {
   return (
     <View className="flex-row items-center gap-2">
-      <View
-        className="flex-1 flex-row items-center gap-2 rounded-full border border-hairline bg-card px-4"
-        style={{ height: 44 }}
-      >
-        <SearchGlyph />
-        <TextInput
+      <View className="flex-1">
+        <SearchField
           value={value}
           onChangeText={onChangeText}
           placeholder="Search library"
-          placeholderTextColor={ink.faint}
-          selectionColor={ink.secondary}
-          autoCorrect={false}
-          returnKeyType="search"
-          className="type-body flex-1 p-0 text-ink"
+          accessibilityLabel="Search library"
         />
       </View>
       <Pressable
@@ -312,38 +305,6 @@ function SettingsGlyph({ color = ink.muted }: { color?: string }) {
           />
         </View>
       ))}
-    </View>
-  );
-}
-
-/** A magnifier — the same line drawing as the Explore tab icon, smaller. */
-function SearchGlyph({ color = ink.muted }: { color?: string }) {
-  return (
-    <View style={{ width: 16, height: 16 }}>
-      <View
-        style={{
-          position: "absolute",
-          top: 1,
-          left: 1,
-          width: 10,
-          height: 10,
-          borderRadius: 5,
-          borderWidth: 1.5,
-          borderColor: color,
-        }}
-      />
-      <View
-        style={{
-          position: "absolute",
-          right: 1,
-          bottom: 1,
-          width: 6,
-          height: 1.5,
-          borderRadius: 1,
-          backgroundColor: color,
-          transform: [{ rotate: "45deg" }],
-        }}
-      />
     </View>
   );
 }

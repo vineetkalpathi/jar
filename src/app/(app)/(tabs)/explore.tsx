@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
-import { Field } from "@/components/field";
 import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
 import { Screen } from "@/components/screen";
+import { SearchField } from "@/components/search-field";
 import { TitleRow } from "@/components/title-row";
 import { Body, Meta, ScreenTitle } from "@/components/text";
 import {
@@ -163,13 +163,11 @@ export default function Explore() {
       <View className="gap-3 pb-4 pt-2">
         <ScreenTitle>Explore</ScreenTitle>
         <Meta>Search TMDB, add what belongs in your library.</Meta>
-        <Field
-          label="Search TMDB"
+        <SearchField
           value={query}
           onChangeText={setQuery}
           placeholder="A movie, show, or person's full name…"
-          autoCorrect={false}
-          returnKeyType="search"
+          accessibilityLabel="Search TMDB"
         />
         {status === "error" ? (
           <Text className="type-meta-small text-rust">
