@@ -9,12 +9,25 @@
  * glyph), because that one's settled rather than offered.
  */
 
+import * as Haptics from "expo-haptics";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { accent, font, paper } from "@/theme";
 
 const SIZE = 36;
 const BORDER_WIDTH = 1.5;
 const GLYPH = { fontFamily: font.uiBold, fontSize: 20, lineHeight: 22 };
+
+/**
+ * Fire-and-forget light impact on tapping add. Wrapped because a dev client built
+ * before `expo-haptics` was added throws synchronously rather than rejecting.
+ */
+const tapFeedback = () => {
+  try {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  } catch {
+    // no haptics on this build
+  }
+};
 
 export function LibraryStatus({
   inLibrary,
@@ -43,7 +56,10 @@ export function LibraryStatus({
 
   return (
     <Pressable
-      onPress={onAdd}
+      onPress={() => {
+        tapFeedback();
+        onAdd();
+      }}
       disabled={busy}
       accessibilityRole="button"
       accessibilityLabel="Add to library"
