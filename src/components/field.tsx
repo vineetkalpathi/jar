@@ -11,7 +11,8 @@ import { Text, TextInput, View, type TextInputProps } from "react-native";
 import { ink } from "@/theme";
 
 type Props = Omit<TextInputProps, "className"> & {
-  label: string;
+  /** Omitted: no label row at all — for a field packed into a tighter layout. */
+  label?: string;
   /** Shown beneath in rust. Also marks the underline. */
   error?: string;
   /** Shown beneath in muted ink when there is no error. */
@@ -24,7 +25,7 @@ export const Field = forwardRef<TextInput, Props>(function Field(
 ) {
   return (
     <View className="gap-1.5">
-      <Text className="type-eyebrow text-ink-muted">{label}</Text>
+      {label ? <Text className="type-eyebrow text-ink-muted">{label}</Text> : null}
 
       <TextInput
         ref={ref}

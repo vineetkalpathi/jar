@@ -63,9 +63,22 @@ export default function JarDetail() {
           <Text className="type-section-title text-ink-secondary">‹</Text>
         </Pressable>
         <LayerTitle>{jar.name}</LayerTitle>
-        <Meta>
-          {titles.length} {titles.length === 1 ? "slip" : "slips"}
-        </Meta>
+        <View className="flex-row items-center gap-3 pt-0.5">
+          <Meta>
+            {titles.length} {titles.length === 1 ? "slip" : "slips"}
+          </Meta>
+          <Pressable
+            onPress={() => router.push(`/filter/${jar.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel="Edit filter"
+            hitSlop={8}
+            className="rounded-card border border-dashed border-hairline px-2 py-1 active:opacity-60"
+          >
+            <Text className="type-meta-small text-navy">
+              {jar.filter ? "Edit filter" : "Add a filter"}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <FlatList
@@ -74,7 +87,7 @@ export default function JarDetail() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 24 }}
         ItemSeparatorComponent={() => <View className="h-px bg-hairline" />}
-        ListEmptyComponent={<EmptyJar />}
+        ListEmptyComponent={<EmptyJar jarId={jar.id} />}
         renderItem={({ item }) => <Slip title={item} />}
       />
     </Screen>
@@ -108,14 +121,21 @@ function Slip({ title }: { title: TitleRow }) {
   );
 }
 
-function EmptyJar() {
+function EmptyJar({ jarId }: { jarId: string }) {
   return (
-    <View className="gap-2 py-6">
+    <View className="gap-3 py-6">
       <Eyebrow>Empty</Eyebrow>
       <Body>
-        This jar has no filter yet, so nothing falls into it. Give it one and everything
-        in your library that matches turns up here on its own.
+        Nothing falls into this jar yet. Give it a filter and everything in your library
+        that matches turns up here on its own.
       </Body>
+      <Pressable
+        onPress={() => router.push(`/filter/${jarId}`)}
+        accessibilityRole="button"
+        className="self-start rounded-button border border-hairline bg-card px-4 py-2 active:opacity-70"
+      >
+        <Text className="type-button text-ink">Build a filter</Text>
+      </Pressable>
     </View>
   );
 }

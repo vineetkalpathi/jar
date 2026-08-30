@@ -3,6 +3,7 @@ import { CategoryPicker } from "@/components/category-picker";
 import { Field } from "@/components/field";
 import { MembersStrip } from "@/components/members-strip";
 import { Screen } from "@/components/screen";
+import { Segmented } from "@/components/segmented";
 import { Eyebrow, LayerTitle, Meta } from "@/components/text";
 import { signOut } from "@/lib/auth/actions";
 import { households, type RatingCategoryRow } from "@/lib/db";
@@ -339,37 +340,3 @@ function PolicyControls({
   );
 }
 
-function Segmented<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (v: T) => void;
-}) {
-  return (
-    <View className="flex-row self-start overflow-hidden rounded-card border border-hairline">
-      {options.map((o, i) => {
-        const active = o.value === value;
-        return (
-          <Pressable
-            key={o.value}
-            onPress={() => onChange(o.value)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            className={`px-3.5 py-1.5 active:opacity-70 ${i > 0 ? "border-l border-hairline" : ""}`}
-            style={{ backgroundColor: active ? accent.forest : "transparent" }}
-          >
-            <Text
-              className="type-meta-small"
-              style={{ color: active ? paper.card : ink.muted }}
-            >
-              {o.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}

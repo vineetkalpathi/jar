@@ -47,6 +47,42 @@ function isPermanent(error: { code?: string } | null): boolean {
   return !!error?.code && PERMANENT_FAILURES.has(error.code);
 }
 
+/**
+ * `jsonb` columns that land in the local SQLite replica as text.
+ *
+ * PowerSync's CRUD ops carry that column verbatim — a string — and PostgREST, handed a
+ * JSON string for a `jsonb` column, stores it as a JSON *string scalar* rather than the
+ * object it encodes. It then replicates back double-encoded, and `parseFilter` rejects
+ * it. Parsing these back to a value on the way out fixes both ends: the insert stores a
+ * real object, and sync-down still delivers text, which is what the local schema and
+ * `parseFilter` expect.
+ *
+ * `jar.filter` is the only one today (ADR-0009).
+ */
+const JSONB_COLUMNS: Record<string, readonly string[]> = {
+  jar: ["filter"],
+};
+
+function decodeJsonb(
+  table: string,
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  const columns = JSONB_COLUMNS[table];
+  if (!columns) return data;
+
+  let out = data;
+  for (const column of columns) {
+    const value = out[column];
+    if (typeof value !== "string" || value === "") continue;
+    try {
+      out = { ...out, [column]: JSON.parse(value) };
+    } catch {
+      // Leave it — the server will reject it and the queue logic logs the drop.
+    }
+  }
+  return out;
+}
+
 export class SupabaseConnector implements PowerSyncBackendConnector {
   async fetchCredentials() {
     if (!POWERSYNC_URL) {
@@ -106,14 +142,19 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
         // row, and `household_select` requires a membership that does not exist yet —
         // so creating a household 42501s and is dropped. A re-upload then surfaces as
         // 23505 instead of merging, which is the convergence rule above.
-        const { error } = await table.insert({ ...op.opData, id: op.id });
+        const { error } = await table.insert({
+          ...decodeJsonb(op.table, op.opData ?? {}),
+          id: op.id,
+        });
         return error;
       }
       case UpdateType.PATCH: {
         // A PATCH carries only the changed columns. No columns means nothing to send —
         // PostgREST rejects an empty body rather than treating it as a no-op.
         if (!op.opData || Object.keys(op.opData).length === 0) return null;
-        const { error } = await table.update(op.opData).eq("id", op.id);
+        const { error } = await table
+          .update(decodeJsonb(op.table, op.opData))
+          .eq("id", op.id);
         return error;
       }
       case UpdateType.DELETE: {

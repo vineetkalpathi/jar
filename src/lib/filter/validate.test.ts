@@ -121,6 +121,18 @@ describe("accepts", () => {
       ),
     );
   });
+
+  it("a double-encoded filter — a jsonb column written a JSON string", () => {
+    // Recoverable: PostgREST stored the string scalar, so it comes back as a string
+    // that itself holds the JSON. One extra parse in `parseFilter` reads it.
+    accepts(
+      JSON.stringify(
+        JSON.stringify(
+          wrap(and({ kind: "predicate", leaf: "mediaType", op: "is", value: "tv" })),
+        ),
+      ),
+    );
+  });
 });
 
 describe("rejects", () => {

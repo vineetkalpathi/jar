@@ -51,6 +51,16 @@ export function parseFilter(input: unknown): ParseResult<Filter> {
     } catch {
       return fail([{ path: "", message: "not valid JSON" }]);
     }
+    // Tolerate a double-encoded value: a jsonb column that was written a JSON *string*
+    // rather than an object comes back as a string that itself holds the JSON. See the
+    // connector's `JSONB_COLUMNS` note. One extra parse recovers such rows.
+    if (typeof raw === "string") {
+      try {
+        raw = JSON.parse(raw);
+      } catch {
+        // fall through to the object check, which will reject it
+      }
+    }
   }
 
   if (!isRecord(raw)) {

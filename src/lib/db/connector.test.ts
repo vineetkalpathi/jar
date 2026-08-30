@@ -13,7 +13,7 @@
  * transform, and only the UpdateType constants are needed here.
  */
 
-const mockCalls: { method: string; table: string }[] = [];
+const mockCalls: { method: string; table: string; payload?: unknown }[] = [];
 let mockNextError: { code?: string; message: string } | null = null;
 
 jest.mock("@powersync/react-native", () => ({
@@ -23,14 +23,14 @@ jest.mock("@powersync/react-native", () => ({
 jest.mock("./supabase", () => ({
   supabase: {
     from: (table: string) => {
-      const record = (method: string) => {
-        mockCalls.push({ method, table });
+      const record = (method: string, payload?: unknown) => {
+        mockCalls.push({ method, table, payload });
         return Promise.resolve({ error: mockNextError });
       };
       return {
-        insert: () => record("insert"),
-        upsert: () => record("upsert"),
-        update: () => ({ eq: () => record("update") }),
+        insert: (payload: unknown) => record("insert", payload),
+        upsert: (payload: unknown) => record("upsert", payload),
+        update: (payload: unknown) => ({ eq: () => record("update", payload) }),
         delete: () => ({ eq: () => record("delete") }),
       };
     },
@@ -75,7 +75,7 @@ describe("uploadData", () => {
 
     await new SupabaseConnector().uploadData(database);
 
-    expect(mockCalls).toEqual([{ method: "insert", table: "household" }]);
+    expect(mockCalls).toMatchObject([{ method: "insert", table: "household" }]);
     expect(complete).toHaveBeenCalled();
   });
 
@@ -116,5 +116,29 @@ describe("uploadData", () => {
     await new SupabaseConnector().uploadData(database);
 
     expect(mockCalls).toEqual([]);
+  });
+
+  it("parses a jar's jsonb filter before sending, so PostgREST stores an object", async () => {
+    const filter = JSON.stringify({ version: 1, root: { kind: "predicate" } });
+    const { database } = databaseWith([
+      crud(UpdateType.PUT, { table: "jar", opData: { name: "Friday", filter } }),
+    ]);
+
+    await new SupabaseConnector().uploadData(database);
+
+    expect(mockCalls[0].payload).toMatchObject({
+      name: "Friday",
+      filter: { version: 1, root: { kind: "predicate" } },
+    });
+  });
+
+  it("passes a null jsonb filter through untouched (a cleared filter)", async () => {
+    const { database } = databaseWith([
+      crud(UpdateType.PATCH, { table: "jar", opData: { filter: null } }),
+    ]);
+
+    await new SupabaseConnector().uploadData(database);
+
+    expect((mockCalls[0].payload as { filter: unknown }).filter).toBeNull();
   });
 });

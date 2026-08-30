@@ -1,4 +1,7 @@
-import { Tappable } from "@/components/button";
+import { Button, Tappable } from "@/components/button";
+import { Field } from "@/components/field";
+import { FilterBuilder } from "@/components/filter/filter-builder";
+import { MatchBar } from "@/components/filter/match-bar";
 import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
 import { MembersStrip } from "@/components/members-strip";
 import { Poster } from "@/components/poster";
@@ -7,18 +10,35 @@ import { SearchField } from "@/components/search-field";
 import { SeenStatus } from "@/components/seen-status";
 import { AddTag, Tag, TagList, TagStrip } from "@/components/tag";
 import { TagPicker } from "@/components/tag-picker";
-import { Body, Eyebrow, Meta, ScreenTitle, TitleName } from "@/components/text";
+import { Body, Eyebrow, LayerTitle, Meta, ScreenTitle, TitleName } from "@/components/text";
 import { useUserId } from "@/lib/auth/session";
-import { annotations, library, type TagRow } from "@/lib/db";
+import { annotations, jars, library, type TagRow } from "@/lib/db";
 import type { LibraryEntryView } from "@/lib/db/repositories/library";
+import {
+  draftToPreviewFilter,
+  emptyDraft,
+  isEmptyDraft,
+  type FilterDraft,
+} from "@/lib/filter";
+import { resolveDraftFilter } from "@/lib/filter/resolve";
+import { useFilterMatches } from "@/lib/filter/use-match-count";
 import { useHousehold } from "@/lib/household/active";
 import { posterUrl } from "@/lib/tmdb";
 import { backfillPosterPath } from "@/lib/tmdb/import";
 import { accent, font, ink, paper } from "@/theme";
 import { usePowerSync, useQuery } from "@powersync/react";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, Pressable, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
 
 /**
  * Titles whose missing poster has already been chased this session — so a row that
@@ -37,6 +57,7 @@ const posterBackfillAttempted = new Set<string>();
  * so the carousel and placeholders don't eat fixed vertical space.
  */
 export default function Household() {
+  const db = usePowerSync();
   const household = useHousehold();
   const userId = useUserId();
   const { data } = useQuery<LibraryEntryView>(library.LIBRARY_FOR_HOUSEHOLD, [
@@ -45,6 +66,14 @@ export default function Household() {
   ]);
 
   const [query, setQuery] = useState("");
+
+  // Tapping the search field pulls the Library section up under the keyboard so the
+  // results stay in view while typing — the sections above it (Members, Log, Tags)
+  // scroll away. `searchY` is the section's offset in the list, caught on layout.
+  const listRef = useRef<FlatList<LibraryEntryView>>(null);
+  const searchY = useRef(0);
+  const focusSearch = () =>
+    listRef.current?.scrollToOffset({ offset: searchY.current + 4, animated: true });
 
   // Library search reaches the same "title or person" way Explore's does — but over the
   // local Library, not TMDB. The match runs in SQLite (title name OR any credited
@@ -57,16 +86,40 @@ export default function Household() {
     `%${needle.replace(/[\\%_]/g, "\\$&")}%`,
   ]);
 
+  // An optional ad-hoc filter over the shelf. Ephemeral — nothing is stored until
+  // "Save as jar" turns it into a real Jar. People chips are dropped from the preview
+  // (`draftToPreviewFilter`); the save path resolves them properly.
+  const [filterDraft, setFilterDraft] = useState<FilterDraft | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [savingJar, setSavingJar] = useState(false);
+  const filterActive = filterDraft != null && !isEmptyDraft(filterDraft);
+  const appliedFilter = useMemo(
+    () => (filterActive ? draftToPreviewFilter(filterDraft!, userId) : null),
+    [filterActive, filterDraft, userId],
+  );
+  const { ids: filterIds } = useFilterMatches(
+    household.id,
+    filterActive ? appliedFilter : null,
+  );
+
   const rows = useMemo(() => {
-    if (!needle) return data;
-    const ids = new Set(matches.map((m) => m.id));
-    return data.filter((row) => ids.has(row.id));
-  }, [data, matches, needle]);
+    let out = data;
+    if (needle) {
+      const ids = new Set(matches.map((m) => m.id));
+      out = out.filter((row) => ids.has(row.id));
+    }
+    if (filterActive && filterIds) {
+      out = out.filter((row) => filterIds.has(row.id));
+    }
+    return out;
+  }, [data, matches, needle, filterActive, filterIds]);
 
   const count =
     data.length === 0
       ? "Nothing added yet"
-      : `${data.length} ${data.length === 1 ? "title" : "titles"}`;
+      : filterActive && filterIds
+        ? `${rows.length} of ${data.length}`
+        : `${data.length} ${data.length === 1 ? "title" : "titles"}`;
 
   return (
     <Screen gutter="grid">
@@ -84,9 +137,11 @@ export default function Household() {
       </View>
 
       <FlatList
+        ref={listRef}
         data={rows}
         keyExtractor={(row) => row.id}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           paddingTop: 4,
           paddingBottom: TAB_BAR_CLEARANCE,
@@ -105,7 +160,12 @@ export default function Household() {
             />
             <TagsSection householdId={household.id} />
 
-            <View className="gap-2">
+            <View
+              className="gap-2"
+              onLayout={(e) => {
+                searchY.current = e.nativeEvent.layout.y;
+              }}
+            >
               <View className="flex-row items-baseline justify-between">
                 <Eyebrow>Library</Eyebrow>
                 <Meta>{count}</Meta>
@@ -113,7 +173,18 @@ export default function Household() {
               <LibrarySearch
                 value={query}
                 onChangeText={setQuery}
+                onFocus={focusSearch}
                 onAdd={() => router.navigate("/explore")}
+              />
+              <LibraryFilterControls
+                active={filterActive}
+                matchCount={filterActive && filterIds ? rows.length : null}
+                onOpen={() => {
+                  setFilterDraft((d) => d ?? emptyDraft());
+                  setFilterOpen(true);
+                }}
+                onClear={() => setFilterDraft(null)}
+                onSaveAsJar={() => setSavingJar(true)}
               />
             </View>
           </View>
@@ -125,7 +196,221 @@ export default function Household() {
           <LibraryRow row={item} householdId={household.id} userId={userId} />
         )}
       />
+
+      <LibraryFilterModal
+        visible={filterOpen}
+        householdId={household.id}
+        draft={filterDraft ?? emptyDraft()}
+        onChange={setFilterDraft}
+        onClose={() => setFilterOpen(false)}
+        onClear={() => {
+          setFilterDraft(null);
+          setFilterOpen(false);
+        }}
+      />
+
+      <SaveAsJarModal
+        visible={savingJar}
+        onCancel={() => setSavingJar(false)}
+        onSave={async (name) => {
+          if (!filterDraft) return;
+          try {
+            const filter = await resolveDraftFilter(db, filterDraft, userId);
+            const jarId = await jars.createJar(db, {
+              householdId: household.id,
+              name,
+              filter,
+            });
+            setSavingJar(false);
+            router.push(`/jar/${jarId}`);
+          } catch {
+            Alert.alert("Couldn't save", "That filter didn't save as a jar.");
+          }
+        }}
+      />
     </Screen>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Library filter
+// ---------------------------------------------------------------------------
+
+/** The "Filter" affordance under the search row, and the active-filter bar. */
+function LibraryFilterControls({
+  active,
+  matchCount,
+  onOpen,
+  onClear,
+  onSaveAsJar,
+}: {
+  active: boolean;
+  matchCount: number | null;
+  onOpen: () => void;
+  onClear: () => void;
+  onSaveAsJar: () => void;
+}) {
+  if (!active) {
+    return (
+      <Pressable
+        onPress={onOpen}
+        accessibilityRole="button"
+        className="mt-1 flex-row items-center gap-1.5 self-start active:opacity-60"
+      >
+        <FunnelGlyph />
+        <Text className="type-meta-small text-navy">Filter</Text>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View className="mt-1 gap-2 rounded-card border border-hairline bg-card px-3 py-2.5">
+      <View className="flex-row items-center gap-1.5">
+        <FunnelGlyph color={accent.forest} />
+        <Text className="type-meta-small" style={{ color: accent.forest }}>
+          {matchCount == null
+            ? "Filter on"
+            : `${matchCount} ${matchCount === 1 ? "match" : "matches"}`}
+        </Text>
+      </View>
+      <View className="flex-row items-center gap-4">
+        <Pressable onPress={onOpen} accessibilityRole="button" className="active:opacity-60">
+          <Text className="type-meta-small text-navy">Edit</Text>
+        </Pressable>
+        <Pressable onPress={onSaveAsJar} accessibilityRole="button" className="active:opacity-60">
+          <Text className="type-meta-small text-navy">Save as jar</Text>
+        </Pressable>
+        <Pressable onPress={onClear} accessibilityRole="button" className="active:opacity-60">
+          <Text className="type-meta-small text-rust">Clear</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/** A funnel — drawn, per the no-icon-library rule. */
+function FunnelGlyph({ color = accent.navy }: { color?: string }) {
+  return (
+    <View style={{ width: 13, height: 13, alignItems: "center", justifyContent: "center" }}>
+      <View
+        style={{
+          width: 12,
+          height: 0,
+          borderLeftWidth: 6,
+          borderRightWidth: 6,
+          borderTopWidth: 7,
+          borderLeftColor: "transparent",
+          borderRightColor: "transparent",
+          borderTopColor: color,
+        }}
+      />
+      <View style={{ width: 1.5, height: 4, backgroundColor: color }} />
+    </View>
+  );
+}
+
+/** Full-screen builder over the Library, applied on close. */
+function LibraryFilterModal({
+  visible,
+  householdId,
+  draft,
+  onChange,
+  onClose,
+  onClear,
+}: {
+  visible: boolean;
+  householdId: string;
+  draft: FilterDraft;
+  onChange: (next: FilterDraft) => void;
+  onClose: () => void;
+  onClear: () => void;
+}) {
+  const userId = useUserId();
+  const preview = useMemo(
+    () => (isEmptyDraft(draft) ? null : draftToPreviewFilter(draft, userId)),
+    [draft, userId],
+  );
+  const { count, pending } = useFilterMatches(householdId, preview);
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <Screen scroll>
+        <View className="gap-6 pb-16 pt-2">
+          <View className="flex-row items-center justify-between">
+            <LayerTitle>Filter library</LayerTitle>
+            <Pressable onPress={onClose} accessibilityRole="button" hitSlop={10}>
+              <Text className="type-body text-navy">Done</Text>
+            </Pressable>
+          </View>
+
+          <FilterBuilder value={draft} onChange={onChange} householdId={householdId} />
+
+          <View className="gap-3">
+            <MatchBar count={count} pending={pending} />
+            <Button label="Apply" onPress={onClose} />
+            <Button label="Clear filter" variant="quiet" onPress={onClear} />
+          </View>
+        </View>
+      </Screen>
+    </Modal>
+  );
+}
+
+/** A one-field name prompt for turning the Library filter into a Jar. */
+function SaveAsJarModal({
+  visible,
+  onCancel,
+  onSave,
+}: {
+  visible: boolean;
+  onCancel: () => void;
+  onSave: (name: string) => void | Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    const trimmed = name.trim();
+    if (!trimmed || busy) return;
+    setBusy(true);
+    await onSave(trimmed);
+    setBusy(false);
+    setName("");
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <Pressable
+        className="flex-1 items-center justify-center px-8"
+        style={{ backgroundColor: "rgba(0,0,0,0.3)" }}
+        onPress={onCancel}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          className="w-full"
+        >
+          <Pressable
+            className="gap-4 rounded-sheet bg-paper p-6"
+            onPress={() => {}}
+          >
+            <Eyebrow>Save as jar</Eyebrow>
+            <Field
+              label="Jar name"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              autoFocus
+              returnKeyType="go"
+              onSubmitEditing={submit}
+            />
+            <View className="gap-2">
+              <Button label="Create jar" onPress={submit} loading={busy} disabled={!name.trim()} />
+              <Button label="Cancel" variant="quiet" onPress={onCancel} />
+            </View>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -211,10 +496,12 @@ function TagsSection({ householdId }: { householdId: string }) {
 function LibrarySearch({
   value,
   onChangeText,
+  onFocus,
   onAdd,
 }: {
   value: string;
   onChangeText: (text: string) => void;
+  onFocus: () => void;
   onAdd: () => void;
 }) {
   return (
@@ -223,6 +510,7 @@ function LibrarySearch({
         <SearchField
           value={value}
           onChangeText={onChangeText}
+          onFocus={onFocus}
           placeholder="Search by title or person"
           accessibilityLabel="Search library by title or person"
         />

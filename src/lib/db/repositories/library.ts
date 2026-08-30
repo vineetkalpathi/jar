@@ -81,6 +81,37 @@ export const CREDITS_FOR_TITLE = `
 `;
 
 /**
+ * The distinct genres present in a Household's Library, for the filter builder's chip
+ * list. A fresh Library returns nothing, so the builder falls back to TMDB's full
+ * catalogue. Parameters: `[householdId]`.
+ */
+export const GENRES_IN_LIBRARY = `
+  select distinct g.genre
+  from title_genre g
+  join library_entry le on le.title_id = g.title_id
+  where le.household_id = ?
+  order by g.genre
+`;
+
+/** The distinct original languages in a Household's Library. Parameters: `[householdId]`. */
+export const LANGUAGES_IN_LIBRARY = `
+  select distinct t.language
+  from title t
+  join library_entry le on le.title_id = t.id
+  where le.household_id = ? and t.language is not null and t.language <> ''
+  order by t.language
+`;
+
+/**
+ * Names for a set of `person.id`s, so the builder can label a cast/director rule read
+ * back from a stored Filter (which holds bare ids — ADR-0009). Build the placeholder
+ * list to match the id count. Parameters: the ids.
+ */
+export function peopleByIds(placeholders: number): string {
+  return `select id, name from person where id in (${Array(placeholders).fill("?").join(", ")})`;
+}
+
+/**
  * The Library row for a TMDB title, if this Household already has it.
  *
  * The two-part check is the point: Titles converge globally on `tmdb_id` (ADR-0007), so
