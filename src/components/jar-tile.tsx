@@ -11,8 +11,7 @@
  * level, label position and tap target all keep working around a different outline.
  */
 
-import { Text, View } from "react-native";
-import { Tappable } from "./button";
+import { Pressable, Text, View } from "react-native";
 import { EyebrowWide } from "./text";
 import { border, jar as jarTokens, paper, radius } from "@/theme";
 
@@ -41,10 +40,14 @@ export function JarTile({
   onPress: () => void;
 }) {
   return (
-    <Tappable
+    // A plain Pressable, not `Tappable` — that wraps its child in a `flex-1` View, which
+    // collapses to zero height inside a FlatList grid cell and makes the rows overlap.
+    // The fixed-height child below is what gives the cell its height.
+    <Pressable
+      accessibilityRole="button"
       accessibilityLabel={`${name}, ${count ?? 0} ${count === 1 ? "slip" : "slips"}`}
       onPress={onPress}
-      className="flex-1"
+      className="flex-1 active:opacity-70"
     >
       <View style={{ height: jarTokens.tileHeight }} className="items-center">
         {/* Rim — a bare rule, wider than the neck it sits on. */}
@@ -108,7 +111,7 @@ export function JarTile({
           </View>
         </View>
       </View>
-    </Tappable>
+    </Pressable>
   );
 }
 
@@ -118,7 +121,12 @@ export function JarTile({
  */
 export function NewJarTile({ onPress }: { onPress: () => void }) {
   return (
-    <Tappable accessibilityLabel="New jar" onPress={onPress} className="flex-1">
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="New jar"
+      onPress={onPress}
+      className="flex-1 active:opacity-70"
+    >
       <View
         style={{ height: jarTokens.tileHeight }}
         className="items-center justify-center gap-1 rounded-card border-dashed-hairline"
@@ -126,6 +134,6 @@ export function NewJarTile({ onPress }: { onPress: () => void }) {
         <Text className="type-section-title text-ink-faint">＋</Text>
         <EyebrowWide className="text-ink-faint">New jar</EyebrowWide>
       </View>
-    </Tappable>
+    </Pressable>
   );
 }
