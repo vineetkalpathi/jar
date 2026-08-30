@@ -7,7 +7,7 @@ import { LibraryStatus } from "@/components/library-status";
 import { Loading } from "@/components/loading";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
-import { TagChips } from "@/components/tag-chips";
+import { TitleTags } from "@/components/title-tags";
 import { CastAndCrew, ExternalLinks, TmdbRating, WatchProviders } from "@/components/tmdb-facts";
 import { DarkBody, DarkMeta, DarkTitle } from "@/components/text";
 import {
@@ -118,7 +118,6 @@ export default function TitleDetail() {
           ) : null}
           {title.language ? <DarkMeta>{title.language}</DarkMeta> : null}
           <TmdbRating voteAverage={tmdb?.voteAverage} />
-          <TagChips tags={tags} />
         </View>
       </View>
 
@@ -134,6 +133,8 @@ export default function TitleDetail() {
         mediaType={title.media_type as TmdbMediaType | null}
         imdbId={tmdb?.imdbId ?? null}
       />
+
+      <TitleTags titleId={title.id} householdId={household.id} tags={tags} />
 
       <HouseholdRating
         titleId={title.id}

@@ -115,18 +115,22 @@ export function HouseholdRating({
 
   return (
     <View className="mt-6 gap-3 border-t border-dark-hairline pt-5">
-      <View className="flex-row items-center justify-between">
-        <DarkEyebrow>{mode === "mine" ? "Your rating" : "Household rating"}</DarkEyebrow>
+      {/* One line in both modes — the toggle states the mode, the eyebrow stays put,
+          and the aggregate detail rides alongside it only when there's one to give.
+          Keeps the capsules starting at the same Y whichever view you're in. */}
+      <View className="flex-row items-baseline justify-between">
+        <View className="flex-1 flex-row items-baseline gap-2 pr-2">
+          <DarkEyebrow>Ratings</DarkEyebrow>
+          {mode === "household" ? (
+            <DarkMeta numberOfLines={1}>
+              {raterCount > 0
+                ? `· avg of ${raterCount} ${raterCount === 1 ? "rater" : "raters"}`
+                : "· not yet rated"}
+            </DarkMeta>
+          ) : null}
+        </View>
         <ModeToggle mode={mode} onChange={setMode} />
       </View>
-
-      {mode === "household" ? (
-        <DarkMeta>
-          {raterCount > 0
-            ? `Average of ${raterCount} ${raterCount === 1 ? "rater" : "raters"}`
-            : "No one has rated this yet"}
-        </DarkMeta>
-      ) : null}
 
       <View className="gap-2.5 pt-1">
         {categories.map((category) =>

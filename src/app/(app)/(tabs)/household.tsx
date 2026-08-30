@@ -2,6 +2,8 @@ import { Tappable } from "@/components/button";
 import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
+import { Tag, TagList, TagStrip } from "@/components/tag";
+import { TagPicker } from "@/components/tag-picker";
 import { Body, Eyebrow, EyebrowWide, Meta, ScreenTitle, TitleName } from "@/components/text";
 import { useUserId } from "@/lib/auth/session";
 import { annotations, households, library, type TagRow } from "@/lib/db";
@@ -13,7 +15,7 @@ import { accent, font, ink, paper } from "@/theme";
 import { usePowerSync, useQuery } from "@powersync/react";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 /**
  * Titles whose missing poster has already been chased this session — so a row that
@@ -77,7 +79,7 @@ export default function Household() {
             <MembersStrip householdId={household.id} />
 
             <PlaceholderSection title="Log" note="Recent viewings will land here." />
-            <PlaceholderSection title="Tags" note="The household's shared labels, once there are some." />
+            <TagsSection householdId={household.id} />
 
             <View className="gap-2">
               <View className="flex-row items-baseline justify-between">
@@ -171,6 +173,75 @@ function PlaceholderSection({ title, note }: { title: string; note: string }) {
       <View className="rounded-card border-dashed-hairline px-4 py-5">
         <Text className="type-meta text-ink-faint">{note}</Text>
       </View>
+    </View>
+  );
+}
+
+/**
+ * The Household's shared tag vocabulary. Each chip carries its title count and a `×`
+ * that deletes the tag everywhere (confirmed — it pulls the label off every title).
+ * "＋ New tag" opens the same picker the Title screen uses; existing tags show as
+ * "Added", so the only live action from here is coining a new one.
+ */
+function TagsSection({ householdId }: { householdId: string }) {
+  const db = usePowerSync();
+  const { data: tags } = useQuery<TagRow & { title_count: number }>(
+    annotations.TAGS_FOR_HOUSEHOLD,
+    [householdId],
+  );
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const remove = (tag: TagRow) => {
+    Alert.alert(
+      `Delete ${tag.name}?`,
+      "It comes off every title that carries it. Ratings and viewings are untouched.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () =>
+            void annotations
+              .deleteTag(db, tag.id)
+              .catch((cause) => console.warn("[tags] could not delete", cause)),
+        },
+      ],
+    );
+  };
+
+  return (
+    <View className="gap-2">
+      <Eyebrow>Tags</Eyebrow>
+      {tags.length === 0 ? (
+        <View className="rounded-card border-dashed-hairline px-4 py-5">
+          <Text className="type-meta text-ink-faint">
+            The household's shared labels, once there are some.
+          </Text>
+        </View>
+      ) : (
+        <TagList>
+          {tags.map((tag) => (
+            <Tag key={tag.id} label={tag.name ?? ""} onRemove={() => remove(tag)} />
+          ))}
+        </TagList>
+      )}
+      <Pressable
+        onPress={() => setPickerOpen(true)}
+        accessibilityRole="button"
+        className="mt-1 self-start py-1 active:opacity-60"
+      >
+        <Text className="type-body text-forest">＋ New tag</Text>
+      </Pressable>
+
+      <TagPicker
+        visible={pickerOpen}
+        householdId={householdId}
+        activeIds={tags.map((t) => t.id)}
+        heading="New tag"
+        note="Type a label the household will share across titles."
+        onClose={() => setPickerOpen(false)}
+        onPick={() => {}}
+      />
     </View>
   );
 }
@@ -348,17 +419,8 @@ function LibraryRow({
             <TitleName numberOfLines={1}>{row.name}</TitleName>
             {meta ? <Meta numberOfLines={1}>{meta}</Meta> : null}
             {tags.length > 0 ? (
-              <View className="mt-1 flex-row flex-wrap gap-1">
-                {tags.slice(0, 4).map((tag) => (
-                  <View
-                    key={tag.id}
-                    className="rounded-card border border-hairline px-1.5 py-0.5"
-                  >
-                    <Text className="type-meta-small text-ink-muted">
-                      {tag.name}
-                    </Text>
-                  </View>
-                ))}
+              <View className="mt-1">
+                <TagStrip tags={tags} />
               </View>
             ) : null}
           </View>

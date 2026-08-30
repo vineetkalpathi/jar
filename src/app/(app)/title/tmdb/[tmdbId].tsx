@@ -7,7 +7,7 @@ import { LibraryStatus } from "@/components/library-status";
 import { Loading } from "@/components/loading";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
-import { TagChips } from "@/components/tag-chips";
+import { TitleTags } from "@/components/title-tags";
 import { CastAndCrew, ExternalLinks, TmdbRating, WatchProviders } from "@/components/tmdb-facts";
 import { DarkBody, DarkMeta, DarkTitle } from "@/components/text";
 import { annotations, households, library, type RatingCategoryRow, type TagRow } from "@/lib/db";
@@ -154,7 +154,6 @@ export default function TmdbPreview() {
               ) : null}
               {details.language ? <DarkMeta>{details.language}</DarkMeta> : null}
               <TmdbRating voteAverage={details.voteAverage} />
-              <TagChips tags={tags} />
             </View>
           </View>
 
@@ -168,12 +167,15 @@ export default function TmdbPreview() {
           <ExternalLinks tmdbId={details.tmdbId} mediaType={details.mediaType} imdbId={details.imdbId} />
 
           {titleId ? (
-            <HouseholdRating
-              titleId={titleId}
-              householdId={household.id}
-              categories={categories}
-              ratings={ratings}
-            />
+            <>
+              <TitleTags titleId={titleId} householdId={household.id} tags={tags} />
+              <HouseholdRating
+                titleId={titleId}
+                householdId={household.id}
+                categories={categories}
+                ratings={ratings}
+              />
+            </>
           ) : null}
         </>
       )}

@@ -13,8 +13,9 @@ import { Text, View } from "react-native";
 import { Tappable } from "./button";
 import { LibraryStatus } from "./library-status";
 import { Poster } from "./poster";
+import { TagStrip } from "./tag";
 import { Meta, TitleName } from "./text";
-import { library } from "@/lib/db";
+import { annotations, library, type TagRow } from "@/lib/db";
 import { useUserId } from "@/lib/auth/session";
 import { useHousehold } from "@/lib/household/active";
 import { posterUrl, type TmdbMediaType } from "@/lib/tmdb";
@@ -46,6 +47,13 @@ export function TitleRow({
     [tmdbId, household.id],
   );
   const addedTitleId = libraryRows[0]?.title_id ?? null;
+
+  // Only meaningful once the title's in the Library — the "select null" stand-in keeps
+  // the hook unconditional (jar/[id].tsx and the TMDB preview use the same pattern).
+  const { data: tags } = useQuery<TagRow>(
+    addedTitleId ? annotations.TAGS_FOR_TITLE : "select null limit 0",
+    addedTitleId ? [household.id, addedTitleId] : [],
+  );
 
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -85,6 +93,11 @@ export function TitleRow({
             <View className="flex-1 gap-0.5">
               <TitleName numberOfLines={1}>{name}</TitleName>
               <Meta numberOfLines={1}>{meta}</Meta>
+              {tags.length > 0 ? (
+                <View className="mt-1">
+                  <TagStrip tags={tags} />
+                </View>
+              ) : null}
             </View>
           </View>
         </Tappable>
