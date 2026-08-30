@@ -30,6 +30,13 @@ export const SearchField = forwardRef<TextInput, Props>(function SearchField(pro
         returnKeyType="search"
         className="type-body flex-1 p-0 text-ink"
         {...props}
+        // `type-body`'s 23px paragraph line-height plus Android's font padding pushes the
+        // single line of text down and clips its top/bottom inside the 44px pill. Drop the
+        // paragraph leading and let the field center the line itself.
+        style={[
+          { lineHeight: undefined, includeFontPadding: false, textAlignVertical: "center" },
+          props.style,
+        ]}
       />
     </View>
   );
