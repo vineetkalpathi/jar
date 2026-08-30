@@ -32,9 +32,9 @@ export function TitleTags({
   const db = usePowerSync();
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  const add = (tag: { id: string }) =>
+  const add = (tags: { id: string }[]) =>
     annotations
-      .tagTitle(db, { householdId, titleId, tagId: tag.id })
+      .tagTitleMany(db, { householdId, titleId, tagIds: tags.map((t) => t.id) })
       .catch((cause) => console.warn("[tags] could not attach", cause));
 
   const remove = (tagId: string) =>
@@ -67,8 +67,9 @@ export function TitleTags({
         householdId={householdId}
         activeIds={tags.map((t) => t.id)}
         note="Belongs to the household — pick an existing label or make a new one."
+        multi
         onClose={() => setPickerOpen(false)}
-        onPick={add}
+        onSubmit={add}
       />
     </View>
   );

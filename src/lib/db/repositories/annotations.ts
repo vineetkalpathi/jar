@@ -82,6 +82,16 @@ export async function tagTitle(
   });
 }
 
+/** Attaches several Tags to one Title in a pass — the multi-select add flow. */
+export async function tagTitleMany(
+  db: AbstractPowerSyncDatabase,
+  input: { householdId: string; titleId: string; tagIds: string[] },
+): Promise<void> {
+  for (const tagId of input.tagIds) {
+    await tagTitle(db, { householdId: input.householdId, titleId: input.titleId, tagId });
+  }
+}
+
 export async function untagTitle(
   db: AbstractPowerSyncDatabase,
   input: { householdId: string; titleId: string; tagId: string },

@@ -45,6 +45,7 @@ export function PickerSheet({
   searchAccessibilityLabel,
   onClose,
   children,
+  footer,
 }: {
   visible: boolean;
   heading: string;
@@ -57,6 +58,8 @@ export function PickerSheet({
   onClose: () => void;
   /** The scroll content — the "Create …" row, the matches, any empty/loading state. */
   children: ReactNode;
+  /** Pinned below the list, above the keyboard — the multi-select "Save" action. */
+  footer?: ReactNode;
 }) {
   const { height } = useWindowDimensions();
   const [kb, setKb] = useState(0);
@@ -124,6 +127,8 @@ export function PickerSheet({
             >
               {children}
             </ScrollView>
+
+            {footer ? <View className="pt-3">{footer}</View> : null}
           </Pressable>
         </Animated.View>
       </Pressable>
