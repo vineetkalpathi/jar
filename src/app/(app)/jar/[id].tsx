@@ -1,8 +1,8 @@
 import { useQuery, usePowerSync } from "@powersync/react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { FlatList, Text, View } from "react-native";
-import { Button, Tappable } from "@/components/button";
+import { FlatList, Pressable, Text, View } from "react-native";
+import { Tappable } from "@/components/button";
 import { Loading } from "@/components/loading";
 import { Screen } from "@/components/screen";
 import { Body, Eyebrow, Hand, LayerTitle, Meta } from "@/components/text";
@@ -54,7 +54,14 @@ export default function JarDetail() {
   return (
     <Screen gutter="grid">
       <View className="gap-1 pb-6 pt-2">
-        <Button label="← Jars" variant="quiet" onPress={() => router.back()} />
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Text className="type-section-title text-ink-secondary">‹</Text>
+        </Pressable>
         <LayerTitle>{jar.name}</LayerTitle>
         <Meta>
           {titles.length} {titles.length === 1 ? "slip" : "slips"}
