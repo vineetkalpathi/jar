@@ -175,17 +175,18 @@ export default function Household() {
                 onChangeText={setQuery}
                 onFocus={focusSearch}
                 onAdd={() => router.navigate("/explore")}
-              />
-              <LibraryFilterControls
-                active={filterActive}
-                matchCount={filterActive && filterIds ? rows.length : null}
-                onOpen={() => {
+                filterActive={filterActive}
+                onFilter={() => {
                   setFilterDraft((d) => d ?? emptyDraft());
                   setFilterOpen(true);
                 }}
-                onClear={() => setFilterDraft(null)}
-                onSaveAsJar={() => setSavingJar(true)}
               />
+              {filterActive ? (
+                <ActiveFilterBar
+                  onClear={() => setFilterDraft(null)}
+                  onSaveAsJar={() => setSavingJar(true)}
+                />
+              ) : null}
             </View>
           </View>
         }
@@ -236,47 +237,27 @@ export default function Household() {
 // Library filter
 // ---------------------------------------------------------------------------
 
-/** The "Filter" affordance under the search row, and the active-filter bar. */
-function LibraryFilterControls({
-  active,
-  matchCount,
-  onOpen,
+/**
+ * The strip below the search row while a Library filter is on — the match summary and
+ * the two actions the filter button itself doesn't cover. Tapping the button re-opens
+ * the builder, so there's no "Edit" here.
+ */
+function ActiveFilterBar({
   onClear,
   onSaveAsJar,
 }: {
-  active: boolean;
-  matchCount: number | null;
-  onOpen: () => void;
   onClear: () => void;
   onSaveAsJar: () => void;
 }) {
-  if (!active) {
-    return (
-      <Pressable
-        onPress={onOpen}
-        accessibilityRole="button"
-        className="mt-1 flex-row items-center gap-1.5 self-start active:opacity-60"
-      >
-        <FunnelGlyph />
-        <Text className="type-meta-small text-navy">Filter</Text>
-      </Pressable>
-    );
-  }
-
   return (
-    <View className="mt-1 gap-2 rounded-card border border-hairline bg-card px-3 py-2.5">
+    <View className="mt-1 flex-row items-center justify-between rounded-card border border-hairline bg-card px-3 py-2">
       <View className="flex-row items-center gap-1.5">
         <FunnelGlyph color={accent.forest} />
         <Text className="type-meta-small" style={{ color: accent.forest }}>
-          {matchCount == null
-            ? "Filter on"
-            : `${matchCount} ${matchCount === 1 ? "match" : "matches"}`}
+          Filtered
         </Text>
       </View>
       <View className="flex-row items-center gap-4">
-        <Pressable onPress={onOpen} accessibilityRole="button" className="active:opacity-60">
-          <Text className="type-meta-small text-navy">Edit</Text>
-        </Pressable>
         <Pressable onPress={onSaveAsJar} accessibilityRole="button" className="active:opacity-60">
           <Text className="type-meta-small text-navy">Save as jar</Text>
         </Pressable>
@@ -288,23 +269,24 @@ function LibraryFilterControls({
   );
 }
 
-/** A funnel — drawn, per the no-icon-library rule. */
-function FunnelGlyph({ color = accent.navy }: { color?: string }) {
+/** A funnel — drawn, per the no-icon-library rule. Sized to fit its container. */
+function FunnelGlyph({ color = ink.muted, size = 13 }: { color?: string; size?: number }) {
+  const half = size / 2;
   return (
-    <View style={{ width: 13, height: 13, alignItems: "center", justifyContent: "center" }}>
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
       <View
         style={{
-          width: 12,
+          width: 0,
           height: 0,
-          borderLeftWidth: 6,
-          borderRightWidth: 6,
-          borderTopWidth: 7,
+          borderLeftWidth: half,
+          borderRightWidth: half,
+          borderTopWidth: Math.round(size * 0.55),
           borderLeftColor: "transparent",
           borderRightColor: "transparent",
           borderTopColor: color,
         }}
       />
-      <View style={{ width: 1.5, height: 4, backgroundColor: color }} />
+      <View style={{ width: 1.5, height: Math.round(size * 0.32), backgroundColor: color }} />
     </View>
   );
 }
@@ -492,17 +474,21 @@ function TagsSection({ householdId }: { householdId: string }) {
   );
 }
 
-/** Search over the Library and the "add a title" affordance, as one row. */
+/** Search, filter, and "add a title" — one row of first-class controls. */
 function LibrarySearch({
   value,
   onChangeText,
   onFocus,
   onAdd,
+  onFilter,
+  filterActive,
 }: {
   value: string;
   onChangeText: (text: string) => void;
   onFocus: () => void;
   onAdd: () => void;
+  onFilter: () => void;
+  filterActive: boolean;
 }) {
   return (
     <View className="flex-row items-center gap-2">
@@ -515,7 +501,27 @@ function LibrarySearch({
           accessibilityLabel="Search library by title or person"
         />
       </View>
-      {/* Solid, not outlined — a filled primary action, so it doesn't read as another
+
+      {/* Filter — a toggle: hairline circle when off, filled forest when a filter is
+          on. Tapping it opens the builder either way; "Clear" lives in the bar below. */}
+      <Pressable
+        onPress={onFilter}
+        accessibilityRole="button"
+        accessibilityLabel={filterActive ? "Edit library filter" : "Filter the library"}
+        accessibilityState={{ selected: filterActive }}
+        style={{
+          width: 44,
+          height: 44,
+          backgroundColor: filterActive ? accent.forest : "transparent",
+          borderWidth: filterActive ? 0 : 1,
+          borderColor: paper.border,
+        }}
+        className="items-center justify-center rounded-full active:opacity-80"
+      >
+        <FunnelGlyph size={17} color={filterActive ? paper.card : ink.muted} />
+      </Pressable>
+
+      {/* Solid forest — a filled primary action, so it doesn't read as another
           of the round outlined "seen" toggles sitting in the rows just below. */}
       <Pressable
         onPress={onAdd}
