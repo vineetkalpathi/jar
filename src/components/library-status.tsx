@@ -1,12 +1,7 @@
 /**
- * Whether a Title is in the Household's Library — a squared badge in the corner rather
- * than a bottom button/text pair, so it reads as chrome around the screen rather than
- * competing with the screen's own content for attention.
- *
- * The rounded-square silhouette is load-bearing: the Title screen also shows the round
- * `seen-status` eye, and "in our collection" (a shelf, a box) and "I've watched it" (a
- * personal state) should not read as the same control. Shape carries that split; both
- * keep `accent.forest`.
+ * Whether a Title is in the Household's Library — a circular action in the corner
+ * rather than a bottom button/text pair, so it reads as chrome around the screen
+ * rather than competing with the screen's own content for attention.
  *
  * Two states, deliberately different treatments: not-added is outlined — an invitation,
  * green (`accent.forest`, the app's one "positive/go" colour) on transparent — while
@@ -19,7 +14,6 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { accent, font, paper } from "@/theme";
 
 const SIZE = 36;
-const RADIUS = 11;
 const BORDER_WIDTH = 1.5;
 const GLYPH = { fontFamily: font.uiBold, fontSize: 20, lineHeight: 22 };
 
@@ -51,7 +45,7 @@ export function LibraryStatus({
   if (inLibrary || !onAdd) {
     return (
       <View
-        style={{ width: SIZE, height: SIZE, borderRadius: RADIUS, backgroundColor: accent.forest }}
+        style={{ width: SIZE, height: SIZE, borderRadius: SIZE / 2, backgroundColor: accent.forest }}
         className="items-center justify-center"
         accessibilityLabel={inLibrary ? "In your library" : undefined}
       >
@@ -73,7 +67,7 @@ export function LibraryStatus({
       style={{
         width: SIZE,
         height: SIZE,
-        borderRadius: RADIUS,
+        borderRadius: SIZE / 2,
         borderWidth: BORDER_WIDTH,
         borderColor: accent.forest,
       }}
