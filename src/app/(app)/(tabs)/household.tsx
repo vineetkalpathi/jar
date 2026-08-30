@@ -1,14 +1,15 @@
 import { Tappable } from "@/components/button";
 import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
+import { MembersStrip } from "@/components/members-strip";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
 import { SearchField } from "@/components/search-field";
 import { SeenStatus } from "@/components/seen-status";
-import { Tag, TagList, TagStrip } from "@/components/tag";
+import { AddTag, Tag, TagList, TagStrip } from "@/components/tag";
 import { TagPicker } from "@/components/tag-picker";
 import { Body, Eyebrow, Meta, ScreenTitle, TitleName } from "@/components/text";
 import { useUserId } from "@/lib/auth/session";
-import { annotations, households, library, type TagRow } from "@/lib/db";
+import { annotations, library, type TagRow } from "@/lib/db";
 import type { LibraryEntryView } from "@/lib/db/repositories/library";
 import { useHousehold } from "@/lib/household/active";
 import { posterUrl } from "@/lib/tmdb";
@@ -17,7 +18,7 @@ import { accent, font, ink, paper } from "@/theme";
 import { usePowerSync, useQuery } from "@powersync/react";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, FlatList, Pressable, Text, View } from "react-native";
 
 /**
  * Titles whose missing poster has already been chased this session — so a row that
@@ -78,7 +79,10 @@ export default function Household() {
         ItemSeparatorComponent={() => <View className="h-px bg-hairline" />}
         ListHeaderComponent={
           <View className="gap-8 pb-3">
-            <MembersStrip householdId={household.id} />
+            <View className="gap-2">
+              <Eyebrow>Members</Eyebrow>
+              <MembersStrip householdId={household.id} />
+            </View>
 
             <PlaceholderSection title="Log" note="Recent viewings will land here." />
             <TagsSection householdId={household.id} />
@@ -108,66 +112,6 @@ export default function Household() {
 // ---------------------------------------------------------------------------
 // Household sections
 // ---------------------------------------------------------------------------
-
-/** Circular avatars with names, and a dashed "＋ Invite" that opens the hub. */
-function MembersStrip({ householdId }: { householdId: string }) {
-  const { data: members } = useQuery<{ id: string; display_name: string }>(
-    households.MEMBERS_OF_HOUSEHOLD,
-    [householdId],
-  );
-
-  return (
-    <View className="gap-2">
-      <Eyebrow>Members</Eyebrow>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 16, paddingVertical: 2 }}
-      >
-        {members.map((m) => (
-          <View key={m.id} className="w-16 items-center gap-1.5">
-            <View
-              className="items-center justify-center rounded-full bg-chip"
-              style={{ width: 52, height: 52 }}
-            >
-              <Text style={{ fontFamily: font.uiBold, fontSize: 18, color: ink.secondary }}>
-                {initials(m.display_name)}
-              </Text>
-            </View>
-            <Text numberOfLines={1} className="type-meta-small text-ink-muted">
-              {m.display_name}
-            </Text>
-          </View>
-        ))}
-
-        <Pressable
-          onPress={() => router.push("/household-settings")}
-          accessibilityRole="link"
-          accessibilityLabel="Invite a member"
-          className="w-16 items-center gap-1.5 active:opacity-60"
-        >
-          <View
-            className="items-center justify-center rounded-full border-dashed-hairline"
-            style={{ width: 52, height: 52 }}
-          >
-            <Text className="type-title-large text-ink-faint">＋</Text>
-          </View>
-          <Text numberOfLines={1} className="type-meta-small text-ink-muted">
-            Invite
-          </Text>
-        </Pressable>
-      </ScrollView>
-    </View>
-  );
-}
-
-/** Two initials from a display name — first + last, or the first two letters. */
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 /** A section that has a home on the page but no content yet. */
 function PlaceholderSection({ title, note }: { title: string; note: string }) {
@@ -217,25 +161,14 @@ function TagsSection({ householdId }: { householdId: string }) {
     <View className="gap-2">
       <Eyebrow>Tags</Eyebrow>
       {tags.length === 0 ? (
-        <View className="rounded-card border-dashed-hairline px-4 py-5">
-          <Text className="type-meta text-ink-faint">
-            The household's shared labels, once there are some.
-          </Text>
-        </View>
-      ) : (
-        <TagList>
-          {tags.map((tag) => (
-            <Tag key={tag.id} label={tag.name ?? ""} onRemove={() => remove(tag)} />
-          ))}
-        </TagList>
-      )}
-      <Pressable
-        onPress={() => setPickerOpen(true)}
-        accessibilityRole="button"
-        className="mt-1 self-start py-1 active:opacity-60"
-      >
-        <Text className="type-body text-forest">＋ New tag</Text>
-      </Pressable>
+        <Meta>The household's shared labels, once there are some.</Meta>
+      ) : null}
+      <TagList>
+        {tags.map((tag) => (
+          <Tag key={tag.id} label={tag.name ?? ""} onRemove={() => remove(tag)} />
+        ))}
+        <AddTag label="New tag" onPress={() => setPickerOpen(true)} />
+      </TagList>
 
       <TagPicker
         visible={pickerOpen}

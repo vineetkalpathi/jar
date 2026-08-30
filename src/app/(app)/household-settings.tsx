@@ -1,16 +1,19 @@
-import { usePowerSync, useQuery } from "@powersync/react";
-import { router } from "expo-router";
-import { useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
 import { Button } from "@/components/button";
 import { CategoryPicker } from "@/components/category-picker";
 import { Field } from "@/components/field";
+import { MembersStrip } from "@/components/members-strip";
 import { Screen } from "@/components/screen";
 import { Eyebrow, LayerTitle, Meta } from "@/components/text";
 import { signOut } from "@/lib/auth/actions";
 import { households, type RatingCategoryRow } from "@/lib/db";
 import { useActiveHousehold, useHousehold } from "@/lib/household/active";
 import { accent, ink, paper } from "@/theme";
+import { usePowerSync, useQuery } from "@powersync/react";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Pressable, Text, View } from "react-native";
 
 /**
  * The Household hub — everything scoped to one watch group that isn't a Title, a Jar or
@@ -24,16 +27,36 @@ export default function HouseholdSettings() {
   const household = useHousehold();
   const { all, select } = useActiveHousehold();
 
-  const { data: members } = useQuery<{ id: string; display_name: string }>(
-    households.MEMBERS_OF_HOUSEHOLD,
+  const { data: categories } = useQuery<RatingCategoryRow>(
+    households.CATEGORIES_FOR_HOUSEHOLD,
     [household.id],
   );
-  const { data: categories } = useQuery<RatingCategoryRow>(households.CATEGORIES_FOR_HOUSEHOLD, [
-    household.id,
-  ]);
 
   const [name, setName] = useState(household.name ?? "");
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+    },
+    [],
+  );
+  const copyInviteCode = () => {
+    // A dev client built before `expo-clipboard` was added has no native module,
+    // so `setStringAsync` is undefined and throws synchronously — fall back to an
+    // Alert with the code so it's still shareable.
+    Promise.resolve()
+      .then(() => Clipboard.setStringAsync(household.id))
+      .then(() => {
+        Haptics.selectionAsync().catch(() => {});
+        setCopied(true);
+        if (copiedTimer.current) clearTimeout(copiedTimer.current);
+        copiedTimer.current = setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => Alert.alert("Invite code", household.id));
+  };
 
   const saveName = () => {
     const next = name.trim();
@@ -52,7 +75,8 @@ export default function HouseholdSettings() {
         {
           text: "Remove",
           style: "destructive",
-          onPress: () => void households.deactivateCategory(db, household.id, category.id),
+          onPress: () =>
+            void households.deactivateCategory(db, household.id, category.id),
         },
       ],
     );
@@ -69,7 +93,7 @@ export default function HouseholdSettings() {
         >
           <Text className="type-section-title text-ink-secondary">‹</Text>
         </Pressable>
-        <LayerTitle>Household</LayerTitle>
+        <LayerTitle>Household Settings</LayerTitle>
       </View>
 
       <View className="gap-9 pb-16">
@@ -86,17 +110,32 @@ export default function HouseholdSettings() {
         </Section>
 
         <Section title="Members">
-          {members.map((m) => (
-            <Text key={m.id} className="type-body py-1 text-ink">
-              {m.display_name}
-            </Text>
-          ))}
+          <MembersStrip householdId={household.id} showInvite={false} />
           <View className="mt-3 gap-1">
             <Eyebrow>Invite code</Eyebrow>
-            <Text selectable className="type-body text-ink-secondary">
-              {household.id}
-            </Text>
-            <Meta>Anyone with this code can join. Real invites come later.</Meta>
+            <View className="flex-row items-center gap-3">
+              <Text selectable className="type-body flex-1 text-ink-secondary">
+                {household.id}
+              </Text>
+              <Pressable
+                onPress={copyInviteCode}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Copy invite code"
+                className="flex-row items-center gap-1.5 active:opacity-60"
+              >
+                <CopyGlyph color={copied ? accent.forest : ink.muted} />
+                <Text
+                  className="type-meta-small"
+                  style={{ color: copied ? accent.forest : ink.muted }}
+                >
+                  {copied ? "Copied" : "Copy"}
+                </Text>
+              </Pressable>
+            </View>
+            <Meta>
+              Anyone with this code can join. Real invites come later.
+            </Meta>
           </View>
         </Section>
 
@@ -118,7 +157,9 @@ export default function HouseholdSettings() {
                     {h.name}
                   </Text>
                   {current ? (
-                    <Text className="type-meta-small text-ink-faint">Current</Text>
+                    <Text className="type-meta-small text-ink-faint">
+                      Current
+                    </Text>
                   ) : null}
                 </Pressable>
               );
@@ -169,14 +210,20 @@ export default function HouseholdSettings() {
           />
         </Section>
 
-        <Button label="Sign out (dev)" variant="quiet" onPress={() => void signOut()} />
+        <Button
+          label="Sign out (dev)"
+          variant="quiet"
+          onPress={() => void signOut()}
+        />
       </View>
 
       <CategoryPicker
         visible={pickerOpen}
         activeIds={categories.map((c) => c.id)}
         onClose={() => setPickerOpen(false)}
-        onPick={(category) => households.activateCategory(db, household.id, category.id)}
+        onPick={(category) =>
+          households.activateCategory(db, household.id, category.id)
+        }
       />
     </Screen>
   );
@@ -200,6 +247,40 @@ function Section({
   );
 }
 
+/** Two stacked cards — the standard "copy" mark. Drawn, per the no-icon-library rule. */
+function CopyGlyph({ color = ink.muted }: { color?: string }) {
+  return (
+    <View style={{ width: 15, height: 15 }}>
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          width: 10,
+          height: 10,
+          borderRadius: 2.5,
+          borderWidth: 1.5,
+          borderColor: color,
+        }}
+      />
+      {/* Front card, filled with the page ground so the back card reads as behind it. */}
+      <View
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          width: 10,
+          height: 10,
+          borderRadius: 2.5,
+          borderWidth: 1.5,
+          borderColor: color,
+          backgroundColor: paper.bg,
+        }}
+      />
+    </View>
+  );
+}
+
 function PolicyControls({
   householdId,
   coverage,
@@ -213,7 +294,10 @@ function PolicyControls({
   const cov = (coverage as "any" | "all" | null) ?? "any";
   const agg = (aggregator as "avg" | "min" | "max" | null) ?? "avg";
 
-  const set = (next: { coverage?: "any" | "all"; aggregator?: "avg" | "min" | "max" }) => {
+  const set = (next: {
+    coverage?: "any" | "all";
+    aggregator?: "avg" | "min" | "max";
+  }) => {
     void households.setRatingPolicy(db, householdId, {
       coverage: next.coverage ?? cov,
       aggregator: next.aggregator ?? agg,
