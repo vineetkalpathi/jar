@@ -58,6 +58,7 @@ const title = new Table(
     release_year: column.integer,
     runtime: column.integer, // minutes
     language: column.text, // TMDB's en-US name, not a code (ADR-0008)
+    poster_path: column.text, // TMDB poster path, cached for list views (ADR-0003)
     attributes_refreshed_at: column.text,
     owner_household_id: column.text, // set only for hand-entered Titles
     created_at: column.text,

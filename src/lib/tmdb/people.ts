@@ -50,7 +50,7 @@ export type TmdbCredit = {
    * ranked on popularity alone, a single Tonight Show appearance can outrank a real
    * supporting part in a well-known film. Demoted in `getPersonCredits`'s own ordering,
    * not filtered out — exposed here too so a caller merging these with other rows (e.g.
-   * `add-title.tsx`) can preserve that ordering instead of re-sorting on popularity alone.
+   * the Explore screen) can preserve that ordering instead of re-sorting on popularity alone.
    */
   selfAppearance: boolean;
 };

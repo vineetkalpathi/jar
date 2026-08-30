@@ -103,7 +103,9 @@ export default function TitleDetail() {
 
       <View className="flex-row items-start gap-4">
         <Poster
-          uri={tmdb ? posterUrl(tmdb.posterPath, "w185") : null}
+          // The cached path shows the poster on first paint; the live fetch resolves
+          // to the same image, so there's no swap to see.
+          uri={posterUrl(tmdb?.posterPath ?? title.poster_path, "w185")}
           width={128}
           height={190}
           register="dark"

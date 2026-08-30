@@ -167,6 +167,7 @@ export async function upsertTmdbTitle(
     releaseYear?: number | null;
     runtime?: number | null;
     language?: string | null;
+    posterPath?: string | null;
   },
 ): Promise<string> {
   // TMDB is an external source and its values reach the database unchanged, so they
@@ -181,6 +182,7 @@ export async function upsertTmdbTitle(
     releaseYear: releaseYear(attributes.releaseYear),
     runtime: runtimeMinutes(attributes.runtime),
     language: attributes.language?.trim() || null,
+    posterPath: attributes.posterPath?.trim() || null,
   };
 
   const existing = await db.getOptional<{ id: string }>(
@@ -194,7 +196,7 @@ export async function upsertTmdbTitle(
     // six-month limit is measured from attributes_refreshed_at.
     await db.execute(
       `update title set name = ?, media_type = ?, release_year = ?, runtime = ?,
-              language = ?, attributes_refreshed_at = ?
+              language = ?, poster_path = ?, attributes_refreshed_at = ?
        where id = ?`,
       [
         attrs.name,
@@ -202,6 +204,7 @@ export async function upsertTmdbTitle(
         attrs.releaseYear,
         attrs.runtime,
         attrs.language,
+        attrs.posterPath,
         now,
         existing.id,
       ],
@@ -212,8 +215,8 @@ export async function upsertTmdbTitle(
   const id = newId();
   await db.execute(
     `insert into title (id, tmdb_id, name, media_type, release_year, runtime, language,
-                        attributes_refreshed_at, owner_household_id, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, null, ?)`,
+                        poster_path, attributes_refreshed_at, owner_household_id, created_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?)`,
     [
       id,
       attrs.tmdbId,
@@ -222,6 +225,7 @@ export async function upsertTmdbTitle(
       attrs.releaseYear,
       attrs.runtime,
       attrs.language,
+      attrs.posterPath,
       now,
       now,
     ],
@@ -347,6 +351,7 @@ export async function upsertTmdbTitleAttributes(
     releaseYear?: number | null;
     runtime?: number | null;
     language?: string | null;
+    posterPath?: string | null;
     genres: string[];
     cast: TmdbPersonInput[];
     directors: TmdbPersonInput[];

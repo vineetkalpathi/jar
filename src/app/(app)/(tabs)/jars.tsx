@@ -2,6 +2,7 @@ import { useQuery } from "@powersync/react";
 import { router } from "expo-router";
 import { FlatList, View } from "react-native";
 import { Button } from "@/components/button";
+import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
 import { JarTile, NewJarTile } from "@/components/jar-tile";
 import { Screen } from "@/components/screen";
 import { Body, Eyebrow, Meta, ScreenTitle } from "@/components/text";
@@ -12,11 +13,11 @@ import { useJarCount } from "@/lib/jars/use-jar-count";
 import { jar as jarTokens } from "@/theme";
 
 /**
- * The Jars grid — the app's home.
+ * The Jars grid — the app's home, the centre tab.
  *
- * Note what it doesn't do: no tab bar, no swipe rail, no assumption about how you got
- * here. The navigation model is still undecided in the design language, so the shell
- * wraps this later without the screen changing.
+ * The screen still assumes nothing about the shell around it: `FloatingTabBar` wraps it
+ * from `(tabs)/_layout.tsx` and the only accommodation here is bottom padding on the
+ * scroll so the last row clears the bar.
  */
 export default function Jars() {
   const household = useHousehold();
@@ -34,18 +35,11 @@ export default function Jars() {
       <View className="gap-1 pb-6 pt-2">
         <Eyebrow>{household.name}</Eyebrow>
         <ScreenTitle>Jars</ScreenTitle>
-        <View className="flex-row items-baseline justify-between">
-          <Meta>
-            {data.length === 0
-              ? "Nothing to draw from yet"
-              : `${data.length} ${data.length === 1 ? "jar" : "jars"}`}
-          </Meta>
-          <Button
-            label="+ Add a title"
-            variant="quiet"
-            onPress={() => router.push("/add-title")}
-          />
-        </View>
+        <Meta>
+          {data.length === 0
+            ? "Nothing to draw from yet"
+            : `${data.length} ${data.length === 1 ? "jar" : "jars"}`}
+        </Meta>
       </View>
 
       <FlatList
@@ -53,7 +47,7 @@ export default function Jars() {
         keyExtractor={(cell) => (typeof cell === "string" ? cell : cell.id)}
         numColumns={jarTokens.columns}
         columnWrapperStyle={{ gap: jarTokens.gapX }}
-        contentContainerStyle={{ gap: jarTokens.gapY, paddingBottom: 24 }}
+        contentContainerStyle={{ gap: jarTokens.gapY, paddingBottom: TAB_BAR_CLEARANCE }}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={data.length === 0 ? <EmptyNote /> : null}
         renderItem={({ item }) => {

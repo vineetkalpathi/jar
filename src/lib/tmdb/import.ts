@@ -41,3 +41,21 @@ export async function refreshTmdbTitle(
   const details = await getTitleDetails(title.tmdbId, title.mediaType);
   return library.upsertTmdbTitleAttributes(db, details);
 }
+
+/**
+ * Fills `poster_path` on a Title that predates the column.
+ *
+ * A narrow one-shot, not a refresh: it writes only that column, leaving genres, credits
+ * and `attributes_refreshed_at` untouched, so a list view can self-heal its artwork
+ * without triggering the full six-month cache rewrite. No-ops when there is nothing to
+ * fetch (no poster on TMDB) so a caller can fire it per row without guarding.
+ */
+export async function backfillPosterPath(
+  db: AbstractPowerSyncDatabase,
+  title: { id: string; tmdbId: number; mediaType: TmdbMediaType },
+): Promise<void> {
+  const details = await getTitleDetails(title.tmdbId, title.mediaType);
+  const posterPath = details.posterPath?.trim() || null;
+  if (!posterPath) return;
+  await db.execute(`update title set poster_path = ? where id = ?`, [posterPath, title.id]);
+}

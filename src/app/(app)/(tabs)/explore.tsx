@@ -1,10 +1,10 @@
-import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { Field } from "@/components/field";
+import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
 import { Screen } from "@/components/screen";
 import { TitleRow } from "@/components/title-row";
-import { Body, LayerTitle } from "@/components/text";
+import { Body, Meta, ScreenTitle } from "@/components/text";
 import {
   getPersonCredits,
   searchPeople,
@@ -88,7 +88,7 @@ function mergeRows(titles: Row[], credits: Row[]): Row[] {
 const MAX_CREDITS = 30;
 
 /**
- * Search TMDB and add a Title to the Library.
+ * Explore — the right tab. Search TMDB and add a Title to the Household's Library.
  *
  * Adding doesn't leave this screen — the design's own note is why: it drops the Title in
  * the Library and jars pick it up on their own if it matches their filter, so there is
@@ -105,7 +105,7 @@ const MAX_CREDITS = 30;
  * screen quietly stays a title search. Type a full name ("Tom Hanks") or even a
  * single-word stage name that's an exact match ("Madonna") and it does.
  */
-export default function AddTitle() {
+export default function Explore() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Row[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -147,7 +147,7 @@ export default function AddTitle() {
         setStatus("idle");
       } catch (cause) {
         if (!active) return;
-        console.warn("[add-title] search failed:", cause);
+        console.warn("[explore] search failed:", cause);
         setStatus("error");
       }
     }, 350);
@@ -161,21 +161,13 @@ export default function AddTitle() {
   return (
     <Screen gutter="form">
       <View className="gap-3 pb-4 pt-2">
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        >
-          <Text className="type-section-title text-ink-secondary">‹</Text>
-        </Pressable>
-        <LayerTitle>Add a title</LayerTitle>
+        <ScreenTitle>Explore</ScreenTitle>
+        <Meta>Search TMDB, add what belongs in your library.</Meta>
         <Field
           label="Search TMDB"
           value={query}
           onChangeText={setQuery}
           placeholder="A movie, show, or person's full name…"
-          autoFocus
           autoCorrect={false}
           returnKeyType="search"
         />
@@ -190,7 +182,7 @@ export default function AddTitle() {
         data={results}
         keyExtractor={rowKey}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
         ItemSeparatorComponent={() => <View className="h-px bg-hairline" />}
         ListEmptyComponent={<ListEmpty query={query} status={status} />}
         ListFooterComponent={
