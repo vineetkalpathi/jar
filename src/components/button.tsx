@@ -31,6 +31,8 @@ export function Button({
   variant = "primary",
   disabled = false,
   loading = false,
+  pill = false,
+  accessibilityLabel,
   className = "",
 }: {
   label: string;
@@ -39,6 +41,9 @@ export function Button({
   disabled?: boolean;
   /** Shows a spinner and blocks presses. The label stays, so width doesn't jump. */
   loading?: boolean;
+  /** Fully rounded ends — for buttons that sit in a row rather than full width. */
+  pill?: boolean;
+  accessibilityLabel?: string;
   className?: string;
 }) {
   const blocked = disabled || loading;
@@ -46,11 +51,13 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: blocked, busy: loading }}
       disabled={blocked}
       onPress={onPress}
       className={`
-        h-13 flex-row items-center justify-center gap-2 rounded-button border
+        h-13 flex-row items-center justify-center gap-2 border px-5
+        ${pill ? "rounded-full" : "rounded-button"}
         ${grounds[variant]} ${blocked ? "opacity-40" : ""} ${className}
       `}
     >

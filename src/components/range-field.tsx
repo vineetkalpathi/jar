@@ -3,6 +3,11 @@
  * be left open — release year, runtime. An empty end means "no bound that side".
  *
  * Built on `Field` so it inherits the one proven TextInput setup in the app.
+ *
+ * Each end commits on every keystroke, not on blur. Committing on blur loses the value
+ * whenever the commit button is tapped straight from the field (the tap blurs and reads
+ * state in the same frame, before the blur's write has landed) — which is why only one
+ * of min / max used to stick.
  */
 
 import { useEffect, useState } from "react";
@@ -64,20 +69,19 @@ function Bound({
     setText(value == null ? "" : String(value));
   }, [value]);
 
-  const commit = () => {
-    const trimmed = text.trim();
+  const push = (raw: string) => {
+    setText(raw);
+    const trimmed = raw.trim();
     if (trimmed === "") return onCommit(null);
     const n = Number(trimmed);
     if (Number.isFinite(n)) onCommit(Math.round(n));
-    else setText(value == null ? "" : String(value));
   };
 
   return (
     <Field
       value={text}
-      onChangeText={setText}
-      onBlur={commit}
-      onSubmitEditing={commit}
+      onChangeText={push}
+      onBlur={() => setText(value == null ? "" : String(value))}
       placeholder={placeholder}
       keyboardType="number-pad"
       returnKeyType="done"

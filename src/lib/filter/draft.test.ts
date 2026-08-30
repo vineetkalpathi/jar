@@ -165,6 +165,28 @@ describe("ratings", () => {
       aggregator: "min",
     });
   });
+
+  it("'include unrated' ORs an is_null arm with the same modifiers", () => {
+    const d = emptyDraft();
+    d.ratings = [
+      {
+        categoryId: CATEGORY,
+        op: "gt",
+        value: 7,
+        scope: "me",
+        includeUnrated: true,
+      },
+    ];
+    const filter = valid(d);
+    expect(filter.root).toMatchObject({
+      kind: "group",
+      op: "or",
+      children: [
+        { leaf: "rating", op: "gt", value: 7, raters: [ME] },
+        { leaf: "rating", op: "is_null", raters: [ME] },
+      ],
+    });
+  });
 });
 
 describe("round-tripping", () => {
@@ -191,6 +213,11 @@ describe("round-tripping", () => {
     },
     "rating me": (d) => {
       d.ratings = [{ categoryId: CATEGORY, op: "gte", value: 7, scope: "me" }];
+    },
+    "rating + include unrated": (d) => {
+      d.ratings = [
+        { categoryId: CATEGORY, op: "gt", value: 6, scope: "household", includeUnrated: true },
+      ];
     },
     "viewing + history": (d) => {
       d.watched = { mode: "everyone", population: null };

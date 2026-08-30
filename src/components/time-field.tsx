@@ -5,7 +5,7 @@
  * reveals the absolute form for retrospective windows.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Switch, Text, View } from "react-native";
 import { Field } from "./field";
 import { Segmented } from "./segmented";
@@ -168,13 +168,23 @@ function DateInput({
   const [text, setText] = useState(value);
   const bad = text.trim() !== "" && !DATE_RE.test(text.trim());
 
+  // Follow outside resets — a mode switch clears the date.
+  useEffect(() => {
+    setText(value);
+  }, [value]);
+
+  // Commit on every keystroke, not on blur: tapping the commit button straight from
+  // the field blurs and reads state in the same frame, so a blur-only write is lost.
+  const push = (raw: string) => {
+    setText(raw);
+    onChange(raw.trim());
+  };
+
   return (
     <View className="flex-1">
       <Field
         value={text}
-        onChangeText={setText}
-        onBlur={() => onChange(text.trim())}
-        onSubmitEditing={() => onChange(text.trim())}
+        onChangeText={push}
         placeholder="YYYY-MM-DD"
         autoCapitalize="none"
         autoCorrect={false}

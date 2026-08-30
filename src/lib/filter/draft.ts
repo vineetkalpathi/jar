@@ -59,6 +59,12 @@ export type RatingClauseDraft = {
   min?: number;
   max?: number;
   scope: RaterScope;
+  /**
+   * Also let a title through when it has no rating on this axis. Off by default —
+   * a rating rule normally drops the unrated. Ignored when `op` is itself about
+   * null-ness. Compiles to `<rule> OR (rating is_null)` for the one axis.
+   */
+  includeUnrated?: boolean;
   /** Omitted means "inherit the Household's Rating Policy" (ADR-0009). */
   coverage?: RatingCoverage;
   aggregator?: RatingAggregator;
@@ -334,7 +340,7 @@ function nonEmpty(list: string[] | null): string[] | null {
 function ratingPredicate(
   clause: RatingClauseDraft,
   currentUserId: string,
-): FilterPredicate {
+): FilterNode {
   const base: Record<string, unknown> = {
     leaf: "rating",
     categoryId: clause.categoryId,
@@ -345,13 +351,19 @@ function ratingPredicate(
   if (clause.coverage) base.coverage = clause.coverage;
   if (clause.aggregator) base.aggregator = clause.aggregator;
 
-  if (clause.op === "is_null" || clause.op === "is_not_null") {
-    return predicate({ ...base, op: clause.op } as never);
+  const nullish = clause.op === "is_null" || clause.op === "is_not_null";
+  const main = nullish
+    ? predicate({ ...base, op: clause.op } as never)
+    : clause.op === "between"
+      ? predicate({ ...base, op: "between", min: clause.min, max: clause.max } as never)
+      : predicate({ ...base, op: clause.op, value: clause.value } as never);
+
+  // "Also keep unrated" — OR an is-null arm carrying the same rater / policy
+  // modifiers. A no-op when the rule is already about null-ness.
+  if (clause.includeUnrated && !nullish) {
+    return orGroup([main, predicate({ ...base, op: "is_null" } as never)]);
   }
-  if (clause.op === "between") {
-    return predicate({ ...base, op: "between", min: clause.min, max: clause.max } as never);
-  }
-  return predicate({ ...base, op: clause.op, value: clause.value } as never);
+  return main;
 }
 
 // ---------------------------------------------------------------------------
@@ -381,7 +393,8 @@ export function filterToDraft(
 
   for (const node of clauses) {
     if (node.kind === "group") {
-      if (node.op !== "or" || !absorbOrGroup(node.children, draft)) return bail();
+      if (node.op !== "or" || !absorbOrGroup(node.children, draft, currentUserId))
+        return bail();
       continue;
     }
     if (!absorbPredicate(node, draft, currentUserId)) return bail();
@@ -390,12 +403,30 @@ export function filterToDraft(
   return draft;
 }
 
-/** An OR group is only ever genres, languages, or a movie/tv either-or. */
-function absorbOrGroup(children: FilterNode[], draft: FilterDraft): boolean {
+/** An OR group is genres, languages, a movie/tv either-or, or a rating "or unrated". */
+function absorbOrGroup(
+  children: FilterNode[],
+  draft: FilterDraft,
+  currentUserId?: string,
+): boolean {
   const preds = children.filter((c): c is FilterPredicate => c.kind === "predicate");
   if (preds.length !== children.length) return false;
 
   const leaves = new Set(preds.map((p) => p.leaf));
+
+  if ([...leaves].every((l) => l === "rating")) {
+    // "<comparison> OR (rating is_null)" for one axis — the "include unrated" form.
+    const nulls = preds.filter((p) => p.op === "is_null");
+    const mains = preds.filter((p) => p.op !== "is_null");
+    if (nulls.length !== 1 || mains.length !== 1) return false;
+    const main = mains[0] as Extract<FilterPredicate, { leaf: "rating" }>;
+    const nul = nulls[0] as Extract<FilterPredicate, { leaf: "rating" }>;
+    if (main.categoryId !== nul.categoryId) return false;
+    const clause = ratingClause(main, currentUserId);
+    clause.includeUnrated = true;
+    draft.ratings.push(clause);
+    return true;
+  }
 
   if ([...leaves].every((l) => l === "genre")) {
     for (const p of preds) {

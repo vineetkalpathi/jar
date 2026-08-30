@@ -85,8 +85,22 @@ export default function EditJarFilter() {
   };
 
   return (
-    <Screen scroll>
-      <View className="gap-8 pb-16 pt-2">
+    <Screen
+      scroll
+      keyboardHidesFooter
+      footer={
+        <View className="gap-2">
+          {error ? (
+            <Text className="type-meta-small text-rust">{error}</Text>
+          ) : null}
+          <View className="flex-row items-center gap-3">
+            <MatchBar count={count} pending={pending} compact />
+            <Button label="Save filter" pill onPress={save} loading={busy} />
+          </View>
+        </View>
+      }
+    >
+      <View className="gap-8 pb-8 pt-2">
         <View className="gap-1">
           <Pressable
             onPress={() => router.back()}
@@ -117,14 +131,6 @@ export default function EditJarFilter() {
             householdId={jar.household_id ?? ""}
           />
         ) : null}
-
-        <View className="gap-3">
-          <MatchBar count={count} pending={pending} />
-          {error ? (
-            <Text className="type-meta-small text-rust">{error}</Text>
-          ) : null}
-          <Button label="Save filter" onPress={save} loading={busy} />
-        </View>
       </View>
     </Screen>
   );

@@ -87,14 +87,14 @@ export function CycleChip({
       accessibilityLabel={`${label}${
         state === "include" ? ", included" : state === "exclude" ? ", excluded" : ""
       }`}
-      className="flex-row items-center rounded-full border px-3 py-1 active:opacity-70"
+      className="flex-row items-center rounded-full border px-3.5 py-1.5 active:opacity-70"
       style={{ backgroundColor: fill, borderColor: border }}
     >
       {state === "exclude" ? (
-        <Text style={{ color: text, fontSize: 13, marginRight: 3 }}>−</Text>
+        <Text style={{ color: text, fontSize: 14, marginRight: 3 }}>−</Text>
       ) : null}
       <Text
-        className="type-meta-small"
+        className="type-meta"
         style={{
           color: text,
           textDecorationLine: state === "exclude" ? "line-through" : "none",

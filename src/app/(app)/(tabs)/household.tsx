@@ -2,6 +2,8 @@ import { Button, Tappable } from "@/components/button";
 import { Field } from "@/components/field";
 import { FilterBuilder } from "@/components/filter/filter-builder";
 import { MatchBar } from "@/components/filter/match-bar";
+import { PredicateChip } from "@/components/filter/predicate-chip";
+import { useChipContext } from "@/components/filter/use-chip-context";
 import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
 import { MembersStrip } from "@/components/members-strip";
 import { Poster } from "@/components/poster";
@@ -20,6 +22,7 @@ import {
   isEmptyDraft,
   type FilterDraft,
 } from "@/lib/filter";
+import { draftToChips, removeChip } from "@/lib/filter/chips";
 import { resolveDraftFilter } from "@/lib/filter/resolve";
 import { useFilterMatches } from "@/lib/filter/use-match-count";
 import { useHousehold } from "@/lib/household/active";
@@ -28,7 +31,8 @@ import { backfillPosterPath } from "@/lib/tmdb/import";
 import { accent, font, ink, paper } from "@/theme";
 import { usePowerSync, useQuery } from "@powersync/react";
 import { router } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -182,8 +186,10 @@ export default function Household() {
                 }}
               />
               {filterActive ? (
-                <ActiveFilterBar
-                  onClear={() => setFilterDraft(null)}
+                <AppliedFilterPills
+                  draft={filterDraft!}
+                  householdId={household.id}
+                  onChange={setFilterDraft}
                   onSaveAsJar={() => setSavingJar(true)}
                 />
               ) : null}
@@ -238,33 +244,133 @@ export default function Household() {
 // ---------------------------------------------------------------------------
 
 /**
- * The strip below the search row while a Library filter is on — the match summary and
- * the two actions the filter button itself doesn't cover. Tapping the button re-opens
- * the builder, so there's no "Edit" here.
+ * What sits below the search row while a Library filter is on: every applied predicate
+ * as its own chip with an × to drop it, then the two bulk actions the funnel button
+ * doesn't cover. Removing the last chip clears the filter. Tapping the funnel re-opens
+ * the full builder, so the chips themselves aren't editable here.
  */
-function ActiveFilterBar({
-  onClear,
+function AppliedFilterPills({
+  draft,
+  householdId,
+  onChange,
   onSaveAsJar,
 }: {
-  onClear: () => void;
+  draft: FilterDraft;
+  householdId: string;
+  onChange: (next: FilterDraft | null) => void;
   onSaveAsJar: () => void;
 }) {
+  const ctx = useChipContext(householdId, draft);
+  const chips = useMemo(() => draftToChips(draft, ctx), [draft, ctx]);
+
+  const removeOne = (chip: (typeof chips)[number]) => {
+    const next = removeChip(draft, chip.attr, chip.id, chip.refId);
+    onChange(isEmptyDraft(next) ? null : next);
+  };
+
   return (
-    <View className="mt-1 flex-row items-center justify-between rounded-card border border-hairline bg-card px-3 py-2">
-      <View className="flex-row items-center gap-1.5">
-        <FunnelGlyph color={accent.forest} />
-        <Text className="type-meta-small" style={{ color: accent.forest }}>
-          Filtered
-        </Text>
+    <View className="mt-1 gap-2">
+      <View className="gap-2">
+        {chips.map((chip) => (
+          <PredicateChip
+            key={chip.id}
+            chip={chip}
+            editable={false}
+            onEdit={() => {}}
+            onRemove={() => removeOne(chip)}
+          />
+        ))}
       </View>
-      <View className="flex-row items-center gap-4">
-        <Pressable onPress={onSaveAsJar} accessibilityRole="button" className="active:opacity-60">
-          <Text className="type-meta-small text-navy">Save as jar</Text>
-        </Pressable>
-        <Pressable onPress={onClear} accessibilityRole="button" className="active:opacity-60">
-          <Text className="type-meta-small text-rust">Clear</Text>
-        </Pressable>
+
+      <View className="flex-row flex-wrap items-center justify-between gap-y-2 px-1 pt-0.5">
+        <View className="flex-row items-center gap-1.5">
+          <FunnelGlyph color={accent.forest} size={15} />
+          <Text className="type-meta" style={{ color: accent.forest }}>
+            {chips.length} {chips.length === 1 ? "filter" : "filters"}
+          </Text>
+        </View>
+        <View className="flex-row items-center gap-2">
+          <FilterActionPill label="Save as jar" color={accent.navy} onPress={onSaveAsJar}>
+            <JarMark color={accent.navy} />
+          </FilterActionPill>
+          <FilterActionPill
+            label="Clear all"
+            color={accent.rust}
+            onPress={() => onChange(null)}
+          >
+            <ClearMark color={accent.rust} />
+          </FilterActionPill>
+        </View>
       </View>
+    </View>
+  );
+}
+
+/** A hairline pill with a drawn glyph — the bulk actions under the applied filters. */
+function FilterActionPill({
+  label,
+  color,
+  onPress,
+  children,
+}: {
+  label: string;
+  color: string;
+  onPress: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      className="flex-row items-center gap-1.5 rounded-full border px-3.5 py-2 active:opacity-60"
+      style={{ borderColor: paper.border }}
+    >
+      {children}
+      <Text className="type-meta" style={{ color }}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** A jar — the "save as jar" mark. A scaled-down cousin of the tab-bar jar. */
+function JarMark({ color, size = 13 }: { color: string; size?: number }) {
+  return (
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+      <View
+        style={{ width: size * 0.6, height: 1.5, borderRadius: 1, backgroundColor: color }}
+      />
+      <View
+        style={{
+          marginTop: 1,
+          width: size * 0.8,
+          height: size * 0.74,
+          borderWidth: 1.5,
+          borderColor: color,
+          borderTopLeftRadius: 2,
+          borderTopRightRadius: 2,
+          borderBottomLeftRadius: 3,
+          borderBottomRightRadius: 3,
+        }}
+      />
+    </View>
+  );
+}
+
+/** An × — the "clear all" mark. Drawn, per the no-icon-library rule. */
+function ClearMark({ color, size = 11 }: { color: string; size?: number }) {
+  const bar = {
+    position: "absolute" as const,
+    width: size,
+    height: 1.5,
+    borderRadius: 1,
+    backgroundColor: color,
+  };
+  return (
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+      <View style={[bar, { transform: [{ rotate: "45deg" }] }]} />
+      <View style={[bar, { transform: [{ rotate: "-45deg" }] }]} />
     </View>
   );
 }
@@ -316,24 +422,38 @@ function LibraryFilterModal({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <Screen scroll>
-        <View className="gap-6 pb-16 pt-2">
-          <View className="flex-row items-center justify-between">
-            <LayerTitle>Filter library</LayerTitle>
-            <Pressable onPress={onClose} accessibilityRole="button" hitSlop={10}>
-              <Text className="type-body text-navy">Done</Text>
-            </Pressable>
-          </View>
+      {/* A Modal renders in its own view tree, outside the app's GestureHandlerRootView,
+          so the rating slider inside the builder needs its own root to get pan events. */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Screen
+          scroll
+          keyboardHidesFooter
+          footer={
+            <View className="flex-row items-center gap-2">
+              <MatchBar count={count} pending={pending} compact />
+              <Button label="Apply" pill onPress={onClose} />
+              <Button
+                label="Clear"
+                accessibilityLabel="Clear filter"
+                variant="secondary"
+                pill
+                onPress={onClear}
+              />
+            </View>
+          }
+        >
+          <View className="gap-6 pb-8 pt-2">
+            <View className="flex-row items-center justify-between">
+              <LayerTitle>Filter library</LayerTitle>
+              <Pressable onPress={onClose} accessibilityRole="button" hitSlop={10}>
+                <Text className="type-body text-navy">Done</Text>
+              </Pressable>
+            </View>
 
-          <FilterBuilder value={draft} onChange={onChange} householdId={householdId} />
-
-          <View className="gap-3">
-            <MatchBar count={count} pending={pending} />
-            <Button label="Apply" onPress={onClose} />
-            <Button label="Clear filter" variant="quiet" onPress={onClear} />
+            <FilterBuilder value={draft} onChange={onChange} householdId={householdId} />
           </View>
-        </View>
-      </Screen>
+        </Screen>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

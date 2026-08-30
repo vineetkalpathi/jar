@@ -18,8 +18,19 @@
  * component, this still works — there is no reason to go back.
  */
 
+import { createContext, useCallback, useContext, useRef } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+/**
+ * Lets a deep `Field` ask the screen's ScrollView to lift it clear of the keyboard —
+ * with enough headroom that the row of actions sitting just below it (the filter
+ * editor's Add / Update, say) is visible too, not just the input. Null when the screen
+ * has no scroll body.
+ */
+type ScreenScrollApi = { revealInput: (node: number | null) => void };
+const ScreenScrollContext = createContext<ScreenScrollApi | null>(null);
+export const useScreenScroll = () => useContext(ScreenScrollContext);
 
 type Register = "paper" | "paper-deep" | "dark";
 
@@ -51,38 +62,79 @@ export function Screen({
   register = "paper",
   gutter = "form",
   scroll = false,
+  footer,
+  keyboardHidesFooter = false,
 }: {
   children: React.ReactNode;
   register?: Register;
   gutter?: Gutter;
   /** Wraps the content in a ScrollView. Off by default — most screens shouldn't. */
   scroll?: boolean;
+  /**
+   * A row pinned to the bottom, below the scroll and above the keyboard — for the
+   * screen's standing actions (a match count, a Save). Same gutter as the body, with a
+   * hairline separating it from what scrolls past.
+   */
+  footer?: React.ReactNode;
+  /**
+   * Let the keyboard cover the footer instead of lifting it. For screens whose footer
+   * is a commit-and-leave action (Save filter, Create jar) sitting above an editor that
+   * takes keyboard input — keeping it above the keyboard makes it an easy mis-tap that
+   * discards the field you were filling. The scroll body still avoids the keyboard.
+   */
+  keyboardHidesFooter?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
   const body = <View className={`flex-1 ${gutters[gutter]}`}>{children}</View>;
 
-  return (
+  const revealInput = useCallback((node: number | null) => {
+    if (node == null) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const responder = scrollRef.current?.getScrollResponder() as any;
+    // Give 140px of clearance below the field's bottom edge — RN's built-in
+    // auto-scroll only frees the input itself, which leaves the editor's commit
+    // button hidden behind the keyboard and easy to mis-tap.
+    responder?.scrollResponderScrollNativeHandleToKeyboard?.(node, 140, true);
+  }, []);
+
+  const footerNode = footer ? (
     <View
-      className={`flex-1 ${grounds[register]}`}
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+      className={`border-t border-hairline ${grounds[register]} ${gutters[gutter]} pb-2 pt-3`}
     >
-      <KeyboardAvoidingView
-        className="flex-1"
-        // Only iOS needs this; Android's windowSoftInputMode already resizes.
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        {scroll ? (
-          <ScrollView
-            className="flex-1"
-            contentContainerClassName="grow"
-            keyboardShouldPersistTaps="handled"
-          >
-            {body}
-          </ScrollView>
-        ) : (
-          body
-        )}
-      </KeyboardAvoidingView>
+      {footer}
     </View>
+  ) : null;
+
+  return (
+    <ScreenScrollContext.Provider value={scroll ? { revealInput } : null}>
+      <View
+        className={`flex-1 ${grounds[register]}`}
+        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+      >
+        <KeyboardAvoidingView
+          className="flex-1"
+          // Only iOS needs this; Android's windowSoftInputMode already resizes.
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          {scroll ? (
+            <ScrollView
+              ref={scrollRef}
+              className="flex-1"
+              contentContainerClassName="grow"
+              keyboardShouldPersistTaps="handled"
+            >
+              {body}
+            </ScrollView>
+          ) : (
+            body
+          )}
+          {/* Inside the avoider → rides above the keyboard. */}
+          {keyboardHidesFooter ? null : footerNode}
+        </KeyboardAvoidingView>
+        {/* Outside the avoider → the keyboard draws over it. */}
+        {keyboardHidesFooter ? footerNode : null}
+      </View>
+    </ScreenScrollContext.Provider>
   );
 }

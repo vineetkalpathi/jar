@@ -34,14 +34,13 @@ export default function CreateJar() {
   const previewFilter = usePreviewFilter(draft, userId);
   const { count, pending } = useFilterMatchCount(household.id, previewFilter);
 
-  const create = async (withFilter: boolean) => {
+  const create = async () => {
     if (busy || !name.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      const filter = withFilter
-        ? await resolveDraftFilter(db, draft, userId)
-        : null;
+      // An untouched builder resolves to `null` — a hand-curated jar, no separate opt-out.
+      const filter = await resolveDraftFilter(db, draft, userId);
       const jarId = await jars.createJar(db, {
         householdId: household.id,
         name,
@@ -59,8 +58,27 @@ export default function CreateJar() {
   };
 
   return (
-    <Screen scroll>
-      <View className="gap-8 pb-16 pt-12">
+    <Screen
+      scroll
+      footer={
+        <View className="gap-2">
+          {error ? (
+            <Text className="type-meta-small text-rust">{error}</Text>
+          ) : null}
+          <View className="flex-row items-center gap-3">
+            <MatchBar count={count} pending={pending} compact />
+            <Button
+              label="Create jar"
+              pill
+              onPress={create}
+              loading={busy}
+              disabled={!name.trim()}
+            />
+          </View>
+        </View>
+      }
+    >
+      <View className="gap-8 pb-8 pt-12">
         <View className="gap-2">
           <Eyebrow>New jar</Eyebrow>
           <LayerTitle>What's it for?</LayerTitle>
@@ -80,24 +98,6 @@ export default function CreateJar() {
         />
 
         <FilterBuilder value={draft} onChange={setDraft} householdId={household.id} />
-
-        <View className="gap-3">
-          <MatchBar count={count} pending={pending} />
-          {error ? (
-            <Text className="type-meta-small text-rust">{error}</Text>
-          ) : null}
-          <Button
-            label="Create jar"
-            onPress={() => create(true)}
-            loading={busy}
-            disabled={!name.trim()}
-          />
-          <Button
-            label="Create without a filter"
-            variant="quiet"
-            onPress={() => create(false)}
-          />
-        </View>
       </View>
     </Screen>
   );
