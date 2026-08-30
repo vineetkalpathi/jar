@@ -47,6 +47,38 @@ export const CATEGORIES_FOR_HOUSEHOLD = `
 `;
 
 /**
+ * The whole global Rating Category catalogue, archived ones left out — what the picker
+ * offers when a Household wants to activate an axis. No parameters; the `categories`
+ * sync stream replicates every row, so this is a local read.
+ */
+export const ALL_CATEGORIES = `
+  select * from rating_category
+  where archived_at is null
+  order by name
+`;
+
+/**
+ * Finds a Rating Category by name in the global catalogue, or coins it. Case-insensitive,
+ * matching `rating_category_name_key` in Postgres, so "Tension" and "tension" resolve to
+ * one axis and everyone scoring it is scoring the same thing.
+ *
+ * The row is global: coining it here makes it visible app-wide once it syncs.
+ * Activating it for a Household is a separate `activateCategory` call.
+ */
+export async function findOrCreateCategory(
+  db: AbstractPowerSyncDatabase,
+  name: string,
+): Promise<string> {
+  const trimmed = requiredText(name, "A rating axis");
+
+  return findOrInsert(db, {
+    table: "rating_category",
+    where: { sql: "lower(name) = lower(?)", params: [trimmed] },
+    row: { name: trimmed, created_at: timestamp() },
+  });
+}
+
+/**
  * Creates a Household, makes its creator the first member, and activates the starter
  * Rating Categories.
  *

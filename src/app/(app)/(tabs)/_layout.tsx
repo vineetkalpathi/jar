@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import { FloatingTabBar } from "@/components/floating-tab-bar";
 
 /**
- * The navigation shell: Library · Jars · Explore, left to right, with Jars in the
+ * The navigation shell: Household · Jars · Explore, left to right, with Jars in the
  * centre as the home. The bar itself is `FloatingTabBar` — declared here rather than
  * left to the default so the screens stay ignorant of it (`(app)/_layout.tsx`).
  *
@@ -16,7 +16,7 @@ export default function TabsLayout() {
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <FloatingTabBar {...props} />}
     >
-      <Tabs.Screen name="library" />
+      <Tabs.Screen name="household" />
       <Tabs.Screen name="jars" />
       <Tabs.Screen name="explore" />
     </Tabs>

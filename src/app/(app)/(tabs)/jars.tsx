@@ -1,12 +1,10 @@
 import { useQuery } from "@powersync/react";
 import { router } from "expo-router";
 import { FlatList, View } from "react-native";
-import { Button } from "@/components/button";
 import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
 import { JarTile, NewJarTile } from "@/components/jar-tile";
 import { Screen } from "@/components/screen";
 import { Body, Eyebrow, Meta, ScreenTitle } from "@/components/text";
-import { signOut } from "@/lib/auth/actions";
 import { jars, type JarRow } from "@/lib/db";
 import { useHousehold } from "@/lib/household/active";
 import { useJarCount } from "@/lib/jars/use-jar-count";
@@ -57,23 +55,8 @@ export default function Jars() {
           }
           return <JarCell jar={item} />;
         }}
-        ListFooterComponent={<DevSignOutButton />}
       />
     </Screen>
-  );
-}
-
-// TEMP — testing only, remove before shipping. No sign-out UI exists yet (test-plan.md
-// blocker #1); this is the cheapest way to get a signed-out cold start without
-// reinstalling the app.
-function DevSignOutButton() {
-  return (
-    <Button
-      label="Sign out (dev)"
-      variant="quiet"
-      onPress={() => void signOut()}
-      className="mt-6"
-    />
   );
 }
 

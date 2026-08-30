@@ -17,7 +17,7 @@
 import { usePowerSync } from "@powersync/react";
 import * as Haptics from "expo-haptics";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   ReduceMotion,
@@ -27,8 +27,9 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
+import { CategoryPicker } from "./category-picker";
 import { DarkEyebrow, DarkMeta } from "./text";
-import { annotations, type RatingCategoryRow, type RatingRow } from "@/lib/db";
+import { annotations, households, type RatingCategoryRow, type RatingRow } from "@/lib/db";
 import { useUserId } from "@/lib/auth/session";
 import { accent, dark, font } from "@/theme";
 
@@ -76,19 +77,41 @@ const tick = () => {
 
 export function HouseholdRating({
   titleId,
+  householdId,
   categories,
   ratings,
 }: {
   titleId: string;
+  householdId: string;
   categories: RatingCategoryRow[];
   ratings: RatingWithCategory[];
 }) {
+  const db = usePowerSync();
   const userId = useUserId();
   const [mode, setMode] = useState<Mode>("mine");
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  if (categories.length === 0) return null;
+  // Only bail out entirely in the read-only view — in "mine", the add-axis affordance
+  // below is the way back from a household that has removed all of its axes.
+  if (categories.length === 0 && mode !== "mine") return null;
 
   const raterCount = new Set(ratings.map((r) => r.user_id)).size;
+
+  // Adding an axis here activates it for the whole household — every title gains the
+  // capsule. Confirmed because that is a lot of reach for one title screen.
+  const addAxis = (category: { id: string; name: string }) => {
+    Alert.alert(
+      `Add ${category.name}?`,
+      "It becomes a rating axis for the whole household and shows on every title.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Add",
+          onPress: () => void households.activateCategory(db, householdId, category.id),
+        },
+      ],
+    );
+  };
 
   return (
     <View className="mt-6 gap-3 border-t border-dark-hairline pt-5">
@@ -120,6 +143,34 @@ export function HouseholdRating({
           ),
         )}
       </View>
+
+      {mode === "mine" ? (
+        <Pressable
+          onPress={() => setPickerOpen(true)}
+          accessibilityRole="button"
+          className="mt-1 self-start active:opacity-60"
+        >
+          <Text
+            style={{
+              fontFamily: font.uiMedium,
+              fontSize: 12.5,
+              letterSpacing: 0.4,
+              color: dark.textSecondary,
+            }}
+          >
+            ＋ Add a rating axis
+          </Text>
+        </Pressable>
+      ) : null}
+
+      <CategoryPicker
+        visible={pickerOpen}
+        activeIds={categories.map((c) => c.id)}
+        heading="Add a rating axis"
+        note="Adds it for everyone in the household — it shows on every title."
+        onClose={() => setPickerOpen(false)}
+        onPick={addAxis}
+      />
     </View>
   );
 }

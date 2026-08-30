@@ -49,7 +49,7 @@ type TabBarProps = {
 };
 
 const LABELS: Record<string, string> = {
-  library: "Library",
+  household: "Household",
   jars: "Jars",
   explore: "Explore",
 };
@@ -192,19 +192,26 @@ function Slider() {
 function NavIcon({ name, color }: { name: string; color: string }) {
   if (name === "jars") return <JarGlyph color={color} />;
   if (name === "explore") return <SearchGlyph color={color} />;
-  return <LogGlyph color={color} />;
+  return <HouseGlyph color={color} />;
 }
 
-/** The household log — dotted rows, like a feed of viewings. */
-function LogGlyph({ color }: { color: string }) {
+/** The household — a roof over a room. */
+function HouseGlyph({ color }: { color: string }) {
   return (
-    <View style={{ width: 22, height: 22, alignItems: "center", justifyContent: "center", gap: 4 }}>
-      {[15, 15, 10].map((w, i) => (
-        <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-          <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: color }} />
-          <View style={{ width: w, height: 1.5, borderRadius: 1, backgroundColor: color }} />
-        </View>
-      ))}
+    <View style={{ width: 22, height: 22, alignItems: "center", justifyContent: "center" }}>
+      <View
+        style={{
+          width: 0,
+          height: 0,
+          borderLeftWidth: 9,
+          borderRightWidth: 9,
+          borderBottomWidth: 8,
+          borderLeftColor: "transparent",
+          borderRightColor: "transparent",
+          borderBottomColor: color,
+        }}
+      />
+      <View style={{ width: 13, height: 9, borderWidth: 1.5, borderTopWidth: 0, borderColor: color }} />
     </View>
   );
 }
