@@ -192,6 +192,17 @@ const labelStyle = {
   color: dark.textSecondary,
 };
 
+/** The value: same face as the Category label, kept big and prominent. Color is per-row. */
+const numeralStyle = {
+  fontFamily: font.uiBold,
+  fontSize: 22,
+  lineHeight: 26,
+  letterSpacing: 0.3,
+  padding: 0,
+  minWidth: 46,
+  textAlign: "right" as const,
+};
+
 /** Interior whole-number marks. 1 and 10 are the ends of the capsule itself. */
 function Notches() {
   return (
@@ -422,15 +433,7 @@ function MineRow({
             animatedProps={numeralProps}
             accessibilityElementsHidden
             importantForAccessibility="no"
-            style={{
-              fontFamily: font.display,
-              fontSize: 21,
-              lineHeight: 25,
-              color: rated ? accent.amber : dark.textMuted,
-              padding: 0,
-              minWidth: 46,
-              textAlign: "right",
-            }}
+            style={[numeralStyle, { color: rated ? accent.amber : dark.textMuted }]}
           />
         </View>
       </Animated.View>
@@ -493,16 +496,7 @@ function AverageRow({
 
       <View style={contentRowStyle}>
         <Text style={labelStyle}>{category.name}</Text>
-        <Text
-          style={{
-            fontFamily: font.display,
-            fontSize: 21,
-            lineHeight: 25,
-            color: rated ? accent.amber : dark.textMuted,
-            minWidth: 46,
-            textAlign: "right",
-          }}
-        >
+        <Text style={[numeralStyle, { color: rated ? accent.amber : dark.textMuted }]}>
           {rated ? average.toFixed(1) : "—"}
         </Text>
       </View>
