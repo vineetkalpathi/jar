@@ -14,11 +14,21 @@
 
 import { usePowerSync, useQuery } from "@powersync/react";
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Field } from "./field";
 import { Eyebrow, Meta } from "./text";
 import { households, type RatingCategoryRow } from "@/lib/db";
-import { accent, ink } from "@/theme";
+import { accent, font, ink } from "@/theme";
 
 export function CategoryPicker({
   visible,
@@ -38,6 +48,7 @@ export function CategoryPicker({
 }) {
   const db = usePowerSync();
   const { data: all } = useQuery<RatingCategoryRow>(households.ALL_CATEGORIES);
+  const { height } = useWindowDimensions();
 
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
@@ -85,48 +96,58 @@ export function CategoryPicker({
         style={{ backgroundColor: "rgba(0,0,0,0.3)" }}
         onPress={close}
       >
-        <Pressable
-          className="bg-paper px-6 pb-10 pt-5"
-          style={{ borderTopLeftRadius: 10, borderTopRightRadius: 10 }}
-          // Catches the touch so a tap on the sheet doesn't dismiss it.
-          onPress={() => {}}
-        >
-          <View className="mb-4 gap-1">
-            <Eyebrow>{heading}</Eyebrow>
-            {note ? <Meta>{note}</Meta> : null}
-          </View>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <Pressable
+            className="bg-paper px-6 pb-10 pt-5"
+            // Fixed at half the screen so the sheet never jumps as results filter —
+            // the list scrolls inside this frame instead.
+            style={{ borderTopLeftRadius: 10, borderTopRightRadius: 10, height: height * 0.5 }}
+            // Catches the touch so a tap on the sheet doesn't dismiss it.
+            onPress={() => {}}
+          >
+            <View className="mb-4 gap-1">
+              <Eyebrow>{heading}</Eyebrow>
+              {note ? <Meta>{note}</Meta> : null}
+            </View>
 
-          <Field
-            label="Search axes"
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Plot, Tension, Chemistry…"
-            autoCapitalize="words"
-            autoCorrect={false}
-            autoFocus
-          />
+            <Field
+              label="Search axes"
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Plot, Tension, Chemistry…"
+              autoCapitalize="words"
+              autoCorrect={false}
+              autoFocus
+            />
 
-          <View className="mt-4">
-            {q && !exact ? (
-              <Row label={`Create “${query.trim()}”`} accent disabled={busy} onPress={coin} />
-            ) : null}
+            <ScrollView
+              className="mt-4 flex-1"
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {q && !exact ? (
+                <Row label={`Create “${query.trim()}”`} accent disabled={busy} onPress={coin} />
+              ) : null}
 
-            {matches.map((c) =>
-              active.has(c.id) ? (
-                <Row key={c.id} label={c.name ?? ""} trailing="Added" disabled />
-              ) : (
-                <Row
-                  key={c.id}
-                  label={c.name ?? ""}
-                  disabled={busy}
-                  onPress={() => hand({ id: c.id, name: c.name ?? "" })}
-                />
-              ),
-            )}
+              {matches.map((c) =>
+                active.has(c.id) ? (
+                  <Row key={c.id} label={c.name ?? ""} added disabled />
+                ) : (
+                  <Row
+                    key={c.id}
+                    label={c.name ?? ""}
+                    disabled={busy}
+                    onPress={() => hand({ id: c.id, name: c.name ?? "" })}
+                  />
+                ),
+              )}
 
-            {all.length === 0 ? <ActivityIndicator className="py-4" color={accent.forest} /> : null}
-          </View>
-        </Pressable>
+              {all.length === 0 ? (
+                <ActivityIndicator className="py-4" color={accent.forest} />
+              ) : null}
+            </ScrollView>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -135,12 +156,15 @@ export function CategoryPicker({
 function Row({
   label,
   trailing,
+  added,
   accent: isAccent,
   disabled,
   onPress,
 }: {
   label: string;
   trailing?: string;
+  /** Already active — shows the quiet checkmark pill instead of a tappable row. */
+  added?: boolean;
   accent?: boolean;
   disabled?: boolean;
   onPress?: () => void;
@@ -152,10 +176,46 @@ function Row({
       accessibilityRole="button"
       className="flex-row items-center justify-between border-b border-hairline py-3 active:opacity-60"
     >
-      <Text className="type-body" style={{ color: isAccent ? accent.forest : ink.primary }}>
+      <Text
+        className="type-body"
+        style={{ color: added ? ink.muted : isAccent ? accent.forest : ink.primary }}
+      >
         {label}
       </Text>
-      {trailing ? <Text className="type-meta-small text-ink-faint">{trailing}</Text> : null}
+      {added ? (
+        <AddedPill />
+      ) : trailing ? (
+        <Text className="type-meta-small text-ink-faint">{trailing}</Text>
+      ) : null}
     </Pressable>
+  );
+}
+
+/**
+ * Quiet sibling of the round "in your library" badge — same forest + checkmark,
+ * but a low-contrast tinted pill, since "already on the list" is a state to note,
+ * not an action to celebrate.
+ */
+function AddedPill() {
+  return (
+    <View
+      className="flex-row items-center gap-1 rounded-full px-2 py-0.5"
+      style={{ backgroundColor: "rgba(63,91,74,0.12)" }}
+      accessibilityLabel="Added"
+    >
+      <Text style={{ fontFamily: font.uiBold, fontSize: 10, lineHeight: 12, color: accent.forest }}>
+        ✓
+      </Text>
+      <Text
+        style={{
+          fontFamily: font.uiMedium,
+          fontSize: 11,
+          letterSpacing: 0.3,
+          color: accent.forest,
+        }}
+      >
+        Added
+      </Text>
+    </View>
   );
 }

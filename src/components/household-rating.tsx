@@ -152,18 +152,11 @@ export function HouseholdRating({
         <Pressable
           onPress={() => setPickerOpen(true)}
           accessibilityRole="button"
-          className="mt-1 self-start active:opacity-60"
+          accessibilityLabel="Add a rating axis"
+          style={addAxisStyle}
+          className="active:opacity-60"
         >
-          <Text
-            style={{
-              fontFamily: font.uiMedium,
-              fontSize: 12.5,
-              letterSpacing: 0.4,
-              color: dark.textSecondary,
-            }}
-          >
-            ＋ Add a rating axis
-          </Text>
+          <Text style={addAxisLabelStyle}>＋  Add a rating axis</Text>
         </Pressable>
       ) : null}
 
@@ -304,6 +297,30 @@ const contentRowStyle = {
   alignItems: "center" as const,
   justifyContent: "space-between" as const,
   paddingHorizontal: PAD_X,
+};
+
+/**
+ * The add-axis affordance. Same pill footprint as a rating capsule so it reads as
+ * part of the stack, but deliberately not a capsule: no surface fill, a dashed
+ * border, and a centred amber label — an action, not a score.
+ */
+const addAxisStyle = {
+  marginTop: 2,
+  height: CAPSULE_HEIGHT,
+  borderRadius: CAPSULE_RADIUS,
+  borderWidth: 1.5,
+  borderColor: dark.border,
+  borderStyle: "dashed" as const,
+  backgroundColor: "transparent" as const,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+};
+
+const addAxisLabelStyle = {
+  fontFamily: font.uiMedium,
+  fontSize: 13,
+  letterSpacing: 0.8,
+  color: accent.amber,
 };
 
 // ---------------------------------------------------------------------------

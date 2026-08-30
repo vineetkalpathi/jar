@@ -1,8 +1,8 @@
 /**
  * Tags — a Household's shared labels. Their own chip, deliberately distinct from a
- * rating capsule or a plain bordered row: small, a hairline edge over a faint fill,
- * the UI face at a tag-sized 12px. Two registers, because tags show on the paper
- * Household list and the dark Title screen both.
+ * rating capsule or a plain bordered row: a small fully-rounded pill, a hairline edge
+ * over a faint fill, the UI face at a tag-sized 12px. Two registers, because tags show
+ * on the paper Household list and the dark Title screen both.
  *
  * `Tag` is the chip, `AddTag` the dashed "＋" affordance that opens the picker, and
  * `TagList` the wrapping row the two sit in.
@@ -22,9 +22,10 @@ const palette = {
 const chipStyle = {
   flexDirection: "row" as const,
   alignItems: "center" as const,
-  borderRadius: 4,
+  // Fully rounded — a pill. Larger than any chip height, so the ends stay circular.
+  borderRadius: 999,
   paddingVertical: 4,
-  paddingHorizontal: 9,
+  paddingHorizontal: 11,
   gap: 5,
 };
 
