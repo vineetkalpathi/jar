@@ -512,6 +512,8 @@ function AverageRow({
   const average = values.length > 0 ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
   const rated = average !== null;
 
+  // Read-only view: keep the amber level so the value reads at a glance, but drop the
+  // notches and the edge handle — the affordances that say "drag me".
   return (
     <View
       style={capsuleStyle}
@@ -519,31 +521,17 @@ function AverageRow({
       accessibilityValue={{ text: rated ? average.toFixed(1) : "not rated" }}
     >
       {rated ? (
-        <>
-          <View
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: `${asProgress(average) * 100}%`,
-              backgroundColor: AMBER_WASH,
-            }}
-          />
-          <View
-            style={{
-              position: "absolute",
-              top: 0,
-              bottom: 0,
-              left: `${asProgress(average) * 100}%`,
-              marginLeft: -EDGE_WIDTH,
-              width: EDGE_WIDTH,
-              backgroundColor: accent.amber,
-            }}
-          />
-        </>
+        <View
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: `${asProgress(average) * 100}%`,
+            backgroundColor: AMBER_WASH,
+          }}
+        />
       ) : null}
-      <Notches />
 
       <View style={contentRowStyle}>
         <Text style={labelStyle}>{category.name}</Text>
