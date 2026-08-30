@@ -121,9 +121,12 @@ export default function TitleDetail() {
           ) : null}
           {title.language ? <DarkMeta>{title.language}</DarkMeta> : null}
           <TmdbRating voteAverage={tmdb?.voteAverage} />
-          <ViewingStatus titleId={title.id} userId={userId} />
         </View>
       </View>
+
+      {/* Its own row, not in the poster column — a long title makes that column taller
+          than the poster and this would hang off the bottom of the artwork. */}
+      <ViewingStatus titleId={title.id} userId={userId} />
 
       <View className="gap-1.5 pt-5">
         <Overview title={title} tmdb={tmdb} status={tmdbStatus} />

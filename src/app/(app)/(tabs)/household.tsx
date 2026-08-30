@@ -270,15 +270,17 @@ function LibrarySearch({
           accessibilityLabel="Search library"
         />
       </View>
+      {/* Solid, not outlined — a filled primary action, so it doesn't read as another
+          of the round outlined "seen" toggles sitting in the rows just below. */}
       <Pressable
         onPress={onAdd}
         accessibilityRole="button"
         accessibilityLabel="Add a title"
-        style={{ width: 44, height: 44, borderWidth: 1.5 }}
-        className="items-center justify-center rounded-full border-forest active:opacity-70"
+        style={{ width: 44, height: 44, backgroundColor: accent.forest }}
+        className="items-center justify-center rounded-full active:opacity-80"
       >
         <Text
-          style={{ fontFamily: font.uiBold, fontSize: 22, lineHeight: 24, color: accent.forest }}
+          style={{ fontFamily: font.uiBold, fontSize: 22, lineHeight: 24, color: paper.card }}
         >
           +
         </Text>

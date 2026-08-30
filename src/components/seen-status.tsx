@@ -172,7 +172,7 @@ export function ViewingStatus({ titleId, userId }: { titleId: string; userId: st
       : "Unwatched";
 
   return (
-    <View className="flex-row items-center gap-2 pt-1.5">
+    <View className="flex-row items-center gap-2 pt-4">
       <SeenStatus seen={seen} busy={busy} onPress={toggle} />
       <Pressable
         onPress={() => setSheetOpen(true)}
