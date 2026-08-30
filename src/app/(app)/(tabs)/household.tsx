@@ -3,9 +3,10 @@ import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
 import { SearchField } from "@/components/search-field";
+import { SeenStatus } from "@/components/seen-status";
 import { Tag, TagList, TagStrip } from "@/components/tag";
 import { TagPicker } from "@/components/tag-picker";
-import { Body, Eyebrow, EyebrowWide, Meta, ScreenTitle, TitleName } from "@/components/text";
+import { Body, Eyebrow, Meta, ScreenTitle, TitleName } from "@/components/text";
 import { useUserId } from "@/lib/auth/session";
 import { annotations, households, library, type TagRow } from "@/lib/db";
 import type { LibraryEntryView } from "@/lib/db/repositories/library";
@@ -96,7 +97,9 @@ export default function Household() {
           </View>
         }
         ListEmptyComponent={<ListEmpty query={query} hasLibrary={data.length > 0} />}
-        renderItem={({ item }) => <LibraryRow row={item} householdId={household.id} />}
+        renderItem={({ item }) => (
+          <LibraryRow row={item} householdId={household.id} userId={userId} />
+        )}
       />
     </Screen>
   );
@@ -317,15 +320,18 @@ function SettingsGlyph({ color = ink.muted }: { color?: string }) {
 function LibraryRow({
   row,
   householdId,
+  userId,
 }: {
   row: LibraryEntryView;
   householdId: string;
+  userId: string;
 }) {
   const db = usePowerSync();
   const { data: tags } = useQuery<TagRow>(annotations.TAGS_FOR_TITLE, [
     householdId,
     row.id,
   ]);
+  const [marking, setMarking] = useState(false);
 
   const poster = posterUrl(row.poster_path, "w154");
 
@@ -358,12 +364,20 @@ function LibraryRow({
     .filter(Boolean)
     .join(" · ");
 
-  const seen =
-    row.watch_count > 0
-      ? row.watch_count === 1
-        ? "Seen"
-        : `Seen ${row.watch_count}×`
-      : "Not seen";
+  const seen = row.watch_count > 0;
+
+  // One-way from the list: tap the eye to log a Viewing (today). Un-marking and rough
+  // dates live on the Title screen — the same split as add-to-library.
+  const markSeen = async () => {
+    setMarking(true);
+    try {
+      await annotations.recordViewing(db, { userId, titleId: row.id });
+    } catch (cause) {
+      console.warn("[library] could not mark seen", row.id, cause);
+    } finally {
+      setMarking(false);
+    }
+  };
 
   // Root stays a plain `View` — a `Tappable` here wraps its children in `flex-1`, which
   // collapses to zero height inside a FlatList cell (title-row.tsx dodges the same way).
@@ -387,7 +401,18 @@ function LibraryRow({
           </View>
         </View>
       </Tappable>
-      <EyebrowWide className="text-ink-faint">{seen}</EyebrowWide>
+      <SeenStatus
+        seen={seen}
+        busy={marking}
+        onPress={seen ? undefined : markSeen}
+        accessibilityLabel={
+          seen
+            ? row.watch_count === 1
+              ? "Seen"
+              : `Seen ${row.watch_count} times`
+            : `Mark ${row.name} as seen`
+        }
+      />
     </View>
   );
 }

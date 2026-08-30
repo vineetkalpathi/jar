@@ -7,6 +7,7 @@ import { LibraryStatus } from "@/components/library-status";
 import { Loading } from "@/components/loading";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
+import { ViewingStatus } from "@/components/seen-status";
 import { TitleTags } from "@/components/title-tags";
 import { CastAndCrew, ExternalLinks, TmdbRating, WatchProviders } from "@/components/tmdb-facts";
 import { DarkBody, DarkMeta, DarkTitle } from "@/components/text";
@@ -18,6 +19,7 @@ import {
   type TagRow,
   type TitleRow,
 } from "@/lib/db";
+import { useUserId } from "@/lib/auth/session";
 import { useHousehold } from "@/lib/household/active";
 import { getTitleDetails, posterUrl, type TmdbMediaType, type TmdbTitleDetails } from "@/lib/tmdb";
 
@@ -37,6 +39,7 @@ import { getTitleDetails, posterUrl, type TmdbMediaType, type TmdbTitleDetails }
 export default function TitleDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const household = useHousehold();
+  const userId = useUserId();
 
   const { data: titleRows, isLoading } = useQuery<TitleRow>(library.TITLE_BY_ID, [id]);
   const title = titleRows[0];
@@ -118,6 +121,7 @@ export default function TitleDetail() {
           ) : null}
           {title.language ? <DarkMeta>{title.language}</DarkMeta> : null}
           <TmdbRating voteAverage={tmdb?.voteAverage} />
+          <ViewingStatus titleId={title.id} userId={userId} />
         </View>
       </View>
 

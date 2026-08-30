@@ -152,7 +152,8 @@ const viewing = new Table(
   {
     title_id: column.text,
     user_id: column.text,
-    watched_on: column.text, // date, YYYY-MM-DD
+    watched_on: column.text, // date, YYYY-MM-DD — omitted parts fall back to the 1st
+    watched_precision: column.text, // 'year' | 'month' | 'day'; null means 'day'
     created_at: column.text,
   },
   { indexes: { title: ["title_id", "user_id"], user: ["user_id"] } },

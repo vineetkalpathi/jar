@@ -221,12 +221,13 @@ export async function finishAsWatched(
     [titleId, drawId],
   );
 
+  const on = {
+    year: watchedOn.getUTCFullYear(),
+    month: watchedOn.getUTCMonth() + 1,
+    day: watchedOn.getUTCDate(),
+  };
   for (const participant of participants) {
-    await recordViewing(db, {
-      userId: participant.user_id,
-      titleId,
-      watchedOn,
-    });
+    await recordViewing(db, { userId: participant.user_id, titleId, on });
   }
 }
 

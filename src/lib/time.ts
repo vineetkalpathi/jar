@@ -20,6 +20,61 @@ export function date(on: Date = new Date()): string {
   return on.toISOString().slice(0, 10);
 }
 
+/** How much of a `watched_on` date is a real claim. Null in the column means `day`. */
+export type WatchPrecision = "year" | "month" | "day";
+
+export type ApproxDateParts = { year: number; month?: number | null; day?: number | null };
+
+/** `year` alone → `year`; `year` + `month` → `month`; all three → `day`. */
+export function watchPrecision(parts: ApproxDateParts): WatchPrecision {
+  if (parts.month == null) return "year";
+  if (parts.day == null) return "month";
+  return "day";
+}
+
+/**
+ * An approximate calendar date as the `YYYY-MM-DD` the column stores: omitted month or
+ * day fall back to `01`, so the value stays a real date for recency comparisons. Pair
+ * it with `watchPrecision(parts)` so the omission is still known when rendering back.
+ */
+export function approxDate(parts: ApproxDateParts): string {
+  const y = String(parts.year).padStart(4, "0");
+  const m = String(parts.month ?? 1).padStart(2, "0");
+  const d = String(parts.day ?? 1).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** Splits a stored `watched_on` back into parts, ignoring any time component. */
+export function watchedOnParts(watchedOn: string): { year: number; month: number; day: number } {
+  const [y, m, d] = watchedOn.slice(0, 10).split("-").map(Number);
+  return { year: y, month: m, day: d };
+}
+
+/**
+ * A stored `watched_on` shown to the precision it was actually logged at:
+ * `2024`, `March 2024`, or `12 March 2024`. A null precision reads as `day`.
+ */
+export function formatWatchedOn(watchedOn: string, precision: WatchPrecision | null): string {
+  const { year, month, day } = watchedOnParts(watchedOn);
+  const name = MONTHS[month - 1] ?? "";
+  if (precision === "year") return String(year);
+  if (precision === "month") return `${name} ${year}`;
+  return `${day} ${name} ${year}`;
+}
+
+/** Month names, index 0 = January — for a month picker. */
+export const MONTH_NAMES = MONTHS;
+
+/** Days in a given 1-indexed month of a year (handles leap February). */
+export function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
 export type DurationUnit = "day" | "week" | "month" | "year";
 
 /**

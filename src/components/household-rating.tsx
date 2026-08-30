@@ -348,7 +348,7 @@ function MineRow({
   const lockedInt = useSharedValue(
     value != null && Math.abs(value - Math.round(value)) < LOCK_EPS ? Math.round(value) : -1,
   );
-  const label = useSharedValue(value != null ? format(value) : "—");
+  const label = useSharedValue(value != null ? format(value) : "");
   // Whether there's a value to show a level for — a rating of 0.0 sits at 0% fill, so
   // "empty" and "unrated" would otherwise look the same.
   const [rated, setRated] = useState(value != null);
@@ -367,7 +367,7 @@ function MineRow({
       );
       setRated(value != null);
       started.set(value != null);
-      label.set(value != null ? format(value) : "—");
+      label.set(value != null ? format(value) : "");
       lockedInt.set(
         value != null && Math.abs(value - Math.round(value)) < LOCK_EPS ? Math.round(value) : -1,
       );
@@ -557,7 +557,7 @@ function AverageRow({
       <View style={contentRowStyle}>
         <Text style={labelStyle}>{category.name}</Text>
         <Text style={[numeralStyle, { color: rated ? accent.amber : dark.textMuted }]}>
-          {rated ? average.toFixed(1) : "—"}
+          {rated ? average.toFixed(1) : ""}
         </Text>
       </View>
     </View>

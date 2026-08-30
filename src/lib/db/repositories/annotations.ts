@@ -14,7 +14,13 @@ import type { RatingRow, TagRow, ViewingRow } from "../schema";
 import { ratingValue, requiredText } from "../constraints";
 import { newId } from "../ids";
 import { findOrInsert } from "../upsert";
-import { date, timestamp } from "../../time";
+import {
+  approxDate,
+  date,
+  timestamp,
+  watchPrecision,
+  type ApproxDateParts,
+} from "../../time";
 
 // ---------------------------------------------------------------------------
 // Tags
@@ -192,23 +198,42 @@ export const VIEWINGS_BY_USER_FOR_TITLE = `
 `;
 
 /**
- * Records that a User watched a Title on a given day.
+ * Records that a User watched a Title.
  *
- * Deliberately not idempotent and deliberately not keyed on (title, user): rewatches
- * are separate rows, which is what makes watch count, recency and watched-ness all
- * derivable rather than stored. Watching something twice in one day is a real thing.
+ * With no `on`, it is just "seen" — the date is today at `day` precision but that is a
+ * placeholder, not a claim. With `on`, the User has given a rough date: a year, maybe a
+ * month; `watched_precision` records how much of it to trust (see `time.ts`).
+ *
+ * Deliberately not idempotent and not keyed on (title, user): rewatches are separate
+ * rows, which is what makes watch count, recency and watched-ness all derivable rather
+ * than stored. Watching something twice in one day is a real thing.
  */
 export async function recordViewing(
   db: AbstractPowerSyncDatabase,
-  input: { userId: string; titleId: string; watchedOn?: Date },
+  input: { userId: string; titleId: string; on?: ApproxDateParts },
 ): Promise<string> {
   const id = newId();
+  const watchedOn = input.on ? approxDate(input.on) : date();
+  const precision = input.on ? watchPrecision(input.on) : "day";
   await db.execute(
-    `insert into viewing (id, title_id, user_id, watched_on, created_at)
-     values (?, ?, ?, ?, ?)`,
-    [id, input.titleId, input.userId, date(input.watchedOn), timestamp()],
+    `insert into viewing (id, title_id, user_id, watched_on, watched_precision, created_at)
+     values (?, ?, ?, ?, ?, ?)`,
+    [id, input.titleId, input.userId, watchedOn, precision, timestamp()],
   );
   return id;
+}
+
+/** Re-dates an existing Viewing — the "set / refine the date" path on the Title screen. */
+export async function setViewingDate(
+  db: AbstractPowerSyncDatabase,
+  viewingId: string,
+  on: ApproxDateParts,
+): Promise<void> {
+  await db.execute(`update viewing set watched_on = ?, watched_precision = ? where id = ?`, [
+    approxDate(on),
+    watchPrecision(on),
+    viewingId,
+  ]);
 }
 
 export async function deleteViewing(
@@ -216,6 +241,24 @@ export async function deleteViewing(
   viewingId: string,
 ): Promise<void> {
   await db.execute(`delete from viewing where id = ?`, [viewingId]);
+}
+
+/**
+ * Drops the User's most recent Viewing of a Title — the "un-mark" half of the seen
+ * toggle. Only the latest row, so toggling a title seen then unseen doesn't wipe a
+ * genuine rewatch history in one tap.
+ */
+export async function unmarkLatestViewing(
+  db: AbstractPowerSyncDatabase,
+  input: { userId: string; titleId: string },
+): Promise<void> {
+  await db.execute(
+    `delete from viewing where id = (
+       select id from viewing where user_id = ? and title_id = ?
+       order by watched_on desc, created_at desc limit 1
+     )`,
+    [input.userId, input.titleId],
+  );
 }
 
 export async function viewingsByUser(

@@ -1,4 +1,14 @@
-import { date, parseTimestamp, subtract, timestamp } from "./time";
+import {
+  approxDate,
+  date,
+  daysInMonth,
+  formatWatchedOn,
+  parseTimestamp,
+  subtract,
+  timestamp,
+  watchedOnParts,
+  watchPrecision,
+} from "./time";
 
 const INSTANT = new Date("2026-08-01T12:34:56.789Z");
 
@@ -51,6 +61,42 @@ describe("reading", () => {
     for (const bad of [null, undefined, "", "   ", "not a date", "2026-13-45"]) {
       expect(parseTimestamp(bad)).toBeNull();
     }
+  });
+});
+
+describe("approximate viewing dates", () => {
+  it("fills omitted month and day with the 1st, keeping a real date", () => {
+    expect(approxDate({ year: 2024 })).toBe("2024-01-01");
+    expect(approxDate({ year: 2024, month: 3 })).toBe("2024-03-01");
+    expect(approxDate({ year: 2024, month: 3, day: 12 })).toBe("2024-03-12");
+    expect(approxDate({ year: 2024, month: null, day: null })).toBe("2024-01-01");
+  });
+
+  it("derives precision from which parts are present", () => {
+    expect(watchPrecision({ year: 2024 })).toBe("year");
+    expect(watchPrecision({ year: 2024, month: 3 })).toBe("month");
+    expect(watchPrecision({ year: 2024, month: 3, day: 12 })).toBe("day");
+    expect(watchPrecision({ year: 2024, month: null, day: 12 })).toBe("year");
+  });
+
+  it("renders back to the precision it was logged at", () => {
+    expect(formatWatchedOn("2024-03-12", "year")).toBe("2024");
+    expect(formatWatchedOn("2024-03-12", "month")).toBe("March 2024");
+    expect(formatWatchedOn("2024-03-12", "day")).toBe("12 March 2024");
+    // A null precision — every row that predates the column — reads as a full date.
+    expect(formatWatchedOn("2024-03-12", null)).toBe("12 March 2024");
+  });
+
+  it("splits a stored date, ignoring any time component", () => {
+    expect(watchedOnParts("2024-03-12")).toEqual({ year: 2024, month: 3, day: 12 });
+    expect(watchedOnParts("2024-03-12 00:00:00")).toEqual({ year: 2024, month: 3, day: 12 });
+  });
+
+  it("knows month lengths, leap years included", () => {
+    expect(daysInMonth(2024, 2)).toBe(29);
+    expect(daysInMonth(2025, 2)).toBe(28);
+    expect(daysInMonth(2025, 4)).toBe(30);
+    expect(daysInMonth(2025, 12)).toBe(31);
   });
 });
 
