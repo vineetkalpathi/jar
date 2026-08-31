@@ -98,6 +98,29 @@ export function parseJarFilter(
 }
 
 /**
+ * The SQL selecting just the `title_id`s of a Jar's contents — the inner query that
+ * `jarContentsQuery` wraps in `select t.*`.
+ *
+ * For callers that intersect the contents with another query rather than list the
+ * rows: `where t.id in (${sql})` needs a single-column subselect, which the full-row
+ * form is not. Cooldown weighting (`draws.weighUp`) is the one that needs this.
+ */
+export async function jarContentIdsQuery(
+  db: AbstractPowerSyncDatabase,
+  jarId: string,
+): Promise<CompiledQuery> {
+  const jar = await db.getOptional<JarRow>(`select * from jar where id = ?`, [
+    jarId,
+  ]);
+  if (!jar) throw new NotFoundError(`No jar ${jarId}`);
+
+  return compileJarContents(
+    { id: jar.id, filter: parseJarFilter(jar) },
+    await loadCompileContext(db, jar.household_id!, jar.id),
+  );
+}
+
+/**
  * The SQL selecting a Jar's contents, as full Title rows.
  *
  * Returned rather than executed so the caller can hand it to `useQuery` and get a
@@ -107,15 +130,7 @@ export async function jarContentsQuery(
   db: AbstractPowerSyncDatabase,
   jarId: string,
 ): Promise<CompiledQuery> {
-  const jar = await db.getOptional<JarRow>(`select * from jar where id = ?`, [
-    jarId,
-  ]);
-  if (!jar) throw new NotFoundError(`No jar ${jarId}`);
-
-  const contents = compileJarContents(
-    { id: jar.id, filter: parseJarFilter(jar) },
-    await loadCompileContext(db, jar.household_id!, jar.id),
-  );
+  const contents = await jarContentIdsQuery(db, jarId);
 
   return {
     sql: `select t.* from title t where t.id in (${contents.sql}) order by t.name`,

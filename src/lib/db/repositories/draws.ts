@@ -16,7 +16,7 @@ import type { DrawRow, JarRow, TitleRow } from "../schema";
 import { parseTimestamp, timestamp } from "../../time";
 import { recordViewing } from "./annotations";
 import { memberIds } from "./households";
-import { jarContentsQuery } from "./jars";
+import { jarContentIdsQuery } from "./jars";
 
 export type DrawOutcome = "in_progress" | "watched" | "abandoned" | "no_pick";
 
@@ -117,7 +117,7 @@ export async function weighUp(
   jarId: string,
   now: Date = new Date(),
 ): Promise<Weighted<string>[]> {
-  const contents = await jarContentsQuery(db, jarId);
+  const contents = await jarContentIdsQuery(db, jarId);
 
   const jar = await db.getOptional<JarRow>(`select * from jar where id = ?`, [jarId]);
   if (!jar) throw new NotFoundError(`No jar ${jarId}`);

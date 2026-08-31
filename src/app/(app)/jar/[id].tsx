@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { Button } from "@/components/button";
+import { DrawSetupSheet } from "@/components/draw-setup-sheet";
 import { IconTablet } from "@/components/icon-tablet";
 import { Loading } from "@/components/loading";
 import { Poster } from "@/components/poster";
@@ -124,6 +125,7 @@ export default function JarDetail() {
   );
 
   const [picker, setPicker] = useState<"pin" | "exclusion" | null>(null);
+  const [drawing, setDrawing] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [managing, setManaging] = useState(false);
@@ -176,7 +178,18 @@ export default function JarDetail() {
     : `${titles.length} ${titles.length === 1 ? "slip" : "slips"}`;
 
   return (
-    <Screen gutter="grid">
+    <Screen
+      gutter="grid"
+      footer={
+        <Button
+          label="Shake the jar"
+          pill
+          onPress={() => setDrawing(true)}
+          disabled={titles.length === 0}
+          accessibilityLabel={`Draw from ${jar.name}`}
+        />
+      }
+    >
       <View className="flex-row items-start justify-between pt-2">
         <Pressable
           onPress={() => router.back()}
@@ -285,6 +298,23 @@ export default function JarDetail() {
         titles={titles}
         pinnedTitleIds={pinnedIds}
         onClose={() => setPicker(null)}
+      />
+
+      <DrawSetupSheet
+        visible={drawing}
+        jarName={jar.name ?? "This jar"}
+        jarCount={titles.length}
+        onClose={() => setDrawing(false)}
+        onStart={({ count, saucy }) => {
+          setDrawing(false);
+          const go = () =>
+            router.push(
+              `/draw/${jar.id}?count=${count}&saucy=${saucy ? 1 : 0}`,
+            );
+          // Let the sheet slide out before the flow pushes (iOS stacks poorly).
+          if (Platform.OS === "ios") setTimeout(go, 260);
+          else go();
+        }}
       />
 
       <JarOptionsSheet
