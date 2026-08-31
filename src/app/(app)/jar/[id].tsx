@@ -5,18 +5,17 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from "react-native";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { Button } from "@/components/button";
-import { Field } from "@/components/field";
 import { IconTablet } from "@/components/icon-tablet";
 import { Loading } from "@/components/loading";
 import { Poster } from "@/components/poster";
@@ -199,7 +198,22 @@ export default function JarDetail() {
       </View>
 
       <View className="gap-1 pb-3">
-        <LayerTitle>{jar.name}</LayerTitle>
+        {renaming ? (
+          <TitleEditor
+            current={jar.name ?? ""}
+            onCancel={() => setRenaming(false)}
+            onSave={async (name) => {
+              try {
+                await jars.renameJar(db, jar.id, name);
+                setRenaming(false);
+              } catch {
+                Alert.alert("Couldn't rename", "That title didn't save.");
+              }
+            }}
+          />
+        ) : (
+          <LayerTitle>{jar.name}</LayerTitle>
+        )}
         <Meta>{countLine}</Meta>
       </View>
 
@@ -271,20 +285,6 @@ export default function JarDetail() {
         titles={titles}
         pinnedTitleIds={pinnedIds}
         onClose={() => setPicker(null)}
-      />
-
-      <RenameJarModal
-        visible={renaming}
-        current={jar.name ?? ""}
-        onCancel={() => setRenaming(false)}
-        onSave={async (name) => {
-          try {
-            await jars.renameJar(db, jar.id, name);
-            setRenaming(false);
-          } catch {
-            Alert.alert("Couldn't rename", "That title didn't save.");
-          }
-        }}
       />
 
       <JarOptionsSheet
@@ -520,14 +520,16 @@ function OverrideRow({
   );
 }
 
-/** A one-field prompt for renaming the jar — the same shape as "Save as jar". */
-function RenameJarModal({
-  visible,
+/**
+ * The jar title itself, swapped for an inline input while "Edit jar title" is active —
+ * same type as `LayerTitle`, so the name is edited in place rather than in a modal.
+ * Commits on submit or blur; an empty or unchanged value just backs out.
+ */
+function TitleEditor({
   current,
   onCancel,
   onSave,
 }: {
-  visible: boolean;
   current: string;
   onCancel: () => void;
   onSave: (name: string) => void | Promise<void>;
@@ -535,62 +537,33 @@ function RenameJarModal({
   const [name, setName] = useState(current);
   const [busy, setBusy] = useState(false);
 
-  // Reset to the jar's live name each time the sheet opens.
-  useEffect(() => {
-    if (visible) setName(current);
-  }, [visible, current]);
-
-  const submit = async () => {
+  const commit = async () => {
+    if (busy) return;
     const trimmed = name.trim();
-    if (!trimmed || busy) return;
+    if (!trimmed || trimmed === current) {
+      onCancel();
+      return;
+    }
     setBusy(true);
     await onSave(trimmed);
     setBusy(false);
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onCancel}
-    >
-      <Pressable
-        className="flex-1 items-center justify-center px-8"
-        style={{ backgroundColor: "rgba(0,0,0,0.3)" }}
-        onPress={onCancel}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          className="w-full"
-        >
-          <Pressable
-            className="gap-4 rounded-sheet bg-paper p-6"
-            onPress={() => {}}
-          >
-            <Eyebrow>Edit jar title</Eyebrow>
-            <Field
-              label="Jar name"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-              autoFocus
-              returnKeyType="go"
-              onSubmitEditing={submit}
-            />
-            <View className="gap-2">
-              <Button
-                label="Save"
-                onPress={submit}
-                loading={busy}
-                disabled={!name.trim()}
-              />
-              <Button label="Cancel" variant="quiet" onPress={onCancel} />
-            </View>
-          </Pressable>
-        </KeyboardAvoidingView>
-      </Pressable>
-    </Modal>
+    <TextInput
+      value={name}
+      onChangeText={setName}
+      editable={!busy}
+      autoFocus
+      selectTextOnFocus
+      autoCapitalize="words"
+      returnKeyType="done"
+      onSubmitEditing={commit}
+      onBlur={commit}
+      selectionColor={ink.secondary}
+      accessibilityLabel="Jar name"
+      className="type-layer-title text-ink border-b border-hairline pb-1"
+    />
   );
 }
 
