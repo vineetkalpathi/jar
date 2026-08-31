@@ -6,9 +6,14 @@
  *   shake (750ms)  → knockout grid  → pause (900ms)  → reveal
  *
  * The slate is frozen the moment `startDraw` runs; the shake is theatre over an already
- * decided set. Knockout is the veto — tap a slip to take it out of tonight, not out of
- * the jar — and when one Candidate is left the pause runs and the winner is revealed.
+ * decided set. Knockout is the veto — tap a Candidate to take it out of tonight, not out
+ * of the jar — and when one Candidate is left the pause runs and the winner is revealed.
  * "Saucy" (count 1) skips the grid: one slip, straight through.
+ *
+ * The Candidates read as Library rows (poster, display serif, meta line), not as slips:
+ * they are TMDB titles being weighed up, and only the winner is the slip that came out
+ * of the jar. Each carries an ⓘ that pushes its Title page — this screen stays mounted
+ * underneath, so coming back resumes the same veto.
  *
  * Participants are just the drawer for now — a "who's here tonight" picker (guests
  * included) is a later pass. It matters only on "Start watching", which records a
@@ -16,9 +21,9 @@
  */
 
 import { useQuery, usePowerSync } from "@powersync/react";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -34,14 +39,25 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
+import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
-import { Body, Eyebrow, Meta } from "@/components/text";
+import { Body, Eyebrow, Meta, TitleName } from "@/components/text";
 import { useUserId } from "@/lib/auth/session";
 import { draws, type TitleRow } from "@/lib/db";
+import { posterUrl } from "@/lib/tmdb";
 import { accent, font, ink, motion, paper, radius, shadow } from "@/theme";
 
 type Phase = "shake" | "knockout" | "pause" | "reveal";
 type CandidateRow = TitleRow & { knocked_out_at: string | null };
+
+/**
+ * The Draw we stepped away from to read a Title, held outside the component because the
+ * component is exactly what might not survive the trip: this screen usually stays
+ * mounted under the pushed Title page, but not always, and a remount would otherwise
+ * sweep the in-progress Draw as `no_pick` and deal a fresh slate — losing every
+ * knock-out made so far. Read once on the way back in, then dropped.
+ */
+let inspecting: { jarId: string; drawId: string } | null = null;
 
 /** Fire-and-forget haptic — wrapped, a dev client built before `expo-haptics` throws
  *  synchronously rather than rejecting. */
@@ -94,9 +110,13 @@ export default function DrawFlow() {
   const finishedRef = useRef(false);
   const knockBusyRef = useRef(false);
 
-  // Start (or restart) the Draw.
+  // Start, resume, or restart the Draw.
   useEffect(() => {
     let active = true;
+    // Read synchronously, before anything awaited: the focus effect below clears the
+    // flag on the way back in, and this has to see it first.
+    const resumeId = inspecting?.jarId === jarId ? inspecting.drawId : null;
+
     setDrawId(null);
     setPhase("shake");
     setError(null);
@@ -104,8 +124,19 @@ export default function DrawFlow() {
 
     (async () => {
       try {
-        // Don't leave a half-finished Draw behind us.
         const stale = await draws.activeDraw(db, jarId);
+
+        // Back from a Title page, and the Draw we left is still open: pick it up where
+        // it stood. No second shake — the slate was decided the first time.
+        if (resumeId && stale?.id === resumeId) {
+          const left = await draws.survivors(db, resumeId);
+          if (!active) return;
+          setDrawId(resumeId);
+          setPhase(left.length > 1 ? "knockout" : "pause");
+          return;
+        }
+
+        // Otherwise, don't leave a half-finished Draw behind us.
         if (stale && active) {
           await draws.finishWithoutWatching(db, stale.id, "no_pick");
         }
@@ -131,15 +162,25 @@ export default function DrawFlow() {
   }, [jarId, count, nonce, db, userId]);
 
   // If we leave mid-Draw, record it as no_pick — the served titles still feed Cooldown.
+  // Stepping out to read a Title is not leaving: that Draw is coming back.
   useEffect(() => {
     return () => {
-      if (drawId && !finishedRef.current) {
+      if (drawId && !finishedRef.current && inspecting?.drawId !== drawId) {
         draws
           .finishWithoutWatching(db, drawId, "no_pick")
           .catch(() => {});
       }
     };
   }, [drawId, db]);
+
+  // Focused again, so the trip to the Title page is over — whether or not this screen
+  // stayed mounted for it. Anything from here is a real exit. Declared after the start
+  // effect so a remount reads the flag before this clears it.
+  useFocusEffect(
+    useCallback(() => {
+      inspecting = null;
+    }, []),
+  );
 
   const { data: candidates } = useQuery<CandidateRow>(
     drawId ? draws.CANDIDATES_FOR_DRAW : "select null limit 0",
@@ -211,6 +252,16 @@ export default function DrawFlow() {
     }
   };
 
+  // Push, never replace, and mark the Draw as one we're coming back to: the Title page
+  // goes on top of this screen, and the knock-outs made so far survive the trip either
+  // way — mounted underneath, or adopted again by the effect above.
+  const inspect = (titleId: string) => {
+    if (!drawId) return;
+    inspecting = { jarId, drawId };
+    tap(() => Haptics.selectionAsync());
+    router.push(`/title/${titleId}`);
+  };
+
   const putThemBack = async () => {
     if (!drawId) return;
     tap(() => Haptics.selectionAsync());
@@ -269,6 +320,7 @@ export default function DrawFlow() {
             survivorCount={survivors.length}
             onKnockOut={knockOut}
             onPutThemBack={putThemBack}
+            onInspect={inspect}
           />
         ) : phase === "pause" ? (
           <PauseStage />
@@ -406,13 +458,14 @@ function KnockoutStage({
   survivorCount,
   onKnockOut,
   onPutThemBack,
+  onInspect,
 }: {
   candidates: CandidateRow[];
   survivorCount: number;
   onKnockOut: (titleId: string) => void;
   onPutThemBack: () => void;
+  onInspect: (titleId: string) => void;
 }) {
-  const cols = candidates.length <= 3 ? 1 : 2;
   const anyOut = candidates.some((c) => c.knocked_out_at != null);
 
   return (
@@ -432,22 +485,25 @@ function KnockoutStage({
           >
             {survivorCount} left
           </Text>
-          <Meta className="pt-1">
-            Tap a slip to knock it out. Not tonight — not forever.
+          <Meta className="pt-1 text-center">
+            Tap a title to knock it out. Not tonight — not forever.
+          </Meta>
+          <Meta className="pt-0.5 text-center">
+            Unsure? Tap ⓘ to read it — the draw waits.
           </Meta>
         </View>
 
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 11 }}>
+        <View style={{ gap: 10 }}>
           {candidates.map((c, idx) => (
-            <View key={c.id} style={{ width: cols === 1 ? "100%" : "48%" }}>
-              <CandidateCard
-                title={c}
-                index={idx}
-                knockedOut={c.knocked_out_at != null}
-                disabled={survivorCount <= 1}
-                onPress={() => onKnockOut(c.id)}
-              />
-            </View>
+            <CandidateCard
+              key={c.id}
+              title={c}
+              index={idx}
+              knockedOut={c.knocked_out_at != null}
+              disabled={survivorCount <= 1}
+              onPress={() => onKnockOut(c.id)}
+              onInspect={() => onInspect(c.id)}
+            />
           ))}
         </View>
 
@@ -485,15 +541,18 @@ function CandidateCard({
   knockedOut,
   disabled,
   onPress,
+  onInspect,
 }: {
   title: CandidateRow;
   index: number;
   knockedOut: boolean;
   disabled: boolean;
   onPress: () => void;
+  onInspect: () => void;
 }) {
   const k = useSharedValue(knockedOut ? 1 : 0);
   const tilt = TILTS[index % TILTS.length];
+  const meta = metaLine(title);
 
   useEffect(() => {
     k.value = withTiming(knockedOut ? 1 : 0, {
@@ -522,38 +581,42 @@ function CandidateCard({
       <Animated.View
         style={[
           {
-            minHeight: 104,
-            padding: 13,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            padding: 12,
             borderRadius: radius.card,
             borderWidth: 1,
             borderColor: paper.border,
             backgroundColor: paper.card,
-            justifyContent: "space-between",
           },
           shadow.slip,
           cardStyle,
         ]}
       >
-        <Text
-          style={{
-            fontFamily: font.hand,
-            fontSize: 22,
-            lineHeight: 25,
-            color: ink.primary,
-          }}
+        <Poster
+          uri={posterUrl(title.poster_path, "w154")}
+          width={46}
+          height={68}
+          fallback={title.name?.[0]?.toUpperCase()}
+        />
+        <View className="flex-1 gap-0.5">
+          <TitleName numberOfLines={2}>{title.name}</TitleName>
+          {meta ? <Meta numberOfLines={1}>{meta}</Meta> : null}
+        </View>
+
+        {/* Reading a slip is not the same as vetoing it: this sits on top of the card's
+            own press, and stays live even once the slip is out. */}
+        <Pressable
+          onPress={onInspect}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={`About ${title.name}`}
+          className="active:opacity-60"
         >
-          {title.name}
-        </Text>
-        <Text
-          style={{
-            fontFamily: font.ui,
-            fontSize: 11.5,
-            color: ink.muted,
-            marginTop: 8,
-          }}
-        >
-          {metaLine(title)}
-        </Text>
+          <InfoGlyph />
+        </Pressable>
+
         <Animated.View
           pointerEvents="none"
           style={[
@@ -571,6 +634,41 @@ function CandidateCard({
         />
       </Animated.View>
     </Pressable>
+  );
+}
+
+/** A circled "i", drawn from primitives per the app's no-icon-library rule. */
+function InfoGlyph() {
+  return (
+    <View
+      style={{
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        borderWidth: 1.2,
+        borderColor: ink.muted,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <View
+        style={{
+          width: 1.6,
+          height: 1.6,
+          borderRadius: 1,
+          backgroundColor: ink.muted,
+        }}
+      />
+      <View
+        style={{
+          width: 1.6,
+          height: 5.5,
+          marginTop: 1.6,
+          borderRadius: 1,
+          backgroundColor: ink.muted,
+        }}
+      />
+    </View>
   );
 }
 
