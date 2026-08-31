@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Button } from "@/components/button";
-import { Field } from "@/components/field";
 import { FilterBuilder } from "@/components/filter/filter-builder";
 import { MatchBar } from "@/components/filter/match-bar";
 import { Loading } from "@/components/loading";
@@ -42,16 +41,12 @@ export default function EditJarFilter() {
     }
   }, [jar, userId]);
 
-  const [name, setName] = useState("");
   const [draft, setDraft] = useState<FilterDraft | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (jar && draft === null && initial) {
-      setName(jar.name ?? "");
-      setDraft(initial);
-    }
+    if (jar && draft === null && initial) setDraft(initial);
   }, [jar, draft, initial]);
 
   const previewFilter = usePreviewFilter(draft ?? filterToDraft(null), userId);
@@ -63,12 +58,6 @@ export default function EditJarFilter() {
 
   if (isLoading) return <Loading />;
   if (!jar) return <Loading note="That jar isn't here." />;
-
-  const saveName = () => {
-    const next = name.trim();
-    if (!next || next === jar.name) return;
-    jars.renameJar(db, jar.id, next).catch(() => setName(jar.name ?? ""));
-  };
 
   const save = async () => {
     if (busy || !draft) return;
@@ -113,16 +102,6 @@ export default function EditJarFilter() {
           <Eyebrow>Filter</Eyebrow>
           <LayerTitle>What goes in</LayerTitle>
         </View>
-
-        <Field
-          label="Jar name"
-          value={name}
-          onChangeText={setName}
-          onBlur={saveName}
-          onSubmitEditing={saveName}
-          autoCapitalize="words"
-          returnKeyType="done"
-        />
 
         {draft ? (
           <FilterBuilder

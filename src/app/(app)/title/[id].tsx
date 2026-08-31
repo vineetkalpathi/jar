@@ -2,14 +2,23 @@ import { useQuery } from "@powersync/react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { HouseholdRating, type RatingWithCategory } from "@/components/household-rating";
+import {
+  HouseholdRating,
+  type RatingWithCategory,
+} from "@/components/household-rating";
 import { LibraryStatus } from "@/components/library-status";
 import { Loading } from "@/components/loading";
+import { JarCountBadge, PinToJarButton } from "@/components/pin-to-jar-sheet";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
 import { ViewingStatus } from "@/components/seen-status";
 import { TitleTags } from "@/components/title-tags";
-import { CastAndCrew, ExternalLinks, TmdbRating, WatchProviders } from "@/components/tmdb-facts";
+import {
+  CastAndCrew,
+  ExternalLinks,
+  TmdbRating,
+  WatchProviders,
+} from "@/components/tmdb-facts";
 import { DarkBody, DarkMeta, DarkTitle } from "@/components/text";
 import {
   annotations,
@@ -21,7 +30,12 @@ import {
 } from "@/lib/db";
 import { useUserId } from "@/lib/auth/session";
 import { useHousehold } from "@/lib/household/active";
-import { getTitleDetails, posterUrl, type TmdbMediaType, type TmdbTitleDetails } from "@/lib/tmdb";
+import {
+  getTitleDetails,
+  posterUrl,
+  type TmdbMediaType,
+  type TmdbTitleDetails,
+} from "@/lib/tmdb";
 
 /**
  * A Title, read — not handled. The design language's own words for the dark register:
@@ -41,11 +55,20 @@ export default function TitleDetail() {
   const household = useHousehold();
   const userId = useUserId();
 
-  const { data: titleRows, isLoading } = useQuery<TitleRow>(library.TITLE_BY_ID, [id]);
+  const { data: titleRows, isLoading } = useQuery<TitleRow>(
+    library.TITLE_BY_ID,
+    [id],
+  );
   const title = titleRows[0];
 
-  const { data: genreRows } = useQuery<{ genre: string }>(library.GENRES_FOR_TITLE, [id]);
-  const { data: tags } = useQuery<TagRow>(annotations.TAGS_FOR_TITLE, [household.id, id]);
+  const { data: genreRows } = useQuery<{ genre: string }>(
+    library.GENRES_FOR_TITLE,
+    [id],
+  );
+  const { data: tags } = useQuery<TagRow>(annotations.TAGS_FOR_TITLE, [
+    household.id,
+    id,
+  ]);
   const { data: categories } = useQuery<RatingCategoryRow>(
     households.CATEGORIES_FOR_HOUSEHOLD,
     [household.id],
@@ -56,7 +79,9 @@ export default function TitleDetail() {
   );
 
   const [tmdb, setTmdb] = useState<TmdbTitleDetails | null>(null);
-  const [tmdbStatus, setTmdbStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [tmdbStatus, setTmdbStatus] = useState<"loading" | "ready" | "error">(
+    "loading",
+  );
 
   useEffect(() => {
     if (!title?.tmdb_id || !title.media_type) {
@@ -84,7 +109,10 @@ export default function TitleDetail() {
   if (isLoading) return <Loading />;
   if (!title) return <Loading note="That title isn't here." />;
 
-  const meta = [title.release_year, title.runtime ? `${title.runtime} min` : null]
+  const meta = [
+    title.release_year,
+    title.runtime ? `${title.runtime} min` : null,
+  ]
     .filter(Boolean)
     .join(" · ");
 
@@ -99,9 +127,15 @@ export default function TitleDetail() {
         >
           <Text className="type-section-title text-dark-ink-secondary">‹</Text>
         </Pressable>
-        {/* Every path into this screen originates from the Household's own Library
-            (a Jar slip, or "View" right after adding) — always true, never a live check. */}
-        <LibraryStatus inLibrary />
+        {/* A row of glyph controls. Every path into this screen originates from the
+            Household's Library, so `LibraryStatus` is always the settled state. Each
+            control's sheet explains itself when tapped. */}
+        <View className="flex-row items-center gap-3">
+          <JarCountBadge titleId={title.id} householdId={household.id} />
+          <ViewingStatus titleId={title.id} userId={userId} />
+          <PinToJarButton titleId={title.id} householdId={household.id} />
+          <LibraryStatus inLibrary />
+        </View>
       </View>
 
       <View className="flex-row items-start gap-4">
@@ -115,7 +149,9 @@ export default function TitleDetail() {
         />
         <View className="flex-1 gap-1.5">
           <DarkTitle>{title.name}</DarkTitle>
-          {meta ? <Text className="type-title-large text-dark-ink-muted">{meta}</Text> : null}
+          {meta ? (
+            <Text className="type-title-large text-dark-ink-muted">{meta}</Text>
+          ) : null}
           {genreRows.length > 0 ? (
             <DarkMeta>{genreRows.map((g) => g.genre).join(" · ")}</DarkMeta>
           ) : null}
@@ -124,13 +160,12 @@ export default function TitleDetail() {
         </View>
       </View>
 
-      {/* Its own row, not in the poster column — a long title makes that column taller
-          than the poster and this would hang off the bottom of the artwork. */}
-      <ViewingStatus titleId={title.id} userId={userId} />
-
       <View className="gap-1.5 pt-5">
         <Overview title={title} tmdb={tmdb} status={tmdbStatus} />
-        <CastAndCrew cast={tmdb?.cast ?? []} directors={tmdb?.directors ?? []} />
+        <CastAndCrew
+          cast={tmdb?.cast ?? []}
+          directors={tmdb?.directors ?? []}
+        />
       </View>
 
       <WatchProviders providers={tmdb?.watchProviders ?? null} />
@@ -166,7 +201,8 @@ function Overview({
     return <DarkMeta>Not linked to TMDB — added by hand.</DarkMeta>;
   }
   if (status === "loading") return <DarkMeta>Loading overview…</DarkMeta>;
-  if (status === "error") return <DarkMeta>Couldn't reach TMDB for the overview.</DarkMeta>;
+  if (status === "error")
+    return <DarkMeta>Couldn't reach TMDB for the overview.</DarkMeta>;
   if (!tmdb?.overview) return null;
   return <DarkBody>{tmdb.overview}</DarkBody>;
 }

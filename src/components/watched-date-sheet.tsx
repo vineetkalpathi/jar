@@ -14,8 +14,7 @@
 
 import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { Pressable, Text, View } from "react-native";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -27,6 +26,7 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
+import { BottomSheet } from "./bottom-sheet";
 import { DarkEyebrow, DarkMeta } from "./text";
 import { daysInMonth, MONTH_NAMES, type WatchPrecision } from "@/lib/time";
 import { accent, dark, font, paper } from "@/theme";
@@ -100,14 +100,19 @@ export function WatchedDateSheet({
       setYear(initial.year);
       setMonth(initialPrecision === "year" ? null : initial.month);
       setDay(
-        initialPrecision === "year" || initialPrecision === "month" ? null : initial.day,
+        initialPrecision === "year" || initialPrecision === "month"
+          ? null
+          : initial.day,
       );
     }
     setOpenKey((k) => k + 1);
   }, [visible, initial, initialPrecision]);
 
   const dayCount = month == null ? 0 : daysInMonth(year, month);
-  const DAY_ITEMS = ["Any", ...Array.from({ length: dayCount }, (_, i) => String(i + 1))];
+  const DAY_ITEMS = [
+    "Any",
+    ...Array.from({ length: dayCount }, (_, i) => String(i + 1)),
+  ];
 
   const clampDay = (y: number, m: number | null, d: number | null) => {
     if (m == null || d == null) return d;
@@ -131,101 +136,116 @@ export function WatchedDateSheet({
   const save = () => onSave({ year, month, day: month == null ? null : day });
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      {/* A Modal renders in its own view tree, outside the app's GestureHandlerRootView,
-          so the wheels' scroll views get their own root here or they never see a drag. */}
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <View className="flex-1 justify-end">
-          {/* Backdrop as a sibling *behind* the sheet — never an ancestor of the
-              scroll views, which would swallow their pan. */}
-          <Pressable
-            style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.45)" }]}
-            onPress={onClose}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-          />
-
-          <View
-            className="px-6 pb-10 pt-5"
-            style={{
-              backgroundColor: dark.surface,
-              borderTopLeftRadius: 14,
-              borderTopRightRadius: 14,
-              borderWidth: 1,
-              borderColor: dark.border,
-            }}
-          >
-            <View className="mb-4 gap-1">
-              <DarkEyebrow>When did you watch it?</DarkEyebrow>
-              <DarkMeta>Approximate is fine — leave the day, or the month, on “Any”.</DarkMeta>
-            </View>
-
-            <View className="mt-1 flex-row">
-              <ColumnHead flex={1}>Year</ColumnHead>
-              <ColumnHead flex={1.25}>Month</ColumnHead>
-              <ColumnHead flex={0.9}>Day</ColumnHead>
-            </View>
-
-            <View style={{ height: WHEEL_HEIGHT }}>
-              <View key={openKey} className="flex-row" style={{ height: WHEEL_HEIGHT }}>
-                <Wheel items={YEAR_ITEMS} index={year - MIN_YEAR} onChange={onYear} flex={1} />
-                <Wheel items={MONTH_ITEMS} index={month ?? 0} onChange={onMonth} flex={1.25} />
-                <Wheel
-                  items={DAY_ITEMS}
-                  index={day ?? 0}
-                  onChange={onDay}
-                  enabled={month != null}
-                  flex={0.9}
-                />
-              </View>
-
-              {/* The selection band — one row tall, centred, spanning all three wheels. */}
-              <View
-                pointerEvents="none"
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  top: PAD,
-                  height: ITEM_HEIGHT,
-                  borderTopWidth: 1,
-                  borderBottomWidth: 1,
-                  borderColor: dark.border,
-                  backgroundColor: "rgba(63,91,74,0.12)",
-                }}
-              />
-            </View>
-
-            <View className="mt-6 flex-row gap-3">
-              {onRemove ? (
-                <Pressable
-                  onPress={onRemove}
-                  accessibilityRole="button"
-                  className="flex-1 items-center justify-center rounded-full active:opacity-70"
-                  style={{ height: 46, borderWidth: 1.5, borderColor: dark.border }}
-                >
-                  <Text
-                    style={{ fontFamily: font.uiBold, fontSize: 14, color: dark.textSecondary }}
-                  >
-                    Mark unwatched
-                  </Text>
-                </Pressable>
-              ) : null}
-              <Pressable
-                onPress={save}
-                accessibilityRole="button"
-                className="flex-1 items-center justify-center rounded-full active:opacity-80"
-                style={{ height: 46, backgroundColor: accent.forest }}
-              >
-                <Text style={{ fontFamily: font.uiBold, fontSize: 14, color: paper.card }}>
-                  {seen ? "Save date" : "Mark as seen"}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      scrimColor="rgba(0,0,0,0.45)"
+    >
+      <View
+        className="px-6 pb-10 pt-5"
+        style={{
+          backgroundColor: dark.surface,
+          borderTopLeftRadius: 14,
+          borderTopRightRadius: 14,
+          borderWidth: 1,
+          borderColor: dark.border,
+        }}
+      >
+        <View className="mb-4 gap-1">
+          <DarkEyebrow>When did you watch it?</DarkEyebrow>
+          <DarkMeta>
+            Approximate is fine — leave the day, or the month, on “Any”.
+          </DarkMeta>
         </View>
-      </GestureHandlerRootView>
-    </Modal>
+
+        <View className="mt-1 flex-row">
+          <ColumnHead flex={1}>Year</ColumnHead>
+          <ColumnHead flex={1.25}>Month</ColumnHead>
+          <ColumnHead flex={0.9}>Day</ColumnHead>
+        </View>
+
+        <View style={{ height: WHEEL_HEIGHT }}>
+          <View
+            key={openKey}
+            className="flex-row"
+            style={{ height: WHEEL_HEIGHT }}
+          >
+            <Wheel
+              items={YEAR_ITEMS}
+              index={year - MIN_YEAR}
+              onChange={onYear}
+              flex={1}
+            />
+            <Wheel
+              items={MONTH_ITEMS}
+              index={month ?? 0}
+              onChange={onMonth}
+              flex={1.25}
+            />
+            <Wheel
+              items={DAY_ITEMS}
+              index={day ?? 0}
+              onChange={onDay}
+              enabled={month != null}
+              flex={0.9}
+            />
+          </View>
+
+          {/* The selection band — one row tall, centred, spanning all three wheels. */}
+          <View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: PAD,
+              height: ITEM_HEIGHT,
+              borderTopWidth: 1,
+              borderBottomWidth: 1,
+              borderColor: dark.border,
+              backgroundColor: "rgba(63,91,74,0.12)",
+            }}
+          />
+        </View>
+
+        <View className="mt-6 flex-row gap-3">
+          {onRemove ? (
+            <Pressable
+              onPress={onRemove}
+              accessibilityRole="button"
+              className="flex-1 items-center justify-center rounded-full active:opacity-70"
+              style={{ height: 46, borderWidth: 1.5, borderColor: dark.border }}
+            >
+              <Text
+                style={{
+                  fontFamily: font.uiBold,
+                  fontSize: 14,
+                  color: dark.textSecondary,
+                }}
+              >
+                Mark unwatched
+              </Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={save}
+            accessibilityRole="button"
+            className="flex-1 items-center justify-center rounded-full active:opacity-80"
+            style={{ height: 46, backgroundColor: accent.forest }}
+          >
+            <Text
+              style={{
+                fontFamily: font.uiBold,
+                fontSize: 14,
+                color: paper.card,
+              }}
+            >
+              {seen ? "Save date" : "Mark as seen"}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </BottomSheet>
   );
 }
 
@@ -316,7 +336,10 @@ function Wheel({
   }, [index]);
 
   const settle = (y: number) => {
-    const i = Math.min(Math.max(Math.round(y / ITEM_HEIGHT), 0), items.length - 1);
+    const i = Math.min(
+      Math.max(Math.round(y / ITEM_HEIGHT), 0),
+      items.length - 1,
+    );
     if (i !== reported.current) {
       reported.current = i;
       onChange(i);
@@ -344,7 +367,13 @@ function Wheel({
       }}
     >
       {items.map((label, i) => (
-        <WheelRow key={`${label}-${i}`} label={label} i={i} scroll={scroll} enabled={enabled} />
+        <WheelRow
+          key={`${label}-${i}`}
+          label={label}
+          i={i}
+          scroll={scroll}
+          enabled={enabled}
+        />
       ))}
     </Animated.ScrollView>
   );
@@ -364,11 +393,20 @@ function WheelRow({
   const style = useAnimatedStyle(() => {
     const d = Math.abs(scroll.value / ITEM_HEIGHT - i);
     return {
-      opacity: interpolate(d, [0, 1, 2, 3], [1, 0.44, 0.17, 0.06], Extrapolation.CLAMP),
+      opacity: interpolate(
+        d,
+        [0, 1, 2, 3],
+        [1, 0.44, 0.17, 0.06],
+        Extrapolation.CLAMP,
+      ),
       transform: [
         { perspective: 480 },
-        { scale: interpolate(d, [0, 1, 2], [1, 0.88, 0.8], Extrapolation.CLAMP) },
-        { rotateX: `${interpolate(d, [0, 1, 2.5], [0, 24, 52], Extrapolation.CLAMP)}deg` },
+        {
+          scale: interpolate(d, [0, 1, 2], [1, 0.88, 0.8], Extrapolation.CLAMP),
+        },
+        {
+          rotateX: `${interpolate(d, [0, 1, 2.5], [0, 24, 52], Extrapolation.CLAMP)}deg`,
+        },
       ],
     };
   });

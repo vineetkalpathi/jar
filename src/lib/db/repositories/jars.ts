@@ -25,6 +25,25 @@ export const JARS_FOR_HOUSEHOLD = `
   select * from jar where household_id = ? order by name
 `;
 
+/**
+ * A Jar's manual overrides — the Titles Pinned into it or Excluded from it — as full
+ * Title rows plus the override `kind`. Parameters: `[jarId]`.
+ */
+export const OVERRIDES_FOR_JAR = `
+  select t.*, jo.kind
+  from jar_override jo
+  join title t on t.id = jo.title_id
+  where jo.jar_id = ?
+  order by jo.kind, t.name
+`;
+
+/**
+ * The override `kind` for one Title in one Jar, or no rows. Parameters: `[jarId, titleId]`.
+ */
+export const OVERRIDE_FOR_JAR_TITLE = `
+  select kind from jar_override where jar_id = ? and title_id = ?
+`;
+
 export class JarFilterError extends Error {}
 
 /**
@@ -60,13 +79,19 @@ export async function loadCompileContext(
  * Treating it as "no filter" would quietly turn the Jar into its Pins alone, which
  * looks like data loss and gives no clue why.
  */
-export function parseJarFilter(jar: Pick<JarRow, "id" | "filter">): Filter | null {
+export function parseJarFilter(
+  jar: Pick<JarRow, "id" | "filter">,
+): Filter | null {
   if (jar.filter == null || jar.filter === "") return null;
 
   const result = parseFilter(jar.filter);
   if (!result.ok) {
-    const detail = result.issues.map((i) => `${i.path}: ${i.message}`).join("; ");
-    throw new JarFilterError(`Jar ${jar.id} has an unreadable filter — ${detail}`);
+    const detail = result.issues
+      .map((i) => `${i.path}: ${i.message}`)
+      .join("; ");
+    throw new JarFilterError(
+      `Jar ${jar.id} has an unreadable filter — ${detail}`,
+    );
   }
 
   return result.value;
@@ -82,7 +107,9 @@ export async function jarContentsQuery(
   db: AbstractPowerSyncDatabase,
   jarId: string,
 ): Promise<CompiledQuery> {
-  const jar = await db.getOptional<JarRow>(`select * from jar where id = ?`, [jarId]);
+  const jar = await db.getOptional<JarRow>(`select * from jar where id = ?`, [
+    jarId,
+  ]);
   if (!jar) throw new NotFoundError(`No jar ${jarId}`);
 
   const contents = compileJarContents(
@@ -177,10 +204,10 @@ export async function setOverride(
   kind: "pin" | "exclusion",
 ): Promise<void> {
   await db.writeTransaction(async (tx) => {
-    await tx.execute(`delete from jar_override where jar_id = ? and title_id = ?`, [
-      jarId,
-      titleId,
-    ]);
+    await tx.execute(
+      `delete from jar_override where jar_id = ? and title_id = ?`,
+      [jarId, titleId],
+    );
     await tx.execute(
       `insert into jar_override (id, jar_id, title_id, kind) values (?, ?, ?, ?)`,
       [newId(), jarId, titleId, kind],
@@ -193,10 +220,10 @@ export async function clearOverride(
   jarId: string,
   titleId: string,
 ): Promise<void> {
-  await db.execute(`delete from jar_override where jar_id = ? and title_id = ?`, [
-    jarId,
-    titleId,
-  ]);
+  await db.execute(
+    `delete from jar_override where jar_id = ? and title_id = ?`,
+    [jarId, titleId],
+  );
 }
 
 /**

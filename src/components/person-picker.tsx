@@ -12,7 +12,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -20,6 +19,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { BottomSheet } from "./bottom-sheet";
 import { Field } from "./field";
 import { Eyebrow, Meta } from "./text";
 import { searchPeople, type TmdbPersonResult } from "@/lib/tmdb/people";
@@ -102,7 +102,9 @@ export function PersonPicker({
             <Text className="type-body text-ink">{p.name}</Text>
           </Pressable>
         ))}
-        {loading ? <ActivityIndicator className="py-4" color={accent.forest} /> : null}
+        {loading ? (
+          <ActivityIndicator className="py-4" color={accent.forest} />
+        ) : null}
         {!loading && trimmed.length >= 2 && results.length === 0 ? (
           <Meta>No one by that name on TMDB.</Meta>
         ) : null}
@@ -115,41 +117,36 @@ export function PersonPicker({
   );
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-      <Pressable
-        className="flex-1 justify-end"
-        style={{ backgroundColor: "rgba(0,0,0,0.3)" }}
-        onPress={close}
+    <BottomSheet visible={visible} onClose={close}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <Pressable
-            className="bg-paper px-6 pb-10 pt-5"
-            style={{
-              borderTopLeftRadius: 10,
-              borderTopRightRadius: 10,
-              height: height * 0.6,
-            }}
-            onPress={() => {}}
-          >
-            <View className="mb-4 gap-1">
-              <Eyebrow>{heading}</Eyebrow>
-              {note ? <Meta>{note}</Meta> : null}
-            </View>
+        <View
+          className="bg-paper px-6 pb-10 pt-5"
+          style={{
+            borderTopLeftRadius: 10,
+            borderTopRightRadius: 10,
+            height: height * 0.6,
+          }}
+        >
+          <View className="mb-4 gap-1">
+            <Eyebrow>{heading}</Eyebrow>
+            {note ? <Meta>{note}</Meta> : null}
+          </View>
 
-            <Field
-              label="Search people"
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Greta Gerwig, Toshiro Mifune…"
-              autoCapitalize="words"
-              autoCorrect={false}
-              autoFocus
-            />
+          <Field
+            label="Search people"
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Greta Gerwig, Toshiro Mifune…"
+            autoCapitalize="words"
+            autoCorrect={false}
+            autoFocus
+          />
 
-            {body}
-          </Pressable>
-        </KeyboardAvoidingView>
-      </Pressable>
-    </Modal>
+          {body}
+        </View>
+      </KeyboardAvoidingView>
+    </BottomSheet>
   );
 }

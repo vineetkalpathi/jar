@@ -5,18 +5,18 @@
  * matching the primary-button treatment). The glyph is a drawn eye rather than a `+`.
  *
  * `SeenStatus` is the bare control — the library rows use it as a one-tap "mark seen".
- * `ViewingStatus` wraps it for the Title screen: there the eye toggles both ways and a
- * line beside it opens `WatchedDateSheet` to pin down a rough date.
+ * `ViewingStatus` wraps it for the Title screen, where it is just the eye glyph: tapping
+ * opens `WatchedDateSheet`, which does the explaining and the marking.
  */
 
 import { usePowerSync, useQuery } from "@powersync/react";
 import * as Haptics from "expo-haptics";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import { WatchedDateSheet } from "./watched-date-sheet";
 import { annotations, type ViewingRow } from "@/lib/db";
-import { formatWatchedOn, watchedOnParts, type WatchPrecision } from "@/lib/time";
-import { accent, dark, font, paper } from "@/theme";
+import { watchedOnParts, type WatchPrecision } from "@/lib/time";
+import { accent, paper } from "@/theme";
 
 const SIZE = 36;
 const BORDER_WIDTH = 1.5;
@@ -38,7 +38,14 @@ const tapFeedback = () => {
  */
 function EyeGlyph({ color }: { color: string }) {
   return (
-    <View style={{ width: 22, height: 16, alignItems: "center", justifyContent: "center" }}>
+    <View
+      style={{
+        width: 22,
+        height: 16,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
       <View
         style={{
           position: "absolute",
@@ -53,7 +60,14 @@ function EyeGlyph({ color }: { color: string }) {
           borderBottomLeftRadius: 1.5,
         }}
       />
-      <View style={{ width: 6.5, height: 6.5, borderRadius: 3.25, backgroundColor: color }} />
+      <View
+        style={{
+          width: 6.5,
+          height: 6.5,
+          borderRadius: 3.25,
+          backgroundColor: color,
+        }}
+      />
     </View>
   );
 }
@@ -116,35 +130,32 @@ export function SeenStatus({
 }
 
 /**
- * The Title-screen viewing block: the eye toggles seen/unseen straight away (today, at
- * `day` precision), and the line beside it opens the sheet to log or refine a rough
- * date. Forest-toned so it reads as *your* status next to TMDB's own rating above it.
+ * The Title-screen viewing control — just the eye glyph (filled when seen, outline when
+ * not). Tapping opens `WatchedDateSheet`, which explains itself and carries the actions:
+ * "Mark as seen" / "Mark unwatched" and the rough-date wheels.
  */
-export function ViewingStatus({ titleId, userId }: { titleId: string; userId: string }) {
+export function ViewingStatus({
+  titleId,
+  userId,
+}: {
+  titleId: string;
+  userId: string;
+}) {
   const db = usePowerSync();
-  const { data: viewings } = useQuery<ViewingRow>(annotations.VIEWINGS_BY_USER_FOR_TITLE, [
-    userId,
-    titleId,
-  ]);
+  const { data: viewings } = useQuery<ViewingRow>(
+    annotations.VIEWINGS_BY_USER_FOR_TITLE,
+    [userId, titleId],
+  );
   const latest = viewings[0] ?? null;
   const seen = viewings.length > 0;
 
-  const [busy, setBusy] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const toggle = async () => {
-    setBusy(true);
-    try {
-      if (seen) await annotations.unmarkLatestViewing(db, { userId, titleId });
-      else await annotations.recordViewing(db, { userId, titleId });
-    } catch (cause) {
-      console.warn("[viewing] could not toggle", cause);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const save = async (on: { year: number; month: number | null; day: number | null }) => {
+  const save = async (on: {
+    year: number;
+    month: number | null;
+    day: number | null;
+  }) => {
     try {
       if (latest) await annotations.setViewingDate(db, latest.id, on);
       else await annotations.recordViewing(db, { userId, titleId, on });
@@ -165,34 +176,16 @@ export function ViewingStatus({ titleId, userId }: { titleId: string; userId: st
     }
   };
 
-  const precision = (latest?.watched_precision ?? null) as WatchPrecision | null;
-  const line =
-    seen && latest?.watched_on
-      ? `Seen · ${formatWatchedOn(latest.watched_on, precision)}`
-      : "Unwatched";
+  const precision = (latest?.watched_precision ??
+    null) as WatchPrecision | null;
 
   return (
-    <View className="flex-row items-center gap-2 pt-4">
-      <SeenStatus seen={seen} busy={busy} onPress={toggle} />
-      <Pressable
+    <>
+      <SeenStatus
+        seen={seen}
         onPress={() => setSheetOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={seen ? "Edit when you watched it" : "Log when you watched it"}
-        className="flex-1 active:opacity-60"
-      >
-        <Text
-          numberOfLines={1}
-          style={{
-            fontFamily: font.uiMedium,
-            fontSize: 12.5,
-            letterSpacing: 0.3,
-            color: seen ? accent.forest : dark.textMuted,
-          }}
-        >
-          {line}
-        </Text>
-      </Pressable>
-
+        accessibilityLabel={seen ? "Your viewing" : "Mark as watched"}
+      />
       <WatchedDateSheet
         visible={sheetOpen}
         seen={seen}
@@ -202,6 +195,6 @@ export function ViewingStatus({ titleId, userId }: { titleId: string; userId: st
         onSave={save}
         onRemove={seen ? remove : undefined}
       />
-    </View>
+    </>
   );
 }

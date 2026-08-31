@@ -20,7 +20,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -29,7 +28,12 @@ import {
   View,
   type TextInputProps,
 } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { BottomSheet } from "./bottom-sheet";
 import { SearchField } from "./search-field";
 import { Eyebrow, Meta } from "./text";
 import { accent, font, ink } from "@/theme";
@@ -69,9 +73,13 @@ export function PickerSheet({
   useEffect(() => {
     // `keyboardWillShow` fires on iOS with the frame ahead of time; Android only has
     // the `did` events, and they still fire inside a Modal.
-    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const show = Keyboard.addListener(showEvt, (e) => setKb(e.endCoordinates.height));
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const show = Keyboard.addListener(showEvt, (e) =>
+      setKb(e.endCoordinates.height),
+    );
     const hide = Keyboard.addListener(hideEvt, () => setKb(0));
     return () => {
       show.remove();
@@ -91,48 +99,45 @@ export function PickerSheet({
   }));
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable
-        className="flex-1 justify-end"
-        style={{ backgroundColor: "rgba(0,0,0,0.3)" }}
-        onPress={onClose}
+    <BottomSheet visible={visible} onClose={onClose}>
+      <Animated.View
+        className="bg-paper"
+        style={[
+          {
+            borderTopLeftRadius: 10,
+            borderTopRightRadius: 10,
+            overflow: "hidden",
+          },
+          sheetStyle,
+        ]}
       >
-        <Animated.View
-          className="bg-paper"
-          style={[
-            { borderTopLeftRadius: 10, borderTopRightRadius: 10, overflow: "hidden" },
-            sheetStyle,
-          ]}
-        >
-          {/* Catches the touch so a tap on the sheet doesn't dismiss it. */}
-          <Pressable className="flex-1 px-6 pt-5" onPress={() => {}}>
-            <View className="mb-4 gap-1">
-              <Eyebrow>{heading}</Eyebrow>
-              {note ? <Meta>{note}</Meta> : null}
-            </View>
+        <View className="flex-1 px-6 pt-5">
+          <View className="mb-4 gap-1">
+            <Eyebrow>{heading}</Eyebrow>
+            {note ? <Meta>{note}</Meta> : null}
+          </View>
 
-            <SearchField
-              value={query}
-              onChangeText={onChangeText}
-              placeholder={placeholder}
-              autoCapitalize={autoCapitalize}
-              autoFocus
-              accessibilityLabel={searchAccessibilityLabel}
-            />
+          <SearchField
+            value={query}
+            onChangeText={onChangeText}
+            placeholder={placeholder}
+            autoCapitalize={autoCapitalize}
+            autoFocus
+            accessibilityLabel={searchAccessibilityLabel}
+          />
 
-            <ScrollView
-              className="mt-4 flex-1"
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              {children}
-            </ScrollView>
+          <ScrollView
+            className="mt-4 flex-1"
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {children}
+          </ScrollView>
 
-            {footer ? <View className="pt-3">{footer}</View> : null}
-          </Pressable>
-        </Animated.View>
-      </Pressable>
-    </Modal>
+          {footer ? <View className="pt-3">{footer}</View> : null}
+        </View>
+      </Animated.View>
+    </BottomSheet>
   );
 }
 
@@ -161,7 +166,9 @@ export function PickerRow({
     >
       <Text
         className="type-body"
-        style={{ color: added ? ink.muted : isAccent ? accent.forest : ink.primary }}
+        style={{
+          color: added ? ink.muted : isAccent ? accent.forest : ink.primary,
+        }}
       >
         {label}
       </Text>
@@ -186,7 +193,14 @@ function AddedPill() {
       style={{ backgroundColor: "rgba(63,91,74,0.12)" }}
       accessibilityLabel="Added"
     >
-      <Text style={{ fontFamily: font.uiBold, fontSize: 10, lineHeight: 12, color: accent.forest }}>
+      <Text
+        style={{
+          fontFamily: font.uiBold,
+          fontSize: 10,
+          lineHeight: 12,
+          color: accent.forest,
+        }}
+      >
         ✓
       </Text>
       <Text
