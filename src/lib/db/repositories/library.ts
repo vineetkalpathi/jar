@@ -16,7 +16,16 @@ type TmdbPersonInput = { tmdbPersonId: number; name: string };
 
 /**
  * A Household's Library with the facts every list view needs, derived rather than
- * stored: has this User seen it, how many times, and when last.
+ * stored: has this User seen it, how many times, when last, and what the Household
+ * as a whole makes of it.
+ *
+ * `household_rating` is one number for the shelf: the mean of every Rating on the
+ * Title, over the Household's members and the Categories it has activated. Flat, not
+ * a mean of per-Category means — a member who rated one axis counts once, not as much
+ * as a member who rated four. Null when nobody in the Household has rated it, which
+ * the list shows as a dash. The `rating_aggregator` policy deliberately doesn't apply:
+ * min/max are about picking a rater within one axis (`filter/compile.ts`), and mean
+ * nothing spread across axes as well.
  *
  * Parameters: `[userId, householdId]`.
  */
@@ -28,7 +37,13 @@ export const LIBRARY_FOR_HOUSEHOLD = `
     (select count(*) from viewing v
       where v.title_id = t.id and v.user_id = ?1)            as watch_count,
     (select max(v.watched_on) from viewing v
-      where v.title_id = t.id and v.user_id = ?1)            as last_watched_on
+      where v.title_id = t.id and v.user_id = ?1)            as last_watched_on,
+    (select avg(r.value) from rating r
+      join household_member hm
+        on hm.user_id = r.user_id and hm.household_id = ?2
+      join household_category hc
+        on hc.category_id = r.category_id and hc.household_id = ?2
+      where r.title_id = t.id)                               as household_rating
   from library_entry le
   join title t on t.id = le.title_id
   where le.household_id = ?2
@@ -148,6 +163,8 @@ export type LibraryEntryView = TitleRow & {
   added_by_user_id: string | null;
   watch_count: number;
   last_watched_on: string | null;
+  /** Mean of the Household's Ratings across its activated Categories; null if unrated. */
+  household_rating: number | null;
 };
 
 export async function library(

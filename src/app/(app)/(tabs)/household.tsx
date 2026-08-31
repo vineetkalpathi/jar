@@ -8,6 +8,7 @@ import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
 import { SearchField } from "@/components/search-field";
+import { HouseholdScore } from "@/components/household-score";
 import { SeenStatus } from "@/components/seen-status";
 import { TagStrip } from "@/components/tag";
 import { Body, Eyebrow, LayerTitle, Meta, ScreenTitle, TitleName } from "@/components/text";
@@ -720,7 +721,7 @@ function LibraryRow({
   // Root stays a plain `View` — a `Tappable` here wraps its children in `flex-1`, which
   // collapses to zero height inside a FlatList cell (title-row.tsx dodges the same way).
   return (
-    <View className="flex-row items-center gap-3 py-3">
+    <View className="flex-row items-center gap-2 py-3">
       <Tappable
         onPress={() => router.push(`/title/${row.id}`)}
         accessibilityLabel={`${row.name} details`}
@@ -739,6 +740,9 @@ function LibraryRow({
           </View>
         </View>
       </Tappable>
+      {/* Fact then action, in that order: the score is about the title, the eye is
+          something to do to it. */}
+      <HouseholdScore value={row.household_rating} />
       <SeenStatus
         seen={seen}
         busy={marking}
