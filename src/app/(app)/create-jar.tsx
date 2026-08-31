@@ -1,7 +1,7 @@
 import { usePowerSync } from "@powersync/react";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Button } from "@/components/button";
 import { Field } from "@/components/field";
 import { FilterBuilder } from "@/components/filter/filter-builder";
@@ -78,7 +78,17 @@ export default function CreateJar() {
         </View>
       }
     >
-      <View className="gap-8 pb-8 pt-12">
+      <Pressable
+        onPress={() => router.back()}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        className="pt-2 active:opacity-60"
+      >
+        <Text className="type-section-title text-ink-secondary">‹</Text>
+      </Pressable>
+
+      <View className="gap-8 pb-8 pt-6">
         <View className="gap-2">
           <Eyebrow>New jar</Eyebrow>
           <LayerTitle>What's it for?</LayerTitle>

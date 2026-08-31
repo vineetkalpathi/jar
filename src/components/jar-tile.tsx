@@ -114,26 +114,3 @@ export function JarTile({
     </Pressable>
   );
 }
-
-/**
- * The tile that isn't a jar yet. Dashed, matching height, and deliberately quiet — an
- * affordance rather than a jar with nothing in it.
- */
-export function NewJarTile({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="New jar"
-      onPress={onPress}
-      className="flex-1 active:opacity-70"
-    >
-      <View
-        style={{ height: jarTokens.tileHeight }}
-        className="items-center justify-center gap-1 rounded-card border-dashed-hairline"
-      >
-        <Text className="type-section-title text-ink-faint">＋</Text>
-        <EyebrowWide className="text-ink-faint">New jar</EyebrowWide>
-      </View>
-    </Pressable>
-  );
-}

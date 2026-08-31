@@ -1,8 +1,8 @@
 import { useQuery } from "@powersync/react";
 import { router } from "expo-router";
-import { FlatList, View } from "react-native";
+import { FlatList, Pressable, Text, View } from "react-native";
 import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
-import { JarTile, NewJarTile } from "@/components/jar-tile";
+import { JarTile } from "@/components/jar-tile";
 import { Screen } from "@/components/screen";
 import { Body, Eyebrow, Meta, ScreenTitle } from "@/components/text";
 import { jars, type JarRow } from "@/lib/db";
@@ -21,23 +21,33 @@ export default function Jars() {
   const household = useHousehold();
   const { data } = useQuery<JarRow>(jars.JARS_FOR_HOUSEHOLD, [household.id]);
 
-  // The "＋ New jar" tile is a grid cell, not a footer — it sits in the flow so it
-  // lands beside the last jar rather than below the grid. A trailing spacer keeps the
-  // final row half-width; without it `flex-1` stretches a lone tile across both
-  // columns and the jar comes out twice as wide as its neighbours.
-  const cells: (JarRow | "new" | "spacer")[] = [...data, "new"];
+  // A trailing spacer keeps a lone final tile half-width; without it `flex-1`
+  // stretches it across both columns and the jar comes out twice as wide as its
+  // neighbours.
+  const cells: (JarRow | "spacer")[] = [...data];
   if (cells.length % jarTokens.columns !== 0) cells.push("spacer");
 
   return (
     <Screen gutter="grid">
-      <View className="gap-1 pb-6 pt-2">
-        <Eyebrow>{household.name}</Eyebrow>
-        <ScreenTitle>Jars</ScreenTitle>
-        <Meta>
-          {data.length === 0
-            ? "Nothing to draw from yet"
-            : `${data.length} ${data.length === 1 ? "jar" : "jars"}`}
-        </Meta>
+      <View className="flex-row items-start justify-between pb-6 pt-2">
+        <View className="gap-1">
+          <Eyebrow>{household.name}</Eyebrow>
+          <ScreenTitle>Jars</ScreenTitle>
+          <Meta>
+            {data.length === 0
+              ? "Nothing to draw from yet"
+              : `${data.length} ${data.length === 1 ? "jar" : "jars"}`}
+          </Meta>
+        </View>
+        <Pressable
+          onPress={() => router.push("/create-jar")}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="New jar"
+          className="pt-1 active:opacity-60"
+        >
+          <Text className="type-screen-title text-ink">＋</Text>
+        </Pressable>
       </View>
 
       <FlatList
@@ -50,9 +60,6 @@ export default function Jars() {
         ListHeaderComponent={data.length === 0 ? <EmptyNote /> : null}
         renderItem={({ item }) => {
           if (item === "spacer") return <View className="flex-1" />;
-          if (item === "new") {
-            return <NewJarTile onPress={() => router.push("/create-jar")} />;
-          }
           return <JarCell jar={item} />;
         }}
       />
