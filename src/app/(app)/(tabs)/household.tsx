@@ -5,13 +5,11 @@ import { MatchBar } from "@/components/filter/match-bar";
 import { PredicateChip } from "@/components/filter/predicate-chip";
 import { useChipContext } from "@/components/filter/use-chip-context";
 import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
-import { MembersStrip } from "@/components/members-strip";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
 import { SearchField } from "@/components/search-field";
 import { SeenStatus } from "@/components/seen-status";
-import { AddTag, Tag, TagList, TagStrip } from "@/components/tag";
-import { TagPicker } from "@/components/tag-picker";
+import { TagStrip } from "@/components/tag";
 import { Body, Eyebrow, LayerTitle, Meta, ScreenTitle, TitleName } from "@/components/text";
 import { useUserId } from "@/lib/auth/session";
 import { annotations, jars, library, type TagRow } from "@/lib/db";
@@ -52,13 +50,10 @@ import {
 const posterBackfillAttempted = new Set<string>();
 
 /**
- * Household — the left tab, and the watch group's first-class home. The page stacks a
- * few household-wide sections — Members, and placeholders for the Log and Tags — above
- * the Library browse view, so the shelf stays one scroll away; the household name is
- * the page identity and the gear opens the hub (`household-settings.tsx`).
- *
- * The sections above Library scroll with the list — they ride in `ListHeaderComponent`
- * so the carousel and placeholders don't eat fixed vertical space.
+ * Household — the left tab, and the watch group's first-class home: the Library browse
+ * and filter view, nothing else. The household name is the page identity; beside it the
+ * log glyph opens the viewing history (`log.tsx`) and the gear opens the settings hub
+ * (`household-settings.tsx`), where members, tags, rating axes and policy all live.
  */
 export default function Household() {
   const db = usePowerSync();
@@ -129,15 +124,26 @@ export default function Household() {
     <Screen gutter="grid">
       <View className="flex-row items-start justify-between pb-4 pt-2">
         <ScreenTitle>{household.name}</ScreenTitle>
-        <Pressable
-          onPress={() => router.push("/household-settings")}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Household settings"
-          className="pt-3 active:opacity-60"
-        >
-          <SettingsGlyph />
-        </Pressable>
+        <View className="flex-row items-center gap-5 pt-3">
+          <Pressable
+            onPress={() => router.push("/log")}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Viewing log"
+            className="active:opacity-60"
+          >
+            <LogGlyph />
+          </Pressable>
+          <Pressable
+            onPress={() => router.push("/household-settings")}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Household settings"
+            className="active:opacity-60"
+          >
+            <SettingsGlyph />
+          </Pressable>
+        </View>
       </View>
 
       <FlatList
@@ -152,48 +158,35 @@ export default function Household() {
         }}
         ItemSeparatorComponent={() => <View className="h-px bg-hairline" />}
         ListHeaderComponent={
-          <View className="gap-8 pb-3">
-            <View className="gap-2">
-              <Eyebrow>Members</Eyebrow>
-              <MembersStrip householdId={household.id} />
+          <View
+            className="gap-2 pb-3"
+            onLayout={(e) => {
+              searchY.current = e.nativeEvent.layout.y;
+            }}
+          >
+            <View className="flex-row items-baseline justify-between">
+              <Eyebrow>Library</Eyebrow>
+              <Meta>{count}</Meta>
             </View>
-
-            <PlaceholderSection
-              title="Log"
-              note="Recent viewings will land here."
-            />
-            <TagsSection householdId={household.id} />
-
-            <View
-              className="gap-2"
-              onLayout={(e) => {
-                searchY.current = e.nativeEvent.layout.y;
+            <LibrarySearch
+              value={query}
+              onChangeText={setQuery}
+              onFocus={focusSearch}
+              onAdd={() => router.navigate("/explore")}
+              filterActive={filterActive}
+              onFilter={() => {
+                setFilterDraft((d) => d ?? emptyDraft());
+                setFilterOpen(true);
               }}
-            >
-              <View className="flex-row items-baseline justify-between">
-                <Eyebrow>Library</Eyebrow>
-                <Meta>{count}</Meta>
-              </View>
-              <LibrarySearch
-                value={query}
-                onChangeText={setQuery}
-                onFocus={focusSearch}
-                onAdd={() => router.navigate("/explore")}
-                filterActive={filterActive}
-                onFilter={() => {
-                  setFilterDraft((d) => d ?? emptyDraft());
-                  setFilterOpen(true);
-                }}
+            />
+            {filterActive ? (
+              <AppliedFilterPills
+                draft={filterDraft!}
+                householdId={household.id}
+                onChange={setFilterDraft}
+                onSaveAsJar={() => setSavingJar(true)}
               />
-              {filterActive ? (
-                <AppliedFilterPills
-                  draft={filterDraft!}
-                  householdId={household.id}
-                  onChange={setFilterDraft}
-                  onSaveAsJar={() => setSavingJar(true)}
-                />
-              ) : null}
-            </View>
+            ) : null}
           </View>
         }
         ListEmptyComponent={
@@ -517,82 +510,8 @@ function SaveAsJarModal({
 }
 
 // ---------------------------------------------------------------------------
-// Household sections
+// Library
 // ---------------------------------------------------------------------------
-
-/** A section that has a home on the page but no content yet. */
-function PlaceholderSection({ title, note }: { title: string; note: string }) {
-  return (
-    <View className="gap-2">
-      <Eyebrow>{title}</Eyebrow>
-      <View className="rounded-card border-dashed-hairline px-4 py-5">
-        <Text className="type-meta text-ink-faint">{note}</Text>
-      </View>
-    </View>
-  );
-}
-
-/**
- * The Household's shared tag vocabulary. Each chip carries its title count and a `×`
- * that deletes the tag everywhere (confirmed — it pulls the label off every title).
- * "＋ New tag" opens the same picker the Title screen uses; existing tags show as
- * "Added", so the only live action from here is coining a new one.
- */
-function TagsSection({ householdId }: { householdId: string }) {
-  const db = usePowerSync();
-  const { data: tags } = useQuery<TagRow & { title_count: number }>(
-    annotations.TAGS_FOR_HOUSEHOLD,
-    [householdId],
-  );
-  const [pickerOpen, setPickerOpen] = useState(false);
-
-  const remove = (tag: TagRow) => {
-    Alert.alert(
-      `Delete ${tag.name}?`,
-      "It comes off every title that carries it. Ratings and viewings are untouched.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () =>
-            void annotations
-              .deleteTag(db, tag.id)
-              .catch((cause) => console.warn("[tags] could not delete", cause)),
-        },
-      ],
-    );
-  };
-
-  return (
-    <View className="gap-2">
-      <Eyebrow>Tags</Eyebrow>
-      {tags.length === 0 ? (
-        <Meta>The household's shared labels, once there are some.</Meta>
-      ) : null}
-      <TagList>
-        {tags.map((tag) => (
-          <Tag
-            key={tag.id}
-            label={tag.name ?? ""}
-            onRemove={() => remove(tag)}
-          />
-        ))}
-        <AddTag label="New tag" onPress={() => setPickerOpen(true)} />
-      </TagList>
-
-      <TagPicker
-        visible={pickerOpen}
-        householdId={householdId}
-        activeIds={tags.map((t) => t.id)}
-        heading="New tag"
-        note="Type a label the household will share across titles."
-        onClose={() => setPickerOpen(false)}
-        onPick={() => {}}
-      />
-    </View>
-  );
-}
 
 /** Search, filter, and "add a title" — one row of first-class controls. */
 function LibrarySearch({
@@ -661,6 +580,28 @@ function LibrarySearch({
           +
         </Text>
       </Pressable>
+    </View>
+  );
+}
+
+/** A ruled page — the "log" mark: three entries, each a tick and a line. Drawn. */
+function LogGlyph({ color = ink.muted }: { color?: string }) {
+  return (
+    <View style={{ width: 20, height: 16, justifyContent: "space-between", paddingVertical: 1 }}>
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: color }} />
+          <View
+            style={{
+              flex: 1,
+              height: 1.5,
+              borderRadius: 1,
+              backgroundColor: color,
+              opacity: i === 2 ? 0.5 : 1,
+            }}
+          />
+        </View>
+      ))}
     </View>
   );
 }

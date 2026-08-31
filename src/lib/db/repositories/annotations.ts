@@ -208,6 +208,31 @@ export const VIEWINGS_BY_USER_FOR_TITLE = `
 `;
 
 /**
+ * Every Viewing of a Title in the Household's Library, newest first, with who watched —
+ * the Log. Joined through `library_entry` so a member's Viewing of something this
+ * Household doesn't stock stays out, and through `household_member` so a Viewing by
+ * someone who has since left doesn't linger. Parameters: `[householdId]`.
+ */
+export const VIEWINGS_FOR_HOUSEHOLD = `
+  select
+    v.id,
+    v.title_id,
+    v.user_id,
+    v.watched_on,
+    v.watched_precision,
+    v.created_at,
+    t.name        as title_name,
+    t.poster_path,
+    u.display_name
+  from viewing v
+  join library_entry le on le.title_id = v.title_id and le.household_id = ?1
+  join title t on t.id = v.title_id
+  join household_member hm on hm.user_id = v.user_id and hm.household_id = ?1
+  join app_user u on u.id = v.user_id
+  order by v.watched_on desc, v.created_at desc
+`;
+
+/**
  * Records that a User watched a Title.
  *
  * With no `on`, it is just "seen" — the date is today at `day` precision but that is a

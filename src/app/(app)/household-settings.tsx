@@ -4,9 +4,12 @@ import { Field } from "@/components/field";
 import { MembersStrip } from "@/components/members-strip";
 import { Screen } from "@/components/screen";
 import { Segmented } from "@/components/segmented";
+import { AddTag, Tag, TagList } from "@/components/tag";
+import { TagPicker } from "@/components/tag-picker";
 import { Eyebrow, LayerTitle, Meta } from "@/components/text";
 import { signOut } from "@/lib/auth/actions";
-import { households, type RatingCategoryRow } from "@/lib/db";
+import { useUserId } from "@/lib/auth/session";
+import { annotations, households, type RatingCategoryRow, type TagRow } from "@/lib/db";
 import { useActiveHousehold, useHousehold } from "@/lib/household/active";
 import { accent, ink, paper } from "@/theme";
 import { usePowerSync, useQuery } from "@powersync/react";
@@ -26,10 +29,15 @@ import { Alert, Pressable, Text, View } from "react-native";
 export default function HouseholdSettings() {
   const db = usePowerSync();
   const household = useHousehold();
+  const userId = useUserId();
   const { all, select } = useActiveHousehold();
 
   const { data: categories } = useQuery<RatingCategoryRow>(
     households.CATEGORIES_FOR_HOUSEHOLD,
+    [household.id],
+  );
+  const { data: members } = useQuery<{ id: string; display_name: string }>(
+    households.MEMBERS_OF_HOUSEHOLD,
     [household.id],
   );
 
@@ -59,12 +67,43 @@ export default function HouseholdSettings() {
       .catch(() => Alert.alert("Invite code", household.id));
   };
 
+  // The "＋ Add" on the members carousel. No real invite system yet, so this is the
+  // honest version: hand over the code and point at where they redeem it.
+  const inviteMember = () => {
+    Alert.alert(
+      "Add a member",
+      `Share this code and they can join from the welcome screen.\n\n${household.id}`,
+      [
+        { text: "Close", style: "cancel" },
+        { text: "Copy code", onPress: copyInviteCode },
+      ],
+    );
+  };
+
   const saveName = () => {
     const next = name.trim();
     if (!next || next === household.name) return;
     households
       .renameHousehold(db, household.id, next)
       .catch(() => setName(household.name ?? ""));
+  };
+
+  const removeMember = (member: { id: string; display_name: string }) => {
+    Alert.alert(
+      `Remove ${member.display_name}?`,
+      "They lose access to this household. Ratings and viewings they've made are kept.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () =>
+            void households
+              .removeMember(db, { householdId: household.id, userId: member.id })
+              .catch((cause) => console.warn("[members] could not remove", cause)),
+        },
+      ],
+    );
   };
 
   const removeCategory = (category: RatingCategoryRow) => {
@@ -111,7 +150,37 @@ export default function HouseholdSettings() {
         </Section>
 
         <Section title="Members">
-          <MembersStrip householdId={household.id} showInvite={false} />
+          <MembersStrip householdId={household.id} onAdd={inviteMember} />
+
+          {members.length > 1 ? (
+            <View className="mt-3">
+              {members.map((m) => {
+                const isSelf = m.id === userId;
+                return (
+                  <View
+                    key={m.id}
+                    className="flex-row items-center justify-between border-b border-hairline py-3"
+                  >
+                    <Text className="type-body text-ink">
+                      {m.display_name}
+                      {isSelf ? "  · you" : ""}
+                    </Text>
+                    {isSelf ? null : (
+                      <Pressable
+                        onPress={() => removeMember(m)}
+                        hitSlop={10}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove ${m.display_name}`}
+                      >
+                        <Text className="type-body text-rust">Remove</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+
           <View className="mt-3 gap-1">
             <Eyebrow>Invite code</Eyebrow>
             <View className="flex-row items-center gap-3">
@@ -167,6 +236,8 @@ export default function HouseholdSettings() {
             })}
           </Section>
         ) : null}
+
+        <TagsSection householdId={household.id} />
 
         <Section
           title="Rating axes"
@@ -227,6 +298,64 @@ export default function HouseholdSettings() {
         }
       />
     </Screen>
+  );
+}
+
+/**
+ * The Household's shared tag vocabulary. Each chip carries a `×` that deletes the tag
+ * everywhere — off every title that carries it (confirmed). "＋ New tag" opens the same
+ * picker the Title screen uses; the only live action here is coining a new one.
+ */
+function TagsSection({ householdId }: { householdId: string }) {
+  const db = usePowerSync();
+  const { data: tags } = useQuery<TagRow & { title_count: number }>(
+    annotations.TAGS_FOR_HOUSEHOLD,
+    [householdId],
+  );
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const remove = (tag: TagRow) => {
+    Alert.alert(
+      `Delete ${tag.name}?`,
+      "It comes off every title that carries it. Ratings and viewings are untouched.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () =>
+            void annotations
+              .deleteTag(db, tag.id)
+              .catch((cause) => console.warn("[tags] could not delete", cause)),
+        },
+      ],
+    );
+  };
+
+  return (
+    <Section title="Tags" hint="Shared labels the household applies to titles here.">
+      {tags.length === 0 ? (
+        <Meta>None yet — coin the first below.</Meta>
+      ) : null}
+      <View className="pt-1">
+        <TagList>
+          {tags.map((tag) => (
+            <Tag key={tag.id} label={tag.name ?? ""} onRemove={() => remove(tag)} />
+          ))}
+          <AddTag label="New tag" onPress={() => setPickerOpen(true)} />
+        </TagList>
+      </View>
+
+      <TagPicker
+        visible={pickerOpen}
+        householdId={householdId}
+        activeIds={tags.map((t) => t.id)}
+        heading="New tag"
+        note="Type a label the household will share across titles."
+        onClose={() => setPickerOpen(false)}
+        onPick={() => {}}
+      />
+    </Section>
   );
 }
 

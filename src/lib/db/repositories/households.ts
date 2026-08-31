@@ -194,6 +194,22 @@ export const PENDING_HOUSEHOLD_IDS = `
   where hm.user_id = ? and h.id is null
 `;
 
+/**
+ * Removes a member from a Household — the manage-members action in settings.
+ *
+ * RLS lets any member delete another member's row (the `household_member_delete`
+ * policy), so the UI is what keeps you from removing yourself; leaving is its own flow.
+ */
+export async function removeMember(
+  db: AbstractPowerSyncDatabase,
+  input: { householdId: string; userId: string },
+): Promise<void> {
+  await db.execute(
+    `delete from household_member where household_id = ? and user_id = ?`,
+    [input.householdId, input.userId],
+  );
+}
+
 /** Undoes a join that never resolved. Parameters are the same pair as the insert. */
 export async function leaveHousehold(
   db: AbstractPowerSyncDatabase,
