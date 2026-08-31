@@ -11,8 +11,8 @@
  * household's own thing, and the household's surfaces stay paper (as `picker-sheet.tsx`).
  */
 
-import { usePowerSync, useQuery } from "@powersync/react";
-import { useCallback, useEffect, useState } from "react";
+import { usePowerSync } from "@powersync/react";
+import { useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -24,8 +24,15 @@ import { BottomSheet } from "./bottom-sheet";
 import { IconTablet } from "./icon-tablet";
 import { Eyebrow, Meta } from "./text";
 import { jars, type JarRow } from "@/lib/db";
-import { useJarStanding } from "@/lib/jars/use-jar-standing";
+import type { JarStanding, JarStandings } from "@/lib/jars/use-jar-standings";
 import { accent, dark, font, ink, paper, radius } from "@/theme";
+
+/**
+ * Both controls take their standings rather than fetching them. They sit side by side
+ * on the same screen showing two views of one answer, and each computing it separately
+ * meant every Jar's Filter was compiled and watched twice over — see
+ * `use-jar-standings.ts`. The screen calls `useJarStandings` once and passes it in.
+ */
 
 // ---------------------------------------------------------------------------
 // Jar count — top of the Title screen
@@ -33,37 +40,17 @@ import { accent, dark, font, ink, paper, radius } from "@/theme";
 
 /**
  * "N jars" — the count of jars this Title falls into right now (by filter or by Pin).
- * Each jar is probed by its own hidden child so the tally scales the way the Jars grid
- * does; the badge shows "…" until every jar has reported.
+ * Shows "…" until every jar has an answer.
  */
-export function JarCountBadge({
-  titleId,
-  householdId,
-}: {
-  titleId: string;
-  householdId: string;
-}) {
-  const { data: jarRows } = useQuery<JarRow>(jars.JARS_FOR_HOUSEHOLD, [
-    householdId,
-  ]);
-  const [inJar, setInJar] = useState<Record<string, boolean>>({});
-
-  const report = useCallback((jarId: string, member: boolean) => {
-    setInJar((prev) =>
-      prev[jarId] === member ? prev : { ...prev, [jarId]: member },
-    );
-  }, []);
+export function JarCountBadge({ standings }: { standings: JarStandings }) {
+  const { jars: jarRows, standing, settled } = standings;
 
   if (jarRows.length === 0) return null;
 
-  const settled = jarRows.every((j) => j.id in inJar);
-  const count = jarRows.filter((j) => inJar[j.id]).length;
+  const count = jarRows.filter((jar) => isIn(standing(jar.id))).length;
 
   return (
     <View className="flex-row items-center gap-1.5">
-      {jarRows.map((jar) => (
-        <JarProbe key={jar.id} jar={jar} titleId={titleId} onResult={report} />
-      ))}
       <JarGlyph color={dark.textMuted} size={13} />
       <Text
         style={{
@@ -79,22 +66,9 @@ export function JarCountBadge({
   );
 }
 
-/** Renders nothing — reports whether the Title is in this one jar. */
-function JarProbe({
-  jar,
-  titleId,
-  onResult,
-}: {
-  jar: JarRow;
-  titleId: string;
-  onResult: (jarId: string, member: boolean) => void;
-}) {
-  const standing = useJarStanding(jar, titleId);
-  useEffect(() => {
-    if (standing === "resolving") return;
-    onResult(jar.id, standing === "pinned" || standing === "present");
-  }, [standing, jar.id, onResult]);
-  return null;
+/** In the jar, however it got there — held by the Filter or forced in by a Pin. */
+function isIn(standing: JarStanding): boolean {
+  return standing === "present" || standing === "pinned";
 }
 
 // ---------------------------------------------------------------------------
@@ -108,29 +82,16 @@ function JarProbe({
  */
 export function PinToJarButton({
   titleId,
-  householdId,
+  standings,
 }: {
   titleId: string;
-  householdId: string;
+  standings: JarStandings;
 }) {
   const [open, setOpen] = useState(false);
-  const { data: jarRows } = useQuery<JarRow>(jars.JARS_FOR_HOUSEHOLD, [
-    householdId,
-  ]);
-  const [inJar, setInJar] = useState<Record<string, boolean>>({});
-  const report = useCallback((jarId: string, member: boolean) => {
-    setInJar((prev) =>
-      prev[jarId] === member ? prev : { ...prev, [jarId]: member },
-    );
-  }, []);
-  const anyJar = jarRows.some((j) => inJar[j.id]);
+  const anyJar = standings.jars.some((jar) => isIn(standings.standing(jar.id)));
 
   return (
     <>
-      {jarRows.map((jar) => (
-        <JarProbe key={jar.id} jar={jar} titleId={titleId} onResult={report} />
-      ))}
-
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
@@ -155,7 +116,7 @@ export function PinToJarButton({
       <PinToJarSheet
         visible={open}
         titleId={titleId}
-        householdId={householdId}
+        standings={standings}
         onClose={() => setOpen(false)}
       />
     </>
@@ -165,19 +126,16 @@ export function PinToJarButton({
 function PinToJarSheet({
   visible,
   titleId,
-  householdId,
+  standings,
   onClose,
 }: {
   visible: boolean;
   titleId: string;
-  householdId: string;
+  standings: JarStandings;
   onClose: () => void;
 }) {
   const { height } = useWindowDimensions();
-  const { data: jarRows } = useQuery<JarRow>(
-    visible ? jars.JARS_FOR_HOUSEHOLD : "select null limit 0",
-    visible ? [householdId] : [],
-  );
+  const { jars: jarRows, standing } = standings;
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
@@ -208,7 +166,12 @@ function PinToJarSheet({
             keyboardShouldPersistTaps="handled"
           >
             {jarRows.map((jar) => (
-              <JarPinRow key={jar.id} jar={jar} titleId={titleId} />
+              <JarPinRow
+                key={jar.id}
+                jar={jar}
+                titleId={titleId}
+                standing={standing(jar.id)}
+              />
             ))}
           </ScrollView>
         )}
@@ -219,10 +182,17 @@ function PinToJarSheet({
 
 /** One jar row: its name, and — where the Title isn't held by the filter — a thumbtack
  *  that pins it (outline) or unpins it (filled). Tapping inverts the state. */
-function JarPinRow({ jar, titleId }: { jar: JarRow; titleId: string }) {
+function JarPinRow({
+  jar,
+  titleId,
+  standing,
+}: {
+  jar: JarRow;
+  titleId: string;
+  standing: JarStanding;
+}) {
   const db = usePowerSync();
   const [busy, setBusy] = useState(false);
-  const standing = useJarStanding(jar, titleId);
 
   const toggle = async () => {
     setBusy(true);

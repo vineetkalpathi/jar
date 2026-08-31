@@ -37,10 +37,16 @@ import {
   type TmdbSearchResult,
 } from "@/lib/tmdb";
 import { addTmdbTitleToLibrary } from "@/lib/tmdb/import";
+import { useLibrarySearch } from "@/lib/library/use-library-search";
 import { accent, font, ink, paper, radius } from "@/theme";
 
 /** Poster grid gutter — matches the row gap so the grid reads as even. */
 const GRID_GAP = 10;
+
+/** Valid, cheap, returns nothing — what the search query sits on while the box is empty. */
+const NO_MATCHES = "select null as id limit 0";
+/** A stable empty params reference, so `useQuery` doesn't re-subscribe every render. */
+const NO_PARAMS: never[] = [];
 
 /**
  * A Jar and its slips — now a poster wall.
@@ -86,12 +92,13 @@ export default function JarDetail() {
 
   // Jar-scoped search: the same "title or person" reach as Explore and Library, but the
   // result set is intersected with what is already in the jar. Row data still comes from
-  // the live contents query above.
+  // the live contents query above. Debounced, and parked while the box is empty — see
+  // `use-library-search.ts` for what the unguarded version cost.
   const [query, setQuery] = useState("");
-  const needle = query.trim();
+  const { needle, idle, pattern } = useLibrarySearch(query);
   const { data: matches } = useQuery<{ id: string }>(
-    library.LIBRARY_TITLE_IDS_MATCHING,
-    [jar?.household_id ?? "", `%${needle.replace(/[\\%_]/g, "\\$&")}%`],
+    idle ? NO_MATCHES : library.LIBRARY_TITLE_IDS_MATCHING,
+    idle ? NO_PARAMS : [jar?.household_id ?? "", pattern],
   );
 
   const shown = useMemo(() => {

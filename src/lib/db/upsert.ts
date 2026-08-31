@@ -1,5 +1,5 @@
 /**
- * Insert-unless-it-exists, which four repositories were each writing out longhand.
+ * Insert-unless-it-exists, which several repositories were each writing out longhand.
  *
  * A word on what this does and does not promise. SQLite carries none of the unique
  * constraints the schema declares, so the lookup is a courtesy that avoids the common

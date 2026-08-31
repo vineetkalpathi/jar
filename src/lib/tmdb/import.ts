@@ -14,19 +14,18 @@ import type { TmdbMediaType } from "./types";
 /**
  * Fetches a Title's TMDB attributes and adds it to a Household's Library. Jars pick it
  * up on their own if it matches their filter — there is no separate step.
+ *
+ * The attributes and the Library entry go down in one transaction: see the note on
+ * `upsertTmdbTitleAttributes` for why the number of commits here matters so much.
  */
 export async function addTmdbTitleToLibrary(
   db: AbstractPowerSyncDatabase,
   input: { tmdbId: number; mediaType: TmdbMediaType; householdId: string; userId: string },
 ): Promise<string> {
   const details = await getTitleDetails(input.tmdbId, input.mediaType);
-  const titleId = await library.upsertTmdbTitleAttributes(db, details);
-  await library.addToLibrary(db, {
-    householdId: input.householdId,
-    titleId,
-    userId: input.userId,
+  return library.upsertTmdbTitleAttributes(db, details, {
+    intoLibrary: { householdId: input.householdId, userId: input.userId },
   });
-  return titleId;
 }
 
 /**

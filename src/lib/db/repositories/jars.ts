@@ -12,6 +12,7 @@ import {
   type CompiledQuery,
   type CompileContext,
   type Filter,
+  type SqlValue,
 } from "../../filter";
 import type { JarRow, TitleRow } from "../schema";
 import { requiredText } from "../constraints";
@@ -42,6 +43,18 @@ export const OVERRIDES_FOR_JAR = `
  */
 export const OVERRIDE_FOR_JAR_TITLE = `
   select kind from jar_override where jar_id = ? and title_id = ?
+`;
+
+/**
+ * Every override on one Title across a Household's Jars — the same answer as running
+ * `OVERRIDE_FOR_JAR_TITLE` once per Jar, in one indexed query instead of N watched
+ * ones. Parameters: `[titleId, householdId]`.
+ */
+export const OVERRIDES_FOR_TITLE = `
+  select jo.jar_id, jo.kind
+  from jar_override jo
+  join jar j on j.id = jo.jar_id
+  where jo.title_id = ? and j.household_id = ?
 `;
 
 export class JarFilterError extends Error {}
@@ -137,6 +150,70 @@ export async function jarContentsQuery(
     params: contents.params,
   };
 }
+
+/**
+ * Which of a Household's Jars contain one Title — as a single query selecting the
+ * `jar_id` of each Jar that does.
+ *
+ * The Title screen wants this for every Jar at once (a count badge, a pin button, a pin
+ * sheet), and asking per Jar meant two watched queries each, one of them a compiled
+ * Filter over the whole Library, re-run on every write anywhere in the app. Unioning
+ * the per-Jar membership tests into one query makes that one subscription regardless of
+ * how many Jars the Household has.
+ *
+ * `unreadable` names the Jars left out because their stored Filter no longer parses.
+ * They are reported rather than skipped silently: absent from the union means "does not
+ * contain", and for a Jar we simply cannot evaluate that would be a lie.
+ *
+ * One bound worth knowing: this binds roughly `jars × filter parameters`, so a
+ * Household with dozens of elaborate Jars approaches SQLite's per-statement parameter
+ * limit. Nothing near that is reachable today; split the union if it ever is.
+ */
+export async function jarMembershipQuery(
+  db: AbstractPowerSyncDatabase,
+  householdId: string,
+  titleId: string,
+): Promise<{ query: CompiledQuery; unreadable: string[] }> {
+  const jarRows = await db.getAll<JarRow>(JARS_FOR_HOUSEHOLD, [householdId]);
+  if (jarRows.length === 0) return { query: MATCHES_NO_JAR, unreadable: [] };
+
+  // Loaded once and shared: every Jar here belongs to the same Household, so the
+  // membership and Rating Policy a Filter inherits are the same for all of them.
+  const context = await loadCompileContext(db, householdId);
+
+  const parts: string[] = [];
+  const params: SqlValue[] = [];
+  const unreadable: string[] = [];
+
+  for (const jar of jarRows) {
+    let contents: CompiledQuery;
+    try {
+      contents = compileJarContents(
+        { id: jar.id, filter: parseJarFilter(jar) },
+        { ...context, jarId: jar.id },
+      );
+    } catch (cause) {
+      console.warn(`[jars] skipping ${jar.id} in a membership query:`, cause);
+      unreadable.push(jar.id);
+      continue;
+    }
+
+    // Bound in the order the placeholders appear: the literal jar id in the select
+    // list, then the contents query's own, then the title being tested.
+    parts.push(`select ? as jar_id from (${contents.sql}) where title_id = ?`);
+    params.push(jar.id, ...contents.params, titleId);
+  }
+
+  if (parts.length === 0) return { query: MATCHES_NO_JAR, unreadable };
+
+  return { query: { sql: parts.join("\nunion all\n"), params }, unreadable };
+}
+
+/** Valid, cheap, and selects the same shape as the union: no Jar contains the Title. */
+const MATCHES_NO_JAR: CompiledQuery = {
+  sql: `select null as jar_id where 0`,
+  params: [],
+};
 
 /** A Jar's contents, resolved once. Use `jarContentsQuery` where reactivity matters. */
 export async function jarContents(

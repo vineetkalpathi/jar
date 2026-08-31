@@ -7,10 +7,12 @@
 const calls: { fn: string; args: unknown[] }[] = [];
 
 jest.mock("../db/repositories/library", () => ({
-  upsertTmdbTitleAttributes: jest.fn(async (_db: unknown, attrs: unknown) => {
-    calls.push({ fn: "upsertTmdbTitleAttributes", args: [attrs] });
-    return "title-1";
-  }),
+  upsertTmdbTitleAttributes: jest.fn(
+    async (_db: unknown, attrs: unknown, options?: unknown) => {
+      calls.push({ fn: "upsertTmdbTitleAttributes", args: [attrs, options] });
+      return "title-1";
+    },
+  ),
   addToLibrary: jest.fn(async (_db: unknown, input: unknown) => {
     calls.push({ fn: "addToLibrary", args: [input] });
   }),
@@ -45,7 +47,7 @@ beforeEach(() => {
 });
 
 describe("addTmdbTitleToLibrary", () => {
-  it("writes the fetched attributes before adding to the Library", async () => {
+  it("writes the fetched attributes and the Library entry in one call", async () => {
     const titleId = await addTmdbTitleToLibrary(db, {
       tmdbId: 27205,
       mediaType: "movie",
@@ -54,13 +56,15 @@ describe("addTmdbTitleToLibrary", () => {
     });
 
     expect(titleId).toBe("title-1");
-    expect(calls.map((c) => c.fn)).toEqual(["upsertTmdbTitleAttributes", "addToLibrary"]);
+
+    // One call, not two: the Library entry rides along inside the same transaction, so
+    // an import is a single commit rather than a burst of them.
+    expect(calls.map((c) => c.fn)).toEqual(["upsertTmdbTitleAttributes"]);
     expect(calls[0].args[0]).toMatchObject({ tmdbId: 27205, mediaType: "movie" });
-    expect(calls[1].args[0]).toEqual({
-      householdId: "household-1",
-      titleId: "title-1",
-      userId: "user-1",
+    expect(calls[0].args[1]).toEqual({
+      intoLibrary: { householdId: "household-1", userId: "user-1" },
     });
+    expect(library.addToLibrary).not.toHaveBeenCalled();
   });
 });
 

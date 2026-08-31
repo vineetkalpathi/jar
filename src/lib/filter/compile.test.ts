@@ -571,4 +571,96 @@ describe("jar contents", () => {
   it("excludes a pinned Title if it is also excluded", () => {
     expect(contents(null, "jar-2")).toEqual([]);
   });
+
+  /**
+   * `jars.jarMembershipQuery` asks "is this one Title in this Jar" by wrapping the
+   * contents query as a subselect rather than reading every id back and testing in
+   * JavaScript, then unions one such test per Jar so the Title screen needs a single
+   * subscription rather than one per Jar. Both shapes are exercised here: the
+   * repository itself needs a PowerSync handle, but the SQL it assembles is the part
+   * that can be wrong, and this harness is real SQLite.
+   */
+  const isIn = (filter: Filter | null, titleId: string, jarId = JAR): boolean => {
+    const { sql, params } = compileJarContents({ id: jarId, filter }, baseContext);
+    return (
+      db
+        .prepare(`select 1 as present from (${sql}) where title_id = ?`)
+        .all(...params, titleId).length > 0
+    );
+  };
+
+  /** The union `jarMembershipQuery` builds: the ids of the Jars holding `titleId`. */
+  const jarsHolding = (
+    entries: { id: string; filter: Filter | null }[],
+    titleId: string,
+  ): string[] => {
+    const parts: string[] = [];
+    const params: (string | number | null)[] = [];
+
+    for (const jar of entries) {
+      const contents = compileJarContents(jar, baseContext);
+      parts.push(`select ? as jar_id from (${contents.sql}) where title_id = ?`);
+      params.push(jar.id, ...contents.params, titleId);
+    }
+
+    return db
+      .prepare(parts.join("\nunion all\n"))
+      .all(...params)
+      .map((r) => r.jar_id as string)
+      .sort();
+  };
+
+  it("answers membership for one Title exactly as the full contents do", () => {
+    const filter: Filter = {
+      version: 1,
+      root: { kind: "predicate", leaf: "runtime", op: "lte", value: 110 },
+    };
+
+    for (const titleId of ["heat", "sunrise", "walle", "friends", "unlinked"]) {
+      expect(isIn(filter, titleId)).toBe(contents(filter).includes(titleId));
+    }
+
+    // Spelled out, so a change to the fixture can't quietly make the loop vacuous.
+    expect(isIn(filter, "walle")).toBe(true); // matches the filter
+    expect(isIn(filter, "unlinked")).toBe(true); // pinned despite matching nothing
+    expect(isIn(filter, "friends")).toBe(false); // excluded despite matching
+    expect(isIn(filter, "heat")).toBe(false); // 170 minutes
+  });
+
+  it("answers membership with no filter, where the Jar is its pins alone", () => {
+    expect(isIn(null, "unlinked")).toBe(true);
+    expect(isIn(null, "walle")).toBe(false);
+  });
+
+  it("unions one membership test per Jar, keeping each Jar's parameters its own", () => {
+    const short: Filter = {
+      version: 1,
+      root: { kind: "predicate", leaf: "runtime", op: "lte", value: 110 },
+    };
+    const long: Filter = {
+      version: 1,
+      root: { kind: "predicate", leaf: "runtime", op: "gte", value: 150 },
+    };
+    const entries = [
+      { id: JAR, filter: short },
+      { id: "jar-2", filter: long },
+      { id: "jar-3", filter: null },
+    ];
+
+    // Bound values must not bleed between the union's branches — the failure mode of
+    // getting the parameter order wrong is every Jar answering with another's filter.
+    expect(jarsHolding(entries, "walle")).toEqual([JAR]); // 98 min
+    expect(jarsHolding(entries, "heat")).toEqual(["jar-2"]); // 170 min
+    expect(jarsHolding(entries, "friends")).toEqual([]); // 22 min, but excluded from jar-1
+    expect(jarsHolding(entries, "unlinked")).toEqual([JAR]); // no runtime; pinned into jar-1
+
+    // And each branch agrees with the single-Jar form it is built from.
+    for (const jar of entries) {
+      for (const titleId of ["heat", "walle", "friends", "unlinked"]) {
+        expect(jarsHolding([jar], titleId).length > 0).toBe(
+          isIn(jar.filter, titleId, jar.id),
+        );
+      }
+    }
+  });
 });

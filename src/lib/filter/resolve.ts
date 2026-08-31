@@ -37,19 +37,32 @@ export async function resolveDraftFilter(
   draft: FilterDraft,
   currentUserId: string,
 ): Promise<Filter | null> {
+  // Resolved as a batch rather than one call per chip: `findOrCreatePeople` is a single
+  // transaction and two statements, where the per-person loop was one transaction each,
+  // fired concurrently — a write burst for no reason on every jar save.
   const resolvePeople = async (
     people: FilterDraft["cast"],
-  ): Promise<FilterDraft["cast"]> =>
-    Promise.all(
-      people.map(async (person) => {
-        if (person.personId) return person;
-        const personId = await library.findOrCreatePerson(db, {
-          tmdbPersonId: person.tmdbPersonId,
-          name: person.name,
-        });
-        return { ...person, personId };
-      }),
+  ): Promise<FilterDraft["cast"]> => {
+    const unresolved = people.filter((person) => !person.personId);
+    if (unresolved.length === 0) return people;
+
+    const ids = await library.findOrCreatePeople(
+      db,
+      unresolved.map((person) => ({
+        tmdbPersonId: person.tmdbPersonId,
+        name: person.name,
+      })),
     );
+    const byTmdbId = new Map(
+      unresolved.map((person, i) => [person.tmdbPersonId, ids[i]]),
+    );
+
+    return people.map((person) =>
+      person.personId
+        ? person
+        : { ...person, personId: byTmdbId.get(person.tmdbPersonId) },
+    );
+  };
 
   const resolved: FilterDraft = {
     ...draft,

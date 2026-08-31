@@ -66,10 +66,16 @@ const title = new Table(
   { indexes: { tmdb: ["tmdb_id"], owner: ["owner_household_id"] } },
 );
 
-const person = new Table({
-  tmdb_person_id: column.integer,
-  name: column.text,
-});
+const person = new Table(
+  {
+    tmdb_person_id: column.integer,
+    name: column.text,
+  },
+  // Every title import looks people up by their TMDB id — ten or so per title, against
+  // a table that grows with every import and never shrinks. Without this each of those
+  // is a full scan.
+  { indexes: { tmdb: ["tmdb_person_id"] } },
+);
 
 const title_credit = new Table(
   {

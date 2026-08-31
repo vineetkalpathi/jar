@@ -9,6 +9,7 @@ import {
 import { LibraryStatus } from "@/components/library-status";
 import { Loading } from "@/components/loading";
 import { JarCountBadge, PinToJarButton } from "@/components/pin-to-jar-sheet";
+import { useJarStandings } from "@/lib/jars/use-jar-standings";
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
 import { ViewingStatus } from "@/components/seen-status";
@@ -78,6 +79,11 @@ export default function TitleDetail() {
     [id, household.id],
   );
 
+  // Once for the screen, not once per control: the count badge and the pin button show
+  // two views of one answer, and each working it out for itself meant every Jar's
+  // Filter compiled and watched twice over (`use-jar-standings.ts`).
+  const standings = useJarStandings(household.id, id);
+
   const [tmdb, setTmdb] = useState<TmdbTitleDetails | null>(null);
   const [tmdbStatus, setTmdbStatus] = useState<"loading" | "ready" | "error">(
     "loading",
@@ -131,9 +137,9 @@ export default function TitleDetail() {
             Household's Library, so `LibraryStatus` is always the settled state. Each
             control's sheet explains itself when tapped. */}
         <View className="flex-row items-center gap-3">
-          <JarCountBadge titleId={title.id} householdId={household.id} />
+          <JarCountBadge standings={standings} />
           <ViewingStatus titleId={title.id} userId={userId} />
-          <PinToJarButton titleId={title.id} householdId={household.id} />
+          <PinToJarButton titleId={title.id} standings={standings} />
           <LibraryStatus inLibrary />
         </View>
       </View>

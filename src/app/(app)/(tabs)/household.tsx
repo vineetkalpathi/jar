@@ -24,6 +24,7 @@ import { draftToChips, removeChip } from "@/lib/filter/chips";
 import { resolveDraftFilter } from "@/lib/filter/resolve";
 import { useFilterMatches } from "@/lib/filter/use-match-count";
 import { useHousehold } from "@/lib/household/active";
+import { useLibrarySearch } from "@/lib/library/use-library-search";
 import { posterUrl } from "@/lib/tmdb";
 import { backfillPosterPath } from "@/lib/tmdb/import";
 import { accent, font, ink, paper } from "@/theme";
@@ -48,6 +49,11 @@ import {
  * or FlatList recycle.
  */
 const posterBackfillAttempted = new Set<string>();
+
+/** Valid, cheap, returns nothing — what the search query sits on while the box is empty. */
+const NO_MATCHES = "select null as id limit 0";
+/** A stable empty params reference, so `useQuery` doesn't re-subscribe every render. */
+const NO_PARAMS: never[] = [];
 
 /**
  * Household — the left tab, and the watch group's first-class home: the Library browse
@@ -77,13 +83,16 @@ export default function Household() {
   // Library search reaches the same "title or person" way Explore's does — but over the
   // local Library, not TMDB. The match runs in SQLite (title name OR any credited
   // person, cast or crew); this query hands back just the matching ids, and the row
-  // data still comes from the always-live `LIBRARY_FOR_HOUSEHOLD` above. Wildcards
-  // escaped so a title with a literal % or _ still matches itself.
-  const needle = query.trim();
-  const { data: matches } = useQuery<{ id: string }>(library.LIBRARY_TITLE_IDS_MATCHING, [
-    household.id,
-    `%${needle.replace(/[\\%_]/g, "\\$&")}%`,
-  ]);
+  // data still comes from the always-live `LIBRARY_FOR_HOUSEHOLD` above.
+  //
+  // Debounced, and parked on a stand-in while the box is empty: it is the most
+  // expensive read this screen has, and an empty term made it `%%` over every credit in
+  // the Library to produce a set the list below then ignores (`use-library-search.ts`).
+  const { needle, idle, pattern } = useLibrarySearch(query);
+  const { data: matches } = useQuery<{ id: string }>(
+    idle ? NO_MATCHES : library.LIBRARY_TITLE_IDS_MATCHING,
+    idle ? NO_PARAMS : [household.id, pattern],
+  );
 
   // An optional ad-hoc filter over the shelf. Ephemeral — nothing is stored until
   // "Save as jar" turns it into a real Jar. People chips are dropped from the preview

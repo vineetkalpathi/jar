@@ -6,11 +6,10 @@
  * than storing it.
  */
 
-import type { AbstractPowerSyncDatabase } from "@powersync/react-native";
+import type { AbstractPowerSyncDatabase, LockContext } from "@powersync/react-native";
 import type { TitleRow } from "../schema";
 import { releaseYear, requiredText, runtimeMinutes, tmdbId } from "../constraints";
 import { newId } from "../ids";
-import { findOrInsert } from "../upsert";
 import { timestamp } from "../../time";
 
 type TmdbPersonInput = { tmdbPersonId: number; name: string };
@@ -170,19 +169,24 @@ export async function addToLibrary(
   db: AbstractPowerSyncDatabase,
   input: { householdId: string; titleId: string; userId: string },
 ): Promise<void> {
-  await findOrInsert(db, {
-    table: "library_entry",
-    where: {
-      sql: "household_id = ? and title_id = ?",
-      params: [input.householdId, input.titleId],
-    },
-    row: {
-      household_id: input.householdId,
-      title_id: input.titleId,
-      added_by_user_id: input.userId,
-      added_at: timestamp(),
-    },
-  });
+  await db.writeTransaction((tx) => addToLibraryIn(tx, input));
+}
+
+async function addToLibraryIn(
+  tx: LockContext,
+  input: { householdId: string; titleId: string; userId: string },
+): Promise<void> {
+  const existing = await tx.getOptional<{ id: string }>(
+    `select id from library_entry where household_id = ? and title_id = ?`,
+    [input.householdId, input.titleId],
+  );
+  if (existing) return;
+
+  await tx.execute(
+    `insert into library_entry (id, household_id, title_id, added_by_user_id, added_at)
+     values (?, ?, ?, ?, ?)`,
+    [newId(), input.householdId, input.titleId, input.userId, timestamp()],
+  );
 }
 
 /**
@@ -218,15 +222,24 @@ export async function removeFromLibrary(
  */
 export async function upsertTmdbTitle(
   db: AbstractPowerSyncDatabase,
-  attributes: {
-    tmdbId: number;
-    name: string;
-    mediaType: "movie" | "tv";
-    releaseYear?: number | null;
-    runtime?: number | null;
-    language?: string | null;
-    posterPath?: string | null;
-  },
+  attributes: TmdbTitleAttributes,
+): Promise<string> {
+  return db.writeTransaction((tx) => upsertTmdbTitleIn(tx, attributes));
+}
+
+type TmdbTitleAttributes = {
+  tmdbId: number;
+  name: string;
+  mediaType: "movie" | "tv";
+  releaseYear?: number | null;
+  runtime?: number | null;
+  language?: string | null;
+  posterPath?: string | null;
+};
+
+async function upsertTmdbTitleIn(
+  tx: LockContext,
+  attributes: TmdbTitleAttributes,
 ): Promise<string> {
   // TMDB is an external source and its values reach the database unchanged, so they
   // are normalised here rather than trusted. `runtime` is the one that bites: TMDB
@@ -243,7 +256,7 @@ export async function upsertTmdbTitle(
     posterPath: attributes.posterPath?.trim() || null,
   };
 
-  const existing = await db.getOptional<{ id: string }>(
+  const existing = await tx.getOptional<{ id: string }>(
     `select id from title where tmdb_id = ?`,
     [attrs.tmdbId],
   );
@@ -252,7 +265,7 @@ export async function upsertTmdbTitle(
   if (existing) {
     // Refreshing an existing row keeps the cache obligation in ADR-0003 honest: the
     // six-month limit is measured from attributes_refreshed_at.
-    await db.execute(
+    await tx.execute(
       `update title set name = ?, media_type = ?, release_year = ?, runtime = ?,
               language = ?, poster_path = ?, attributes_refreshed_at = ?
        where id = ?`,
@@ -271,7 +284,7 @@ export async function upsertTmdbTitle(
   }
 
   const id = newId();
-  await db.execute(
+  await tx.execute(
     `insert into title (id, tmdb_id, name, media_type, release_year, runtime, language,
                         poster_path, attributes_refreshed_at, owner_household_id, created_at)
      values (?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?)`,
@@ -333,11 +346,69 @@ export async function findOrCreatePerson(
   db: AbstractPowerSyncDatabase,
   person: TmdbPersonInput,
 ): Promise<string> {
-  return findOrInsert(db, {
-    table: "person",
-    where: { sql: "tmdb_person_id = ?", params: [person.tmdbPersonId] },
-    row: { tmdb_person_id: person.tmdbPersonId, name: requiredText(person.name, "A person") },
-  });
+  const [id] = await findOrCreatePeople(db, [person]);
+  return id;
+}
+
+/**
+ * The same for a whole cast list, in one transaction and two statements.
+ *
+ * Resolving people one at a time was the single worst write in the app: a title import
+ * fired a dozen concurrent read-then-insert pairs, each its own transaction, each
+ * therefore its own change notification waking every watched query in the tree. One
+ * lookup for the lot and one batched insert for the ones that are missing does the same
+ * work with two statements and one notification.
+ *
+ * Returns one id per input, in input order — duplicates in `people` resolve to the same
+ * id rather than to two rows, which the per-person loop could not do because neither
+ * lookup saw the other's insert.
+ */
+export async function findOrCreatePeople(
+  db: AbstractPowerSyncDatabase,
+  people: TmdbPersonInput[],
+): Promise<string[]> {
+  if (people.length === 0) return [];
+  return db.writeTransaction((tx) => resolvePeopleIn(tx, people));
+}
+
+async function resolvePeopleIn(
+  tx: LockContext,
+  people: TmdbPersonInput[],
+): Promise<string[]> {
+  if (people.length === 0) return [];
+
+  // Names validated up front, and duplicates collapsed before anything touches SQL.
+  const wanted = new Map<number, string>();
+  for (const person of people) {
+    if (wanted.has(person.tmdbPersonId)) continue;
+    wanted.set(person.tmdbPersonId, requiredText(person.name, "A person"));
+  }
+
+  const tmdbIds = [...wanted.keys()];
+  const existing = await tx.getAll<{ id: string; tmdb_person_id: number }>(
+    `select id, tmdb_person_id from person
+     where tmdb_person_id in (${tmdbIds.map(() => "?").join(", ")})`,
+    tmdbIds,
+  );
+
+  const byTmdbId = new Map(existing.map((row) => [row.tmdb_person_id, row.id]));
+
+  const rows: [string, number, string][] = [];
+  for (const tmdbPersonId of tmdbIds) {
+    if (byTmdbId.has(tmdbPersonId)) continue;
+    const id = newId();
+    byTmdbId.set(tmdbPersonId, id);
+    rows.push([id, tmdbPersonId, wanted.get(tmdbPersonId)!]);
+  }
+
+  if (rows.length > 0) {
+    await tx.executeBatch(
+      `insert into person (id, tmdb_person_id, name) values (?, ?, ?)`,
+      rows,
+    );
+  }
+
+  return people.map((person) => byTmdbId.get(person.tmdbPersonId)!);
 }
 
 /**
@@ -351,74 +422,116 @@ export async function setTitleGenres(
   titleId: string,
   genres: string[],
 ): Promise<void> {
-  await db.writeTransaction(async (tx) => {
-    await tx.execute(`delete from title_genre where title_id = ?`, [titleId]);
-    for (const genre of genres) {
-      await tx.execute(`insert into title_genre (id, title_id, genre) values (?, ?, ?)`, [
-        newId(),
-        titleId,
-        genre,
-      ]);
-    }
-  });
+  await db.writeTransaction((tx) => setTitleGenresIn(tx, titleId, genres));
+}
+
+async function setTitleGenresIn(
+  tx: LockContext,
+  titleId: string,
+  genres: string[],
+): Promise<void> {
+  await tx.execute(`delete from title_genre where title_id = ?`, [titleId]);
+
+  // Deduplicated because `title_genre_title_genre_key` is unique on (title_id, genre):
+  // a repeated genre inserts fine locally and is dropped on upload.
+  const distinct = [...new Set(genres)];
+  if (distinct.length === 0) return;
+
+  await tx.executeBatch(
+    `insert into title_genre (id, title_id, genre) values (?, ?, ?)`,
+    distinct.map((genre) => [newId(), titleId, genre]),
+  );
 }
 
 /**
  * Replaces a Title's cast and director credits with `cast` and `directors` — same
- * replace-in-one-transaction shape as `setTitleGenres`, for the same reason. People are
- * found-or-created first, outside the transaction: `findOrInsert`'s lookup is a
- * courtesy rather than a guarantee (upsert.ts), so nothing here depends on it running
- * inside the same atomic unit as the credit rows it feeds.
+ * replace-in-one-transaction shape as `setTitleGenres`, for the same reason.
+ *
+ * People are resolved inside the transaction now, not before it. The old comment here
+ * argued the reverse: that `findOrInsert`'s lookup is a courtesy rather than a
+ * guarantee, so the credit rows need not share its atomic unit. True, and beside the
+ * point — the cost was never correctness, it was a dozen separate transactions per
+ * import. `resolvePeopleIn` is two statements and shares this one.
  */
 export async function setTitleCredits(
   db: AbstractPowerSyncDatabase,
   titleId: string,
   credits: { cast: TmdbPersonInput[]; directors: TmdbPersonInput[] },
 ): Promise<void> {
-  const castIds = await Promise.all(credits.cast.map((p) => findOrCreatePerson(db, p)));
-  const directorIds = await Promise.all(credits.directors.map((p) => findOrCreatePerson(db, p)));
+  await db.writeTransaction((tx) => setTitleCreditsIn(tx, titleId, credits));
+}
 
-  await db.writeTransaction(async (tx) => {
-    await tx.execute(`delete from title_credit where title_id = ?`, [titleId]);
-    for (const personId of castIds) {
-      await tx.execute(
-        `insert into title_credit (id, title_id, person_id, role) values (?, ?, ?, 'cast')`,
-        [newId(), titleId, personId],
-      );
-    }
-    for (const personId of directorIds) {
-      await tx.execute(
-        `insert into title_credit (id, title_id, person_id, role) values (?, ?, ?, 'director')`,
-        [newId(), titleId, personId],
-      );
-    }
-  });
+async function setTitleCreditsIn(
+  tx: LockContext,
+  titleId: string,
+  credits: { cast: TmdbPersonInput[]; directors: TmdbPersonInput[] },
+): Promise<void> {
+  const castIds = await resolvePeopleIn(tx, credits.cast);
+  const directorIds = await resolvePeopleIn(tx, credits.directors);
+
+  await tx.execute(`delete from title_credit where title_id = ?`, [titleId]);
+
+  // Unique on (title_id, person_id, role), so one person may be both cast and director
+  // but not twice in either. A director credited once per episode is real TMDB data.
+  const seen = new Set<string>();
+  const rows: [string, string, string, string][] = [];
+  for (const [personId, role] of [
+    ...castIds.map((id) => [id, "cast"] as const),
+    ...directorIds.map((id) => [id, "director"] as const),
+  ]) {
+    const key = `${role}:${personId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rows.push([newId(), titleId, personId, role]);
+  }
+
+  if (rows.length === 0) return;
+
+  await tx.executeBatch(
+    `insert into title_credit (id, title_id, person_id, role) values (?, ?, ?, ?)`,
+    rows,
+  );
 }
 
 /**
- * The full TMDB snapshot for a Title — `upsertTmdbTitle` plus its genres and credits —
- * written as the three calls ADR-0003's cache needs, whether this is the first import
- * or a refresh of an existing one.
+ * The full TMDB snapshot for a Title — the row, its genres and its credits — plus, when
+ * `intoLibrary` is given, the Library entry that puts it on a Household's shelf.
+ *
+ * **One transaction, deliberately.** This used to be three or four calls, each opening
+ * its own, and `setTitleCredits` fanned a dozen more out concurrently underneath them.
+ * Every one of those commits is a change notification, and every notification re-runs
+ * every watched query mounted anywhere in the app — including the compiled jar-contents
+ * queries, which are not cheap. A single "add to library" tap therefore cost something
+ * like sixteen notification waves across a screen holding dozens of live queries. That
+ * is the write amplification behind the crashes; collapsing it to one commit is the fix.
+ *
+ * Adding to the Library belongs in here rather than in a call after it for the same
+ * reason, and one better: a Title whose attributes landed but whose Library entry did
+ * not is a row nobody can see or reach.
  */
 export async function upsertTmdbTitleAttributes(
   db: AbstractPowerSyncDatabase,
-  attributes: {
-    tmdbId: number;
-    name: string;
-    mediaType: "movie" | "tv";
-    releaseYear?: number | null;
-    runtime?: number | null;
-    language?: string | null;
-    posterPath?: string | null;
+  attributes: TmdbTitleAttributes & {
     genres: string[];
     cast: TmdbPersonInput[];
     directors: TmdbPersonInput[];
   },
+  options?: { intoLibrary?: { householdId: string; userId: string } },
 ): Promise<string> {
-  const titleId = await upsertTmdbTitle(db, attributes);
-  await setTitleGenres(db, titleId, attributes.genres);
-  await setTitleCredits(db, titleId, { cast: attributes.cast, directors: attributes.directors });
-  return titleId;
+  return db.writeTransaction(async (tx) => {
+    const titleId = await upsertTmdbTitleIn(tx, attributes);
+    await setTitleGenresIn(tx, titleId, attributes.genres);
+    await setTitleCreditsIn(tx, titleId, {
+      cast: attributes.cast,
+      directors: attributes.directors,
+    });
+
+    if (options?.intoLibrary) {
+      await addToLibraryIn(tx, { ...options.intoLibrary, titleId });
+    }
+
+    return titleId;
+  });
 }
 
 /** Titles due a TMDB refresh, per the six-month cache limit in ADR-0003. */
