@@ -25,7 +25,7 @@ import { IconTablet } from "./icon-tablet";
 import { Eyebrow, Meta } from "./text";
 import { jars, type JarRow } from "@/lib/db";
 import { useJarStanding } from "@/lib/jars/use-jar-standing";
-import { accent, dark, font, ink, radius } from "@/theme";
+import { accent, dark, font, ink, paper, radius } from "@/theme";
 
 // ---------------------------------------------------------------------------
 // Jar count — top of the Title screen
@@ -102,9 +102,9 @@ function JarProbe({
 // ---------------------------------------------------------------------------
 
 /**
- * A bare jar glyph in a 36pt circle, the same shape as the library / seen controls it
- * sits beside at the top of the Title screen. Tapping opens the sheet, which explains
- * and carries the action.
+ * A jar glyph in a 36pt circle, the same shape as the library / seen controls it sits
+ * beside at the top of the Title screen. Filled once the Title is in one or more jars,
+ * an outline otherwise. Tapping opens the sheet, which explains and carries the action.
  */
 export function PinToJarButton({
   titleId,
@@ -114,25 +114,42 @@ export function PinToJarButton({
   householdId: string;
 }) {
   const [open, setOpen] = useState(false);
+  const { data: jarRows } = useQuery<JarRow>(jars.JARS_FOR_HOUSEHOLD, [
+    householdId,
+  ]);
+  const [inJar, setInJar] = useState<Record<string, boolean>>({});
+  const report = useCallback((jarId: string, member: boolean) => {
+    setInJar((prev) =>
+      prev[jarId] === member ? prev : { ...prev, [jarId]: member },
+    );
+  }, []);
+  const anyJar = jarRows.some((j) => inJar[j.id]);
 
   return (
     <>
+      {jarRows.map((jar) => (
+        <JarProbe key={jar.id} jar={jar} titleId={titleId} onResult={report} />
+      ))}
+
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel="Pin this title to a jar"
+        accessibilityLabel={
+          anyJar ? "Jars this title is in" : "Pin this title to a jar"
+        }
         className="active:opacity-70"
         style={{
           width: 36,
           height: 36,
           borderRadius: 18,
-          borderWidth: 1.5,
-          borderColor: accent.forest,
           alignItems: "center",
           justifyContent: "center",
+          ...(anyJar
+            ? { backgroundColor: accent.forest }
+            : { borderWidth: 1.5, borderColor: accent.forest }),
         }}
       >
-        <JarGlyph color={accent.forest} size={17} />
+        <JarGlyph color={anyJar ? paper.card : accent.forest} size={17} />
       </Pressable>
 
       <PinToJarSheet
@@ -200,18 +217,23 @@ function PinToJarSheet({
   );
 }
 
-/** One jar row: its name, and either the Pin action or the Title's standing in it. */
+/** One jar row: its name, and — where the Title isn't held by the filter — a thumbtack
+ *  that pins it (outline) or unpins it (filled). Tapping inverts the state. */
 function JarPinRow({ jar, titleId }: { jar: JarRow; titleId: string }) {
   const db = usePowerSync();
   const [busy, setBusy] = useState(false);
   const standing = useJarStanding(jar, titleId);
 
-  const pin = async () => {
+  const toggle = async () => {
     setBusy(true);
     try {
-      await jars.setOverride(db, jar.id, titleId, "pin");
+      if (standing === "pinned") {
+        await jars.clearOverride(db, jar.id, titleId);
+      } else {
+        await jars.setOverride(db, jar.id, titleId, "pin");
+      }
     } catch (cause) {
-      console.warn("[pin-to-jar] pin failed", jar.id, cause);
+      console.warn("[pin-to-jar] toggle failed", jar.id, cause);
     } finally {
       setBusy(false);
     }
@@ -223,22 +245,18 @@ function JarPinRow({ jar, titleId }: { jar: JarRow; titleId: string }) {
         {jar.name ?? "Untitled"}
       </Text>
 
-      {standing === "absent" ? (
-        // Outline thumbtack — the same control as the jar screens, tap to pin.
+      {standing === "absent" || standing === "pinned" ? (
         <IconTablet
           glyph="pin"
           tone={accent.forest}
+          filled={standing === "pinned"}
           busy={busy}
-          onPress={pin}
-          accessibilityLabel={`Pin to ${jar.name}`}
-        />
-      ) : standing === "pinned" ? (
-        // Filled thumbtack, settled — pinned, not an offer.
-        <IconTablet
-          glyph="pin"
-          tone={accent.forest}
-          filled
-          accessibilityLabel="Pinned"
+          onPress={toggle}
+          accessibilityLabel={
+            standing === "pinned"
+              ? `Unpin from ${jar.name}`
+              : `Pin to ${jar.name}`
+          }
         />
       ) : (
         <StandingLabel standing={standing} />

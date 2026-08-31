@@ -16,7 +16,9 @@ export type JarStanding =
   "pinned" | "hidden" | "present" | "absent" | "resolving";
 
 /** Valid, cheap, returns nothing — used before the compiled query exists. */
-const NO_QUERY = "select 0 as n limit 0";
+const NO_QUERY = "select null limit 0";
+/** A stable empty params reference, so `useQuery` doesn't re-subscribe every render. */
+const NO_PARAMS: never[] = [];
 
 export function useJarStanding(
   jar: Pick<JarRow, "id" | "filter">,
@@ -51,15 +53,16 @@ export function useJarStanding(
     };
   }, [db, jar.id, jar.filter, overrideKind]);
 
-  const { data } = useQuery<{ n: number }>(
-    compiled && !overrideKind
-      ? `select count(*) as n from (${compiled.sql}) where id = ?`
-      : NO_QUERY,
-    compiled && !overrideKind ? [...compiled.params, titleId] : [],
+  // Run the jar's contents SQL exactly as the Jars grid does — `compiled.sql` and
+  // `compiled.params` are stable references held in state, so this doesn't churn — and
+  // check membership on the (small) result client-side.
+  const { data: contentRows } = useQuery<{ id: string }>(
+    compiled && !overrideKind ? compiled.sql : NO_QUERY,
+    compiled && !overrideKind ? compiled.params : NO_PARAMS,
   );
 
   if (overrideKind === "pin") return "pinned";
   if (overrideKind === "exclusion") return "hidden";
   if (compiled == null) return "resolving";
-  return data.length > 0 && data[0].n > 0 ? "present" : "absent";
+  return contentRows.some((r) => r.id === titleId) ? "present" : "absent";
 }
