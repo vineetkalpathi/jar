@@ -6,6 +6,11 @@
  * taped-on paper label is what makes it read as craft-fair. The label sits *on* the
  * glass, in the upper half.
  *
+ * The silhouette is the app icon's, scaled up: a lid floating clear of the body at ~79%
+ * of its width, and soft corners that are rounder at the base than at the shoulder.
+ * There is deliberately no neck — the gap alone says "lid", and dropping the neck is
+ * what makes the object read as a mark rather than a sketch of a jar.
+ *
  * Two things survive replacing this with a hand-drawn SVG, and both are load-bearing:
  * the 1.5px stroke, and leaving the top ~45% of the body clear for the name. Fill
  * level, label position and tap target all keep working around a different outline.
@@ -50,23 +55,14 @@ export function JarTile({
       className="flex-1 active:opacity-70"
     >
       <View style={{ height: jarTokens.tileHeight }} className="items-center">
-        {/* Rim — a bare rule, wider than the neck it sits on. */}
+        {/* Lid — a pill sitting off the jar, with air beneath it. */}
         <View
           style={{
-            width: `${jarTokens.rimWidthPct}%`,
+            width: `${jarTokens.lidWidthPct}%`,
             height: border.jar,
+            marginBottom: jarTokens.lidGap,
+            borderRadius: border.jar / 2,
             backgroundColor: paper.rim,
-          }}
-        />
-
-        {/* Neck — sides only, so the rim reads as sitting above an opening. */}
-        <View
-          style={{
-            width: `${jarTokens.neckWidthPct}%`,
-            height: jarTokens.neckHeight,
-            borderLeftWidth: border.jar,
-            borderRightWidth: border.jar,
-            borderColor: paper.rim,
           }}
         />
 

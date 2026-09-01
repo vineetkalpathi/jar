@@ -148,7 +148,8 @@ export const radius = {
   card: 4,
   button: 4,
   sheet: 10,
-  jar: { topLeft: 10, topRight: 10, bottomLeft: 14, bottomRight: 14 },
+  /** The app icon's proportions: a soft body, rounder at the base than the shoulder. */
+  jar: { topLeft: 22, topRight: 22, bottomLeft: 30, bottomRight: 30 },
 } as const;
 
 export const border = {
@@ -201,9 +202,14 @@ export const jar = {
   columns: 2,
   gapX: 14,
   gapY: 16,
-  rimWidthPct: 44,
-  neckWidthPct: 36,
-  neckHeight: 11,
+  /**
+   * Lid — a pill that floats above the body, at 79% of its width, the same relation the
+   * app icon draws. There is no neck: the gap is what says "lid", and losing the neck is
+   * what makes the object read as a mark rather than a sketch.
+   */
+  lidWidthPct: 70,
+  /** Air between lid and body. Large enough to read as a gap at a glance. */
+  lidGap: 9,
   bodyWidthPct: 88,
   /** Leave the top ~45% of the body clear for the name. */
   labelTop: 38,

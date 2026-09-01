@@ -216,22 +216,25 @@ function HouseGlyph({ color }: { color: string }) {
   );
 }
 
-/** A jar, the same line drawing as the tiles it navigates to. */
+/**
+ * A jar — the app icon at 22pt, and the same line drawing as the tiles it navigates to.
+ * Lid at 79% of the body's width, floating one stroke clear of it; no neck.
+ */
 function JarGlyph({ color }: { color: string }) {
   return (
     <View style={{ width: 22, height: 22, alignItems: "center", justifyContent: "center" }}>
-      <View style={{ width: 11, height: 1.5, borderRadius: 1, backgroundColor: color }} />
+      <View style={{ width: 12, height: 1.5, borderRadius: 0.75, backgroundColor: color }} />
       <View
         style={{
           marginTop: 1.5,
-          width: 14,
-          height: 13,
+          width: 15,
+          height: 14,
           borderWidth: 1.5,
           borderColor: color,
           borderTopLeftRadius: 3,
           borderTopRightRadius: 3,
-          borderBottomLeftRadius: 5,
-          borderBottomRightRadius: 5,
+          borderBottomLeftRadius: 4.5,
+          borderBottomRightRadius: 4.5,
         }}
       />
     </View>

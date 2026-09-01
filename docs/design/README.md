@@ -114,10 +114,14 @@ Sizes and the scale are in `src/theme/tokens.ts`. Base 16px, ratio 1.25.
 
 Jars render as **1.5px outline drawings**, not filled cards:
 
-- Rim: a 1.5px horizontal rule, 44% of the tile width.
-- Neck: 36% width, 11px tall, left and right strokes only.
-- Body: 88% width, fills remaining height, 1.5px border, radius `10px 10px 14px 14px`,
+- Lid: a 1.5px pill, 70% of the tile width (79% of the body's), floating 9px clear of
+  the body. There is **no neck** — the gap alone says "lid".
+- Body: 88% width, fills remaining height, 1.5px border, radius `22px 22px 30px 30px`,
   **transparent** background.
+
+The lid-to-body proportions and the corner radii are taken from the app icon
+(`assets/images/icon.png`) — that mark is the jar object at its most reduced, and the
+tiles are the same drawing scaled up. Keep them in step.
 - Contents: absolutely positioned at the bottom, height = `fillPercent`, background
   `rgba(63,91,74,0.14)` with a 1.5px top edge at `rgba(46,42,36,0.55)`. This is the fill
   level and it is real data — it rises with the slip count.
@@ -127,7 +131,7 @@ Jars render as **1.5px outline drawings**, not filled cards:
 
 Two things to preserve if this gets replaced with a hand-drawn asset (the user intends to
 draw their own): keep the **stroke at 1.5px**, and leave the **top ~45% of the body clear**
-for the name. Fill level, label position, and tap target all keep working if the outline
+for the name. Do not put the neck back. Fill level, label position, and tap target all keep working if the outline
 becomes an SVG.
 
 Do not reintroduce a taped-on paper label. Getting the label off the glass is what keeps the
