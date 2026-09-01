@@ -49,6 +49,8 @@
   --text-section-title--line-height: 31px;
   --text-title-large: 19px;
   --text-title-large--line-height: 24px;
+  --text-section-heading: 21px;
+  --text-section-heading--line-height: 26px;
   --text-jar-name: 16px;
   --text-jar-name--line-height: 18px;
   --text-slip: 21px;
@@ -59,6 +61,8 @@
   --text-slip-winner--line-height: 44px;
   --text-body: 15px;
   --text-body--line-height: 23px;
+  --text-body-large: 17px;
+  --text-body-large--line-height: 26px;
   --text-button: 16px;
   --text-meta: 12.5px;
   --text-meta--line-height: 19px;
@@ -91,6 +95,12 @@
   line-height: 24px;
 }
 
+@utility type-section-heading {
+  font-family: Vollkorn_600SemiBold;
+  font-size: 21px;
+  line-height: 26px;
+}
+
 @utility type-jar-name {
   font-family: Vollkorn;
   font-size: 16px;
@@ -119,6 +129,12 @@
   font-family: AlegreyaSans;
   font-size: 15px;
   line-height: 23px;
+}
+
+@utility type-body-large {
+  font-family: AlegreyaSans;
+  font-size: 17px;
+  line-height: 26px;
 }
 
 @utility type-button {

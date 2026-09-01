@@ -110,6 +110,8 @@ export const type = {
   layerTitle: { fontFamily: font.display, fontSize: 33, lineHeight: 35 },
   sectionTitle: { fontFamily: font.display, fontSize: 28, lineHeight: 31 },
   titleLarge: { fontFamily: font.display, fontSize: 19, lineHeight: 24 },
+  /** Section headings inside a page — Household Settings' groups. */
+  sectionHeading: { fontFamily: font.displaySemi, fontSize: 21, lineHeight: 26 },
   jarName: { fontFamily: font.display, fontSize: 16, lineHeight: 18 },
 
   slip: { fontFamily: font.hand, fontSize: 21, lineHeight: 24 },
@@ -117,6 +119,8 @@ export const type = {
   slipWinner: { fontFamily: font.hand, fontSize: 42, lineHeight: 44 },
 
   body: { fontFamily: font.ui, fontSize: 15, lineHeight: 23 },
+  /** Body copy on read-it-carefully pages — settings rows, policy choices. */
+  bodyLarge: { fontFamily: font.ui, fontSize: 17, lineHeight: 26 },
   button: { fontFamily: font.uiBold, fontSize: 16 },
   meta: { fontFamily: font.ui, fontSize: 12.5, lineHeight: 19 },
   metaSmall: { fontFamily: font.ui, fontSize: 11.5 },

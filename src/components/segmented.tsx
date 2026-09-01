@@ -20,13 +20,17 @@ export function Segmented<T extends string>({
   stretch = false,
   /** Let the options wrap to a second line instead of overflowing. */
   wrap = false,
+  /** `large` reads at body size with a taller target — settings, not a dense filter row. */
+  size = "default",
 }: {
   value: T;
   options: SegmentedOption<T>[];
   onChange: (value: T) => void;
   stretch?: boolean;
   wrap?: boolean;
+  size?: "default" | "large";
 }) {
+  const large = size === "large";
   return (
     <View
       className={`flex-row overflow-hidden rounded-card border border-hairline ${
@@ -41,13 +45,13 @@ export function Segmented<T extends string>({
             onPress={() => onChange(option.value)}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            className={`px-3.5 py-1.5 active:opacity-70 ${
+            className={`${large ? "px-4 py-2.5" : "px-3.5 py-1.5"} active:opacity-70 ${
               i > 0 ? "border-l border-hairline" : ""
             } ${stretch ? "flex-1 items-center" : ""}`}
             style={{ backgroundColor: active ? accent.forest : "transparent" }}
           >
             <Text
-              className="type-meta-small"
+              className={large ? "type-body" : "type-meta-small"}
               style={{ color: active ? paper.card : ink.muted }}
             >
               {option.label}

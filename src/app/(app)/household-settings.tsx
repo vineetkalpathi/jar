@@ -6,7 +6,7 @@ import { Screen } from "@/components/screen";
 import { Segmented } from "@/components/segmented";
 import { AddTag, Tag, TagList } from "@/components/tag";
 import { TagPicker } from "@/components/tag-picker";
-import { Eyebrow, LayerTitle, Meta } from "@/components/text";
+import { Eyebrow, LayerTitle } from "@/components/text";
 import { signOut } from "@/lib/auth/actions";
 import { useUserId } from "@/lib/auth/session";
 import { annotations, households, type RatingCategoryRow, type TagRow } from "@/lib/db";
@@ -161,7 +161,7 @@ export default function HouseholdSettings() {
                     key={m.id}
                     className="flex-row items-center justify-between border-b border-hairline py-3"
                   >
-                    <Text className="type-body text-ink">
+                    <Text className="type-body-large text-ink">
                       {m.display_name}
                       {isSelf ? "  · you" : ""}
                     </Text>
@@ -203,9 +203,7 @@ export default function HouseholdSettings() {
                 </Text>
               </Pressable>
             </View>
-            <Meta>
-              Anyone with this code can join. Real invites come later.
-            </Meta>
+            <Hint>Anyone with this code can join. Real invites come later.</Hint>
           </View>
         </Section>
 
@@ -221,15 +219,13 @@ export default function HouseholdSettings() {
                   className="flex-row items-center justify-between py-2 active:opacity-60"
                 >
                   <Text
-                    className="type-body"
+                    className="type-body-large"
                     style={{ color: current ? accent.forest : ink.primary }}
                   >
                     {h.name}
                   </Text>
                   {current ? (
-                    <Text className="type-meta-small text-ink-faint">
-                      Current
-                    </Text>
+                    <Text className="type-meta text-ink-faint">Current</Text>
                   ) : null}
                 </Pressable>
               );
@@ -248,27 +244,19 @@ export default function HouseholdSettings() {
               key={c.id}
               className="flex-row items-center justify-between border-b border-hairline py-3"
             >
-              <Text className="type-body text-ink">
+              <Text className="type-body-large flex-1 text-ink">
                 {c.name}
                 {c.archived_at ? "  · archived" : ""}
               </Text>
-              <Pressable
+              <RemovePill
                 onPress={() => removeCategory(c)}
-                hitSlop={10}
-                accessibilityRole="button"
                 accessibilityLabel={`Remove ${c.name}`}
-              >
-                <Text className="type-body text-rust">Remove</Text>
-              </Pressable>
+              />
             </View>
           ))}
-          <Pressable
-            onPress={() => setPickerOpen(true)}
-            accessibilityRole="button"
-            className="py-3 active:opacity-60"
-          >
-            <Text className="type-body text-forest">＋ Add an axis</Text>
-          </Pressable>
+          <View className="flex-row pt-3">
+            <AddPill label="Add an axis" onPress={() => setPickerOpen(true)} />
+          </View>
         </Section>
 
         <Section
@@ -334,9 +322,7 @@ function TagsSection({ householdId }: { householdId: string }) {
 
   return (
     <Section title="Tags" hint="Shared labels the household applies to titles here.">
-      {tags.length === 0 ? (
-        <Meta>None yet — coin the first below.</Meta>
-      ) : null}
+      {tags.length === 0 ? <Hint>None yet — coin the first below.</Hint> : null}
       <View className="pt-1">
         <TagList>
           {tags.map((tag) => (
@@ -369,10 +355,126 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <View className="gap-2">
-      <Eyebrow>{title}</Eyebrow>
-      {hint ? <Meta>{hint}</Meta> : null}
-      <View className="gap-0.5 pt-1">{children}</View>
+    <View className="gap-1.5">
+      <Text className="type-section-heading text-ink">{title}</Text>
+      {hint ? <Hint>{hint}</Hint> : null}
+      <View className="gap-0.5 pt-1.5">{children}</View>
+    </View>
+  );
+}
+
+/** A section's explanatory line. `Meta` sized up to match this page's larger content. */
+function Hint({ children }: { children: React.ReactNode }) {
+  return <Text className="type-body text-ink-muted">{children}</Text>;
+}
+
+/**
+ * The two row actions in Rating axes, as pills rather than words: a rust trash for
+ * remove, a forest ＋ for add. Both are hairline pills on paper, so they read as the
+ * same family as `Tag` — the glyph and the colour carry the meaning.
+ */
+const pillStyle = {
+  flexDirection: "row" as const,
+  alignItems: "center" as const,
+  gap: 7,
+  borderRadius: 999,
+  borderWidth: 1,
+  paddingVertical: 7,
+  paddingHorizontal: 13,
+};
+
+function RemovePill({
+  onPress,
+  accessibilityLabel,
+}: {
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      className="active:opacity-60"
+      style={[pillStyle, { borderColor: accent.rust }]}
+    >
+      <TrashGlyph color={accent.rust} />
+    </Pressable>
+  );
+}
+
+function AddPill({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      className="active:opacity-60"
+      style={[pillStyle, { borderColor: accent.forest }]}
+    >
+      <PlusGlyph color={accent.forest} />
+      <Text className="type-body" style={{ color: accent.forest }}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** Lid, handle, can. Drawn, per the no-icon-library rule. */
+function TrashGlyph({ color }: { color: string }) {
+  return (
+    <View style={{ width: 13, height: 15 }}>
+      {/* Handle — an open-bottomed stub sitting on the lid. */}
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          alignSelf: "center",
+          width: 5.5,
+          height: 3,
+          borderWidth: 1.5,
+          borderBottomWidth: 0,
+          borderColor: color,
+          borderTopLeftRadius: 1.5,
+          borderTopRightRadius: 1.5,
+        }}
+      />
+      <View
+        style={{
+          position: "absolute",
+          top: 3.5,
+          width: 13,
+          height: 1.6,
+          borderRadius: 1,
+          backgroundColor: color,
+        }}
+      />
+      {/* Can — open at the top, where the lid covers it. */}
+      <View
+        style={{
+          position: "absolute",
+          bottom: 0,
+          alignSelf: "center",
+          width: 10,
+          height: 9.5,
+          borderWidth: 1.5,
+          borderTopWidth: 0,
+          borderColor: color,
+          borderBottomLeftRadius: 2.5,
+          borderBottomRightRadius: 2.5,
+        }}
+      />
+    </View>
+  );
+}
+
+function PlusGlyph({ color }: { color: string }) {
+  const bar = { position: "absolute" as const, borderRadius: 1, backgroundColor: color };
+  return (
+    <View style={{ width: 12, height: 12, alignItems: "center", justifyContent: "center" }}>
+      <View style={[bar, { width: 12, height: 1.8 }]} />
+      <View style={[bar, { width: 1.8, height: 12 }]} />
     </View>
   );
 }
@@ -436,27 +538,31 @@ function PolicyControls({
 
   return (
     <View className="gap-4">
-      <View className="gap-1.5">
+      <View className="gap-2">
         <Eyebrow>Coverage</Eyebrow>
         <Segmented
           value={cov}
+          stretch
+          size="large"
           options={[
             { value: "any", label: "Anyone" },
             { value: "all", label: "Everyone" },
           ]}
           onChange={(v) => set({ coverage: v })}
         />
-        <Meta>
+        <Hint>
           {cov === "all"
             ? "Every member must have rated a title for it to qualify."
             : "One member's rating is enough."}
-        </Meta>
+        </Hint>
       </View>
 
-      <View className="gap-1.5">
+      <View className="gap-2">
         <Eyebrow>Aggregator</Eyebrow>
         <Segmented
           value={agg}
+          stretch
+          size="large"
           options={[
             { value: "avg", label: "Average" },
             { value: "min", label: "Lowest" },
