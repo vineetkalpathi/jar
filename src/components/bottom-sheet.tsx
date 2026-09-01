@@ -56,7 +56,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 /** Matches the app's nav speed — quick, out of the way. */
 const DURATION = 260;
 
-/** How long past the slide to wait for `onDismiss` before reporting the close anyway. */
+/** How long past the slide to wait for iOS's `onDismiss` before reporting anyway. */
 const DISMISS_BACKSTOP = 200;
 
 export function BottomSheet({
@@ -72,7 +72,7 @@ export function BottomSheet({
   /**
    * Fired once per close, after the sheet is gone — on iOS when the modal reports its
    * dismissal, elsewhere once the slide has finished. Open the next layer from here
-   * rather than from a timer.
+   * rather than from a timer of the caller's own.
    */
   onClosed?: () => void;
   children: ReactNode;
@@ -127,7 +127,13 @@ export function BottomSheet({
       easing: Easing.in(Easing.cubic),
     });
     const slide = setTimeout(() => setMounted(false), DURATION);
-    const backstop = setTimeout(fireClosed, DURATION + DISMISS_BACKSTOP);
+    // iOS is the only platform that presents sheets as view controllers, so it is the
+    // only one where the real dismissal matters — `onDismiss` reports it, and this only
+    // covers the case where it never arrives. Everywhere else the unmount is the close.
+    const backstop = setTimeout(
+      fireClosed,
+      Platform.OS === "ios" ? DURATION + DISMISS_BACKSTOP : DURATION,
+    );
     return () => {
       clearTimeout(slide);
       clearTimeout(backstop);

@@ -6,7 +6,6 @@ import {
   Alert,
   FlatList,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -165,11 +164,16 @@ export default function JarDetail() {
   // `runOption`.
   const [pending, setPending] = useState<JarOption | null>(null);
   const [pendingDraw, setPendingDraw] = useState<DrawInput | null>(null);
+  // This screen deleted its own jar and is leaving. See `confirmDelete`.
+  const [deleting, setDeleting] = useState(false);
 
   if (isLoading) return <Loading />;
 
-  // The Jar was deleted, or its row hasn't synced. Either way there is nothing to show.
-  if (!jar) return <Loading note="That jar isn't here." />;
+  // The Jar was deleted, or its row hasn't synced. Either way there is nothing to show
+  // — but if this screen is the one that deleted it, say nothing: it is mid-pop, and
+  // "that jar isn't here" reads as an error rather than as the delete working.
+  if (!jar)
+    return deleting ? <Loading /> : <Loading note="That jar isn't here." />;
 
   const tileW = Math.floor((width - 40 - GRID_GAP * 2) / 3);
   const tileH = Math.round(tileW * 1.48);
@@ -184,13 +188,20 @@ export default function JarDetail() {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            jars
-              .deleteJar(db, jar.id)
-              .then(() => router.back())
-              .catch((cause) => {
-                console.warn("[jars] could not delete", jar.id, cause);
-                Alert.alert("Couldn't delete", "That jar didn't delete.");
-              });
+            setDeleting(true);
+            // Leave first, write second. Every watched query this screen holds — the
+            // jar row, its compiled contents, its overrides — sits on rows the delete
+            // removes, so waiting for it means re-rendering the whole screen against a
+            // jar that is gone while the alert is still dismissing and a pop is queued.
+            // Popping first lands the write on a screen already on its way out.
+            if (router.canGoBack()) router.back();
+            else router.replace("/jars");
+
+            jars.deleteJar(db, jar.id).catch((cause) => {
+              console.warn("[jars] could not delete", jar.id, cause);
+              setDeleting(false);
+              Alert.alert("Couldn't delete", "That jar didn't delete.");
+            });
           },
         },
       ],
@@ -205,14 +216,14 @@ export default function JarDetail() {
 
   /**
    * Two of these open a second presented layer — the manage sheet's modal, and the
-   * delete alert — and iOS will not present one while the options sheet is still being
-   * dismissed. So the action is parked and run from the sheet's `onClosed`, which fires
-   * on the real dismissal rather than on a timer racing it.
+   * delete alert. iOS will not present one while the options sheet is still being
+   * dismissed, and on Android an alert raised under a sheet's dialog reads as a frozen
+   * app. So the action is parked and run from the sheet's `onClosed`, which reports the
+   * real dismissal rather than a timer racing it.
    */
   const runOption = (action: JarOption) => {
     setOptionsOpen(false);
-    if (Platform.OS === "ios") setPending(action);
-    else applyOption(action);
+    setPending(action);
   };
 
   const countLine = needle
@@ -360,11 +371,7 @@ export default function JarDetail() {
           setDrawing(false);
           // Pushed from `onClosed`, so the flow arrives on a screen with no sheet still
           // dismissing over it.
-          if (Platform.OS === "ios") setPendingDraw(input);
-          else
-            router.push(
-              `/draw/${jar.id}?count=${input.count}&saucy=${input.saucy ? 1 : 0}`,
-            );
+          setPendingDraw(input);
         }}
       />
 
