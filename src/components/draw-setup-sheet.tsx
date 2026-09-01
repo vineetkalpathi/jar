@@ -39,12 +39,15 @@ export function DrawSetupSheet({
   jarName,
   jarCount,
   onClose,
+  onClosed,
   onStart,
 }: {
   visible: boolean;
   jarName: string;
   jarCount: number;
   onClose: () => void;
+  /** Fired once the sheet is gone — for whatever the caller opens or pushes next. */
+  onClosed?: () => void;
   /** `saucy` ⇒ one slip, no knockout grid. */
   onStart: (input: { count: number; saucy: boolean }) => void;
 }) {
@@ -74,7 +77,7 @@ export function DrawSetupSheet({
   const cta = saucy ? "Just give me one" : `Shake out ${shown}`;
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <BottomSheet visible={visible} onClose={onClose} onClosed={onClosed}>
       <View
         className="bg-paper px-6 pb-12 pt-3"
         style={{

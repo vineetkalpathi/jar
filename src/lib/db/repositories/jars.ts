@@ -27,16 +27,45 @@ export const JARS_FOR_HOUSEHOLD = `
 `;
 
 /**
- * A Jar's manual overrides — the Titles Pinned into it or Excluded from it — as full
- * Title rows plus the override `kind`. Parameters: `[jarId]`.
+ * A Jar's manual overrides — the Titles Pinned into it or Excluded from it — with
+ * enough of each Title to list it. Parameters: `[jarId]`.
+ *
+ * `left join`, and `id` taken from the override rather than the Title, because the two
+ * tables sync independently: an override can land before the Title it names. An inner
+ * join drops those rows, and a pin made on another device then reads on this one as
+ * "nothing pinned or hidden" — indistinguishable from the pin having failed. Left-joined
+ * they arrive with a null `name`, which the caller can render as unresolved.
+ *
+ * Columns are listed rather than `t.*` so the shape is `OverrideRow` and nothing else;
+ * `t.*` also put a `title.kind` column one migration away from shadowing `jo.kind`.
  */
 export const OVERRIDES_FOR_JAR = `
-  select t.*, jo.kind
+  select jo.title_id as id,
+         jo.kind,
+         t.tmdb_id,
+         t.name,
+         t.media_type,
+         t.release_year,
+         t.runtime,
+         t.poster_path
   from jar_override jo
-  join title t on t.id = jo.title_id
+  left join title t on t.id = jo.title_id
   where jo.jar_id = ?
   order by jo.kind, t.name
 `;
+
+/** A row of {@link OVERRIDES_FOR_JAR}. `name` is null until the Title has synced. */
+export type OverrideRow = {
+  /** The Title's id — from the override, so it is present even unresolved. */
+  id: string;
+  kind: "pin" | "exclusion";
+  tmdb_id: number | null;
+  name: string | null;
+  media_type: string | null;
+  release_year: number | null;
+  runtime: number | null;
+  poster_path: string | null;
+};
 
 /**
  * The override `kind` for one Title in one Jar, or no rows. Parameters: `[jarId, titleId]`.
