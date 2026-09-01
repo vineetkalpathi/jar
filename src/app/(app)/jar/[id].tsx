@@ -25,6 +25,7 @@ import { SearchField } from "@/components/search-field";
 import { Body, Eyebrow, LayerTitle, Meta, TitleName } from "@/components/text";
 import { useUserId } from "@/lib/auth/session";
 import { jars, library, type JarRow, type TitleRow } from "@/lib/db";
+import type { OverrideRow as JarOverrideRow } from "@/lib/db/repositories/jars";
 import type { LibraryEntryView } from "@/lib/db/repositories/library";
 import type { CompiledQuery } from "@/lib/filter";
 import {
@@ -42,6 +43,12 @@ import { accent, font, ink, paper, radius } from "@/theme";
 
 /** Poster grid gutter — matches the row gap so the grid reads as even. */
 const GRID_GAP = 10;
+
+/** What the jar's ⋯ sheet can pick. */
+type JarOption = "rename" | "manual" | "delete";
+
+/** What the draw sheet hands back. */
+type DrawInput = { count: number; saucy: boolean };
 
 /** Valid, cheap, returns nothing — what the search query sits on while the box is empty. */
 const NO_MATCHES = "select null as id limit 0";
@@ -65,7 +72,10 @@ export default function JarDetail() {
 
   const { data: rows, isLoading } = useQuery<JarRow>(
     `select * from jar where id = ?`,
-    [id],
+    // `??` rather than `id`: expo-router hands back `undefined` while a route is being
+    // torn down, and op-sqlite throws on an undefined binding rather than returning
+    // nothing.
+    [id ?? ""],
   );
   const jar = rows[0];
 
@@ -116,12 +126,27 @@ export default function JarDetail() {
     [titles],
   );
 
-  // The jar's overrides, so the Add / Remove screens can label and route each row:
-  // on Remove, a Pinned title's − unpins rather than excludes; on Add, an Excluded
-  // title's + un-excludes rather than pinning.
-  const { data: overrides } = useQuery<
-    TitleRow & { kind: "pin" | "exclusion" }
-  >(jars.OVERRIDES_FOR_JAR, [id]);
+  // The jar's overrides, read once here and passed down: the Add and Remove screens
+  // need them to label and route each row — on Remove, a Pinned title's − unpins rather
+  // than excludes; on Add, an Excluded title's + un-excludes rather than pinning — and
+  // the manage sheet lists them. One watched query for all three.
+  const { data: overrideRows } = useQuery<JarOverrideRow>(
+    jars.OVERRIDES_FOR_JAR,
+    [jar?.id ?? ""],
+  );
+
+  // One row per Title. The local replica carries none of Postgres' constraints, so the
+  // unique (jar_id, title_id) that stops a Title being listed twice is not enforced
+  // here — and `setOverride` inserts a fresh row id each time, so a locally-written
+  // override and its replicated twin can both be present. Rendering both would put
+  // duplicate React keys in the manage sheet.
+  const overrides = useMemo(() => {
+    const byTitle = new Map<string, JarOverrideRow>();
+    for (const row of overrideRows)
+      if (!byTitle.has(row.id)) byTitle.set(row.id, row);
+    return [...byTitle.values()];
+  }, [overrideRows]);
+
   const pinnedIds = useMemo(
     () => new Set(overrides.filter((o) => o.kind === "pin").map((o) => o.id)),
     [overrides],
@@ -136,6 +161,10 @@ export default function JarDetail() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [managing, setManaging] = useState(false);
+  // What the options sheet picked, held until the sheet reports itself gone. See
+  // `runOption`.
+  const [pending, setPending] = useState<JarOption | null>(null);
+  const [pendingDraw, setPendingDraw] = useState<DrawInput | null>(null);
 
   if (isLoading) return <Loading />;
 
@@ -168,16 +197,22 @@ export default function JarDetail() {
     );
   };
 
-  const runOption = (action: "rename" | "manual" | "delete") => {
+  const applyOption = (action: JarOption) => {
+    if (action === "rename") setRenaming(true);
+    else if (action === "manual") setManaging(true);
+    else confirmDelete();
+  };
+
+  /**
+   * Two of these open a second presented layer — the manage sheet's modal, and the
+   * delete alert — and iOS will not present one while the options sheet is still being
+   * dismissed. So the action is parked and run from the sheet's `onClosed`, which fires
+   * on the real dismissal rather than on a timer racing it.
+   */
+  const runOption = (action: JarOption) => {
     setOptionsOpen(false);
-    const go = () => {
-      if (action === "rename") setRenaming(true);
-      else if (action === "manual") setManaging(true);
-      else confirmDelete();
-    };
-    // Let the sheet finish sliding out before the next layer opens (iOS stacks poorly).
-    if (Platform.OS === "ios") setTimeout(go, 300);
-    else go();
+    if (Platform.OS === "ios") setPending(action);
+    else applyOption(action);
   };
 
   const countLine = needle
@@ -311,29 +346,48 @@ export default function JarDetail() {
         visible={drawing}
         jarName={jar.name ?? "This jar"}
         jarCount={titles.length}
-        onClose={() => setDrawing(false)}
-        onStart={({ count, saucy }) => {
+        onClose={() => {
           setDrawing(false);
-          const go = () =>
+          setPendingDraw(null);
+        }}
+        onClosed={() => {
+          if (!pendingDraw) return;
+          const { count, saucy } = pendingDraw;
+          setPendingDraw(null);
+          router.push(`/draw/${jar.id}?count=${count}&saucy=${saucy ? 1 : 0}`);
+        }}
+        onStart={(input) => {
+          setDrawing(false);
+          // Pushed from `onClosed`, so the flow arrives on a screen with no sheet still
+          // dismissing over it.
+          if (Platform.OS === "ios") setPendingDraw(input);
+          else
             router.push(
-              `/draw/${jar.id}?count=${count}&saucy=${saucy ? 1 : 0}`,
+              `/draw/${jar.id}?count=${input.count}&saucy=${input.saucy ? 1 : 0}`,
             );
-          // Let the sheet slide out before the flow pushes (iOS stacks poorly).
-          if (Platform.OS === "ios") setTimeout(go, 260);
-          else go();
         }}
       />
 
       <JarOptionsSheet
         visible={optionsOpen}
         jarName={jar.name ?? "Jar"}
-        onClose={() => setOptionsOpen(false)}
+        onClose={() => {
+          setOptionsOpen(false);
+          setPending(null);
+        }}
+        onClosed={() => {
+          if (!pending) return;
+          const action = pending;
+          setPending(null);
+          applyOption(action);
+        }}
         onSelect={runOption}
       />
 
       <ManualTitlesSheet
         visible={managing}
         jarId={jar.id}
+        overrides={overrides}
         onClose={() => setManaging(false)}
       />
     </Screen>
@@ -349,15 +403,18 @@ function JarOptionsSheet({
   visible,
   jarName,
   onClose,
+  onClosed,
   onSelect,
 }: {
   visible: boolean;
   jarName: string;
   onClose: () => void;
-  onSelect: (action: "rename" | "manual" | "delete") => void;
+  /** Fired once this sheet is gone — where the picked action actually runs. */
+  onClosed?: () => void;
+  onSelect: (action: JarOption) => void;
 }) {
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <BottomSheet visible={visible} onClose={onClose} onClosed={onClosed}>
       <View
         className="bg-paper pb-10 pt-3"
         style={{
@@ -430,26 +487,41 @@ function OptionRow({
 function ManualTitlesSheet({
   visible,
   jarId,
+  overrides,
   onClose,
 }: {
   visible: boolean;
   jarId: string;
+  /** The jar's overrides, already watched by the screen — not re-queried here. */
+  overrides: JarOverrideRow[];
   onClose: () => void;
 }) {
   const db = usePowerSync();
   const { height } = useWindowDimensions();
-  const { data } = useQuery<TitleRow & { kind: "pin" | "exclusion" }>(
-    visible ? jars.OVERRIDES_FOR_JAR : "select null limit 0",
-    visible ? [jarId] : [],
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const pins = useMemo(
+    () => overrides.filter((o) => o.kind === "pin"),
+    [overrides],
+  );
+  const hidden = useMemo(
+    () => overrides.filter((o) => o.kind === "exclusion"),
+    [overrides],
   );
 
-  const pins = data.filter((d) => d.kind === "pin");
-  const hidden = data.filter((d) => d.kind === "exclusion");
-
-  const clear = (titleId: string) => {
-    jars
-      .clearOverride(db, jarId, titleId)
-      .catch((cause) => console.warn("[jars] could not clear override", cause));
+  const clear = async (titleId: string) => {
+    // Guarded: the row stays on screen until the watched query round-trips, so without
+    // this a second tap fires a second delete against a row that is already going.
+    if (busyId) return;
+    setBusyId(titleId);
+    try {
+      await jars.clearOverride(db, jarId, titleId);
+    } catch (cause) {
+      console.warn("[jars] could not clear override", cause);
+      Alert.alert("Couldn't update", "That override didn't clear.");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
@@ -472,7 +544,7 @@ function ManualTitlesSheet({
           titles stay out even when they match.
         </Meta>
 
-        {data.length === 0 ? (
+        {overrides.length === 0 ? (
           <View className="py-6">
             <Body>
               Nothing pinned or hidden. Use “Pin a title” or “Hide a title”
@@ -496,6 +568,7 @@ function ManualTitlesSheet({
                     glyph="pin"
                     tone={accent.forest}
                     actionLabel="Unpin"
+                    busy={busyId === t.id}
                     onAction={() => clear(t.id)}
                   />
                 ))}
@@ -512,6 +585,7 @@ function ManualTitlesSheet({
                     glyph="hide"
                     tone={accent.rust}
                     actionLabel="Un-hide"
+                    busy={busyId === t.id}
                     onAction={() => clear(t.id)}
                   />
                 ))}
@@ -529,19 +603,26 @@ function OverrideRow({
   glyph,
   tone,
   actionLabel,
+  busy,
   onAction,
 }: {
-  title: TitleRow;
+  title: JarOverrideRow;
   glyph: "pin" | "hide";
   tone: string;
   actionLabel: string;
+  busy: boolean;
   onAction: () => void;
 }) {
+  // The override is here but the Title it names hasn't synced yet. Say so rather than
+  // showing a blank row — the override is still real, and still clearable.
+  const unresolved = title.name == null;
+  const name = title.name ?? "Not synced yet";
+
   return (
     <TitleResultRow
-      name={title.name ?? "Untitled"}
+      name={name}
       posterPath={title.poster_path}
-      meta={titleMeta(title)}
+      meta={unresolved ? "Waiting for this title to arrive" : titleMeta(title)}
       trailing={
         // Every row here has an override applied → filled. Tapping clears it and the
         // row falls off the list.
@@ -549,8 +630,9 @@ function OverrideRow({
           glyph={glyph}
           tone={tone}
           filled
+          busy={busy}
           onPress={onAction}
-          accessibilityLabel={`${actionLabel} ${title.name}`}
+          accessibilityLabel={`${actionLabel} ${name}`}
         />
       }
     />
