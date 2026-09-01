@@ -21,7 +21,9 @@ from the document that specifies it.
    migrations, and verify a change before committing it.
 5. **[powersync.md](./powersync.md)** — sync setup, and why sync rules rather than RLS
    are what actually protect reads.
-6. **[adr/](./adr/)** — why things are the way they are. Read when a decision looks
+6. **[releasing.md](./releasing.md)** — the path from a working checkout to TestFlight
+   and then the App Store, and how to ship a change once people are on it.
+7. **[adr/](./adr/)** — why things are the way they are. Read when a decision looks
    arbitrary, or before changing one.
 
 The schema itself is
