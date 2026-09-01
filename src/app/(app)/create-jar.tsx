@@ -60,6 +60,7 @@ export default function CreateJar() {
   return (
     <Screen
       scroll
+      keyboardHidesFooter
       footer={
         <View className="gap-2">
           {error ? (
