@@ -10,7 +10,7 @@ import { Eyebrow, LayerTitle } from "@/components/text";
 import { signOut } from "@/lib/auth/actions";
 import { useUserId } from "@/lib/auth/session";
 import { annotations, households, type RatingCategoryRow, type TagRow } from "@/lib/db";
-import { useActiveHousehold, useHousehold } from "@/lib/household/active";
+import { useHousehold } from "@/lib/household/active";
 import { accent, ink, paper } from "@/theme";
 import { usePowerSync, useQuery } from "@powersync/react";
 import * as Clipboard from "expo-clipboard";
@@ -30,7 +30,6 @@ export default function HouseholdSettings() {
   const db = usePowerSync();
   const household = useHousehold();
   const userId = useUserId();
-  const { all, select } = useActiveHousehold();
 
   const { data: categories } = useQuery<RatingCategoryRow>(
     households.CATEGORIES_FOR_HOUSEHOLD,
@@ -207,31 +206,11 @@ export default function HouseholdSettings() {
           </View>
         </Section>
 
-        {all.length > 1 ? (
-          <Section title="Switch household">
-            {all.map((h) => {
-              const current = h.id === household.id;
-              return (
-                <Pressable
-                  key={h.id}
-                  onPress={() => !current && select(h.id)}
-                  accessibilityRole="button"
-                  className="flex-row items-center justify-between py-2 active:opacity-60"
-                >
-                  <Text
-                    className="type-body-large"
-                    style={{ color: current ? accent.forest : ink.primary }}
-                  >
-                    {h.name}
-                  </Text>
-                  {current ? (
-                    <Text className="type-meta text-ink-faint">Current</Text>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </Section>
-        ) : null}
+        {/*
+          Switching used to live here as a list. It is now the household name itself on
+          every screen that prints one (`components/household-switcher.tsx`) — two
+          mechanisms for one action only drift apart.
+        */}
 
         <TagsSection householdId={household.id} />
 

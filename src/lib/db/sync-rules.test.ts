@@ -80,6 +80,40 @@ describe("sync rules", () => {
     expect(published.filter((t) => !declared.has(t))).toEqual([]);
   });
 
+  it("keeps a title on the device for as long as the user's own opinions reference it", () => {
+    // Ratings and Viewings are user-scoped and outlive the library entry that put their
+    // Title on a shelf — a Title removed from a Library, or a Household left. Reaching
+    // titles only through `library_entry` therefore drops exactly the rows the Log's
+    // "Mine, everywhere" scope exists to show, and they render nameless rather than
+    // absent. Two queries, one per kind of opinion.
+    const ownHistory = sources.filter(
+      (s) =>
+        s.table === "title" &&
+        /INNER JOIN (viewing|rating) \w+ ON \w+\.title_id = title\.id/.test(s.query) &&
+        /WHERE \w+\.user_id = auth\.user_id\(\)/.test(s.query),
+    );
+    expect(ownHistory).toHaveLength(2);
+  });
+
+  it("resolves the household and the watcher of every night in a log", () => {
+    // The Log no longer joins `household_member`: a night survives the viewer leaving,
+    // on both sides. So the names it renders have to arrive by a route that does not
+    // depend on a current membership either — the household I watched in, and the
+    // display name of anyone who watched in mine.
+    const householdsOfMyViewings = sources.filter(
+      (s) =>
+        s.table === "household" &&
+        /INNER JOIN viewing \w+ ON \w+\.household_id = household\.id/.test(s.query),
+    );
+    const watchersInMyHouseholds = sources.filter(
+      (s) =>
+        s.table === "app_user" &&
+        /INNER JOIN viewing \w+ ON \w+\.user_id = app_user\.id/.test(s.query),
+    );
+    expect(householdsOfMyViewings).toHaveLength(1);
+    expect(watchersInMyHouseholds).toHaveLength(1);
+  });
+
   it("syncs every table the client declares", () => {
     // A declared table nothing syncs is permanently empty, which reads as missing data
     // rather than as a configuration mistake.

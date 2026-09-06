@@ -208,10 +208,24 @@ export const VIEWINGS_BY_USER_FOR_TITLE = `
 `;
 
 /**
- * Every Viewing of a Title in the Household's Library, newest first, with who watched —
- * the Log. Joined through `library_entry` so a member's Viewing of something this
- * Household doesn't stock stays out, and through `household_member` so a Viewing by
- * someone who has since left doesn't linger. Parameters: `[householdId]`.
+ * The Household's Log: every Viewing that happened *here*, newest first, with who
+ * watched. Parameters: `[householdId]`.
+ *
+ * Selects on `v.household_id` — the occasion — rather than deriving attribution by
+ * joining through `library_entry`, which is what this used to do. Two things follow.
+ *
+ * A night now belongs to one Household. Before, a film stocked by two of your
+ * Households showed up in both Logs, once each, as though it had been watched twice.
+ *
+ * And a night outlives the membership that made it. The `household_member` join is
+ * gone deliberately: someone who has since left the group was still there that evening,
+ * and erasing them from the Log rewrites what happened. `app_user` is a LEFT JOIN for
+ * the same reason — their name should render, but a Log entry is worth showing even if
+ * it doesn't (see the `households` sync stream, which now replicates the display names
+ * of anyone who has watched in one of your Households).
+ *
+ * The `library_entry` join is gone too, so a night survives the Title being taken off
+ * the shelf. `title` stays an inner join: with nothing to name it, there is no card.
  */
 export const VIEWINGS_FOR_HOUSEHOLD = `
   select
@@ -225,10 +239,41 @@ export const VIEWINGS_FOR_HOUSEHOLD = `
     t.poster_path,
     u.display_name
   from viewing v
-  join library_entry le on le.title_id = v.title_id and le.household_id = ?1
   join title t on t.id = v.title_id
-  join household_member hm on hm.user_id = v.user_id and hm.household_id = ?1
-  join app_user u on u.id = v.user_id
+  left join app_user u on u.id = v.user_id
+  where v.household_id = ?1
+  order by v.watched_on desc, v.created_at desc
+`;
+
+/**
+ * The User's own Log, across every Household — "Mine, everywhere". Parameters:
+ * `[userId]`.
+ *
+ * The personal counterpart to `VIEWINGS_FOR_HOUSEHOLD`, and the reason Viewings carry a
+ * Household at all: each night is labelled with where it happened, so one list can span
+ * groups without the entries running together.
+ *
+ * Both joins are LEFT. `household` is null for a Household that has been deleted, and
+ * the label is simply omitted. `title` can be null in the window between recording a
+ * Viewing offline and the Title syncing back — an inner join would make those nights
+ * vanish and reappear, which reads as data loss.
+ */
+export const VIEWINGS_FOR_USER = `
+  select
+    v.id,
+    v.title_id,
+    v.user_id,
+    v.watched_on,
+    v.watched_precision,
+    v.created_at,
+    t.name        as title_name,
+    t.poster_path,
+    h.name        as household_name,
+    v.household_id
+  from viewing v
+  left join title t on t.id = v.title_id
+  left join household h on h.id = v.household_id
+  where v.user_id = ?1
   order by v.watched_on desc, v.created_at desc
 `;
 
@@ -242,18 +287,37 @@ export const VIEWINGS_FOR_HOUSEHOLD = `
  * Deliberately not idempotent and not keyed on (title, user): rewatches are separate
  * rows, which is what makes watch count, recency and watched-ness all derivable rather
  * than stored. Watching something twice in one day is a real thing.
+ *
+ * `householdId` is where it happened, and it is required rather than optional: every
+ * caller knows the answer — a screen has an active Household, a Draw has one through its
+ * Jar — and making it optional would let a night be recorded with no occasion attached,
+ * which is exactly the row the Log cannot place.
  */
 export async function recordViewing(
   db: AbstractPowerSyncDatabase,
-  input: { userId: string; titleId: string; on?: ApproxDateParts },
+  input: {
+    userId: string;
+    titleId: string;
+    householdId: string;
+    on?: ApproxDateParts;
+  },
 ): Promise<string> {
   const id = newId();
   const watchedOn = input.on ? approxDate(input.on) : date();
   const precision = input.on ? watchPrecision(input.on) : "day";
   await db.execute(
-    `insert into viewing (id, title_id, user_id, watched_on, watched_precision, created_at)
-     values (?, ?, ?, ?, ?, ?)`,
-    [id, input.titleId, input.userId, watchedOn, precision, timestamp()],
+    `insert into viewing
+       (id, title_id, user_id, household_id, watched_on, watched_precision, created_at)
+     values (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.titleId,
+      input.userId,
+      input.householdId,
+      watchedOn,
+      precision,
+      timestamp(),
+    ],
   );
   return id;
 }

@@ -136,6 +136,15 @@ They are organised to mirror the scoping in [data-model.md](./data-model.md):
 - **global rows** — narrowed to the subset the user's Libraries actually reference, so
   a device never replicates the entire title catalogue
 
+Two additions bend the third rule, both for the same reason: a user-scoped opinion
+outlives the Library entry that referenced its Title, and the Log has to keep rendering
+it. `catalogue` therefore also syncs any Title the user has a Viewing of or a Rating on,
+and `households` also syncs any Household the user has a Viewing in — including one they
+have left — plus the display name of anyone who has watched in one of theirs. The
+alternative was denormalising those names onto the Viewing row, which data-model.md's
+"Derived, never stored" rules out. See
+[ADR-0010](./adr/0010-a-viewing-records-the-household-it-happened-in.md).
+
 ### Never alias the table being selected from
 
 A row is published under the name it is selected *as*, so `SELECT h.* FROM household h`

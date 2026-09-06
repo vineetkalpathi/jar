@@ -8,6 +8,7 @@ import { Screen } from "@/components/screen";
 import { Body, Eyebrow, LayerTitle } from "@/components/text";
 import { useUserId } from "@/lib/auth/session";
 import { ConstraintError, households } from "@/lib/db";
+import { rememberHousehold } from "@/lib/household/active";
 
 export default function CreateHousehold() {
   const db = usePowerSync();
@@ -24,7 +25,11 @@ export default function CreateHousehold() {
     try {
       // Local and offline-capable: the household, the membership and the starter
       // Rating Categories are one local transaction, and sync catches up later.
-      await households.createHousehold(db, { name, userId });
+      const householdId = await households.createHousehold(db, { name, userId });
+      // Land in the household just made, not the one that happened to be showing.
+      // This screen is outside `ActiveHouseholdProvider`, hence the module-level write
+      // rather than `select` — see `lib/household/active.tsx`.
+      rememberHousehold(householdId);
       router.replace("/jars");
     } catch (cause) {
       setError(

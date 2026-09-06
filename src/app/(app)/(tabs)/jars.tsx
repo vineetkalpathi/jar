@@ -4,7 +4,8 @@ import { FlatList, Pressable, Text, View } from "react-native";
 import { TAB_BAR_CLEARANCE } from "@/components/floating-tab-bar";
 import { JarTile } from "@/components/jar-tile";
 import { Screen } from "@/components/screen";
-import { Body, Eyebrow, Meta, ScreenTitle } from "@/components/text";
+import { Body, Meta, ScreenTitle } from "@/components/text";
+import { HouseholdSwitcher } from "@/components/household-switcher";
 import { jars, type JarRow } from "@/lib/db";
 import { useHousehold } from "@/lib/household/active";
 import { useJarCount } from "@/lib/jars/use-jar-count";
@@ -29,9 +30,9 @@ export default function Jars() {
 
   return (
     <Screen gutter="grid">
-      <View className="flex-row items-start justify-between pb-6 pt-2">
-        <View className="gap-1">
-          <Eyebrow>{household.name}</Eyebrow>
+      <View className="flex-row items-start justify-between gap-4 pb-6 pt-2">
+        <View className="min-w-0 shrink gap-1">
+          <HouseholdSwitcher variant="eyebrow" />
           <ScreenTitle>Jars</ScreenTitle>
           <Meta>
             {data.length === 0

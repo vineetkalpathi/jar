@@ -158,11 +158,21 @@ const viewing = new Table(
   {
     title_id: column.text,
     user_id: column.text,
+    // The Household the watching happened in — the occasion, not the ownership. The row
+    // is still user-scoped and still travels with the person; this only records where.
+    // Null when the Household has since been deleted (`on delete set null`).
+    household_id: column.text,
     watched_on: column.text, // date, YYYY-MM-DD — omitted parts fall back to the 1st
     watched_precision: column.text, // 'year' | 'month' | 'day'; null means 'day'
     created_at: column.text,
   },
-  { indexes: { title: ["title_id", "user_id"], user: ["user_id"] } },
+  {
+    indexes: {
+      title: ["title_id", "user_id"],
+      user: ["user_id"],
+      household: ["household_id"],
+    },
+  },
 );
 
 // --- Jars ------------------------------------------------------------------

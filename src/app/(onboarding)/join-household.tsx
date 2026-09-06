@@ -9,6 +9,7 @@ import { Screen } from "@/components/screen";
 import { Body, Eyebrow, LayerTitle } from "@/components/text";
 import { useUserId } from "@/lib/auth/session";
 import { ConstraintError, households, type HouseholdRow } from "@/lib/db";
+import { rememberHousehold } from "@/lib/household/active";
 
 /**
  * Fallback only. `householdExists` has already confirmed the code is real and the
@@ -48,6 +49,8 @@ export default function JoinHousehold() {
 
   useEffect(() => {
     if (joinedId && memberships.some((h) => h.id === joinedId)) {
+      // Land in the household just joined — see `create-household.tsx`.
+      rememberHousehold(joinedId);
       router.replace("/jars");
     }
   }, [joinedId, memberships]);

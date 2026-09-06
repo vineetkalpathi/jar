@@ -23,7 +23,12 @@ values
    '{"display_name":"Alice"}'::jsonb, now(), now()),
   ('22222222-2222-2222-2222-222222222222', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'rls-bob@test.invalid',
-   '{}'::jsonb, now(), now());
+   '{}'::jsonb, now(), now()),
+  -- Carol joins Alice's household, watches something, and leaves again. She is the
+  -- fixture for "history outlives membership" — see ADR-0010.
+  ('33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'rls-carol@test.invalid',
+   '{"display_name":"Carol"}'::jsonb, now(), now());
 
 do $$
 begin
@@ -68,6 +73,19 @@ insert into rating (user_id, title_id, category_id, value) values
   ('11111111-1111-1111-1111-111111111111', 'cccccccc-0000-0000-0000-000000000000',
    '00000000-0000-4000-8000-000000000001', 9);
 
+-- Carol's night in Alice's household, and then Carol leaves. The Viewing is stamped
+-- with where it happened, so Alice keeps it; `shares_household` no longer holds between
+-- them, which is exactly the case the old policy could not express.
+insert into household_member (household_id, user_id) values
+  ('aaaaaaaa-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333');
+insert into viewing (id, title_id, user_id, household_id, watched_on) values
+  ('99999999-0000-0000-0000-000000000000', 'cccccccc-0000-0000-0000-000000000000',
+   '33333333-3333-3333-3333-333333333333', 'aaaaaaaa-0000-0000-0000-000000000000',
+   current_date);
+delete from household_member
+where household_id = 'aaaaaaaa-0000-0000-0000-000000000000'
+  and user_id = '33333333-3333-3333-3333-333333333333';
+
 commit;
 
 -- ---------------------------------------------------------------------------
@@ -101,6 +119,11 @@ begin
   if (select count(*) from title where name = 'RLS Global Title') <> 1 then
     raise exception 'FAIL: Bob cannot see the global title';
   end if;
+  -- The household stamp widened viewing_select. It must widen it to members of that
+  -- household and nobody else.
+  if (select count(*) from viewing) <> 0 then
+    raise exception 'FAIL: Bob can see viewings from a household he is not in';
+  end if;
   raise notice 'PASS: Bob is correctly isolated from Alice';
 end $$;
 
@@ -116,6 +139,22 @@ begin
   exception
     when insufficient_privilege then
       raise notice 'PASS: Bob cannot forge a rating as Alice';
+  end;
+end $$;
+
+-- Nor stamp one of his own Viewings with a household he does not belong to, which
+-- would put it in that household's Log.
+do $$
+begin
+  begin
+    insert into viewing (title_id, user_id, household_id, watched_on)
+    values ('cccccccc-0000-0000-0000-000000000000',
+            '22222222-2222-2222-2222-222222222222',
+            'aaaaaaaa-0000-0000-0000-000000000000', current_date);
+    raise exception 'FAIL: Bob wrote into Alice''s household log';
+  exception
+    when insufficient_privilege then
+      raise notice 'PASS: Bob cannot stamp a viewing with someone else''s household';
   end;
 end $$;
 
@@ -159,6 +198,12 @@ begin
       where name in ('RLS Global Title', 'RLS Private Title')) <> 2 then
     raise exception 'FAIL: Alice cannot see both her global and private titles';
   end if;
+  -- Carol has left, so `shares_household` is false for her — the night survives only
+  -- because the Viewing records the household it happened in.
+  if (select count(*) from viewing
+      where id = '99999999-0000-0000-0000-000000000000') <> 1 then
+    raise exception 'FAIL: Alice lost a departed member''s night from her log';
+  end if;
   raise notice 'PASS: Alice sees her own data';
 end $$;
 
@@ -176,7 +221,8 @@ rollback;
 begin;
 delete from auth.users where id in (
   '11111111-1111-1111-1111-111111111111',
-  '22222222-2222-2222-2222-222222222222');
+  '22222222-2222-2222-2222-222222222222',
+  '33333333-3333-3333-3333-333333333333');
 delete from household where id in (
   'aaaaaaaa-0000-0000-0000-000000000000',
   'bbbbbbbb-0000-0000-0000-000000000000');

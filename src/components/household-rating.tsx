@@ -97,6 +97,33 @@ export function HouseholdRating({
 
   const raterCount = new Set(ratings.map((r) => r.user_id)).size;
 
+  /**
+   * Axes the signed-in User has already scored on this Title that *this* Household does
+   * not surface.
+   *
+   * A Rating is keyed `(userId, titleId, categoryId)` with no Household in it, so it
+   * travels with the person into every group they join. But the capsules are drawn from
+   * `household_category`, so without this a score given in another Household simply
+   * doesn't render — intact in the database, invisible on screen, which reads as "my
+   * ratings didn't come with me".
+   *
+   * Shown in "mine" only, and below a divider that says they aren't counted here. They
+   * stay editable and an edit still reflects everywhere; what they don't do is feed this
+   * Household's average, which is `household_category`'s job to decide. Activating the
+   * axis is a deliberate act with its own confirm (`addAxis`) — one person's history
+   * must not quietly rewrite a group's vocabulary.
+   */
+  const surfaced = new Set(categories.map((c) => c.id));
+  const elsewhere = new Map<string, { id: string; name: string | null }>();
+  for (const r of ratings) {
+    if (r.user_id !== userId) continue;
+    if (r.category_id == null || surfaced.has(r.category_id)) continue;
+    if (!elsewhere.has(r.category_id)) {
+      elsewhere.set(r.category_id, { id: r.category_id, name: r.category_name });
+    }
+  }
+  const orphans = [...elsewhere.values()];
+
   // Adding an axis here activates it for the whole household — every title gains the
   // capsule. Confirmed because that is a lot of reach for one title screen.
   const addAxis = (category: { id: string; name: string }) => {
@@ -147,6 +174,22 @@ export function HouseholdRating({
           ),
         )}
       </View>
+
+      {mode === "mine" && orphans.length > 0 ? (
+        <View className="gap-2.5 pt-1">
+          <DarkMeta>Rated in another household · not counted here</DarkMeta>
+          {orphans.map((category) => (
+            <MineRow
+              key={category.id}
+              titleId={titleId}
+              userId={userId}
+              category={category}
+              value={ownValue(ratings, userId, category.id)}
+              muted
+            />
+          ))}
+        </View>
+      ) : null}
 
       {mode === "mine" ? (
         <Pressable
@@ -332,11 +375,18 @@ function MineRow({
   userId,
   category,
   value,
+  muted = false,
 }: {
   titleId: string;
   userId: string;
-  category: RatingCategoryRow;
+  /**
+   * Narrower than `RatingCategoryRow`: an orphan axis is reconstructed from the Rating
+   * that references it, which carries an id and a name and nothing else.
+   */
+  category: { id: string; name: string | null };
   value: number | null;
+  /** An axis this Household doesn't surface — still yours to set, just not counted here. */
+  muted?: boolean;
 }) {
   const db = usePowerSync();
 
@@ -469,9 +519,13 @@ function MineRow({
     <GestureDetector gesture={gesture}>
       <Animated.View
         onLayout={(e) => tabletWidth.set(e.nativeEvent.layout.width)}
-        style={capsuleStyle}
+        style={[capsuleStyle, muted ? { opacity: 0.62 } : null]}
         accessibilityRole="adjustable"
-        accessibilityLabel={`${category.name} rating`}
+        accessibilityLabel={
+          muted
+            ? `${category.name} rating, not counted in this household`
+            : `${category.name} rating`
+        }
         accessibilityValue={{
           min: MIN,
           max: MAX,

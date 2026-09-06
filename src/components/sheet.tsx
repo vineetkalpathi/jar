@@ -1,11 +1,13 @@
 /**
- * A panel that rises from the bottom of the screen over a dim scrim.
+ * A panel that slides in over a dim scrim — from the bottom (`BottomSheet`, the app's
+ * pickers and confirmations) or from beneath a header (`TopSheet`, the household
+ * switcher). One implementation, because everything hard about it is shared.
  *
  * Why this exists instead of `<Modal animationType="slide">`: that slides the *entire*
- * modal view — the scrim included — so the dim overlay visibly travels up with the
- * panel. Here the `Modal` itself does not animate. One Reanimated progress value fades
- * the scrim in place and translates only the panel, and the modal is held mounted
- * through the close animation so the panel slides back down before it unmounts.
+ * modal view — the scrim included — so the dim overlay visibly travels with the panel.
+ * Here the `Modal` itself does not animate. One Reanimated progress value fades the
+ * scrim in place and translates only the panel, and the modal is held mounted through
+ * the close animation so the panel slides back out before it unmounts.
  *
  * A `GestureHandlerRootView` wraps the contents: a `Modal` renders in its own view tree,
  * outside the app root's, so a gesture handler inside a sheet (a slider, a scroll wheel)
@@ -25,6 +27,25 @@
  * "wait 300ms and hope" is a race — see `jar/[id].tsx`. `Modal`'s `onDismiss` is the
  * real answer on iOS; the timer is the backstop everywhere else, and for the case where
  * `onDismiss` never arrives.
+ *
+ * ## What differs between the two directions
+ *
+ * A bottom sheet translates by the screen height: it is always taller than its travel,
+ * so it never needs measuring. A top sheet cannot do that — it unfurls from under an
+ * anchor partway down the screen, so a screen-height translate would leave it invisible
+ * for most of the animation and then snap. It measures its own panel instead, and stays
+ * transparent for the one frame before that measurement lands.
+ *
+ * The top sheet also splits its dismiss surface in two. Above `anchorY` the scrim is
+ * *clear*, so the header that opened the sheet stays lit and reads as still-live; below
+ * it the scrim dims as usual. Both halves dismiss on press, which is what makes
+ * re-tapping the anchor close the sheet — the modal covers the whole screen, so the
+ * anchor's own `Pressable` never sees that second tap.
+ *
+ * That last fact is also why `aboveAnchor` exists. A modal is its own view tree: nothing
+ * behind it can be touched, so a header control that *looks* live above the clear scrim
+ * is dead, and tapping it only dismisses. Anything that must keep working while the
+ * sheet is open is re-rendered into `aboveAnchor`, positioned over its real counterpart.
  */
 
 import {
@@ -40,6 +61,7 @@ import {
   Pressable,
   StyleSheet,
   useWindowDimensions,
+  View,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
@@ -59,14 +81,9 @@ const DURATION = 260;
 /** How long past the slide to wait for iOS's `onDismiss` before reporting anyway. */
 const DISMISS_BACKSTOP = 200;
 
-export function BottomSheet({
-  visible,
-  onClose,
-  onClosed,
-  children,
-  style,
-  scrimColor = "rgba(0,0,0,0.3)",
-}: {
+const DEFAULT_SCRIM = "rgba(0,0,0,0.3)";
+
+type SharedProps = {
   visible: boolean;
   onClose: () => void;
   /**
@@ -79,8 +96,19 @@ export function BottomSheet({
   /** Applied to the sliding panel wrapper — e.g. `{ maxHeight: "82%" }`. */
   style?: StyleProp<ViewStyle>;
   scrimColor?: string;
+};
+
+/**
+ * The open/close machinery, shared by both directions: mount lifecycle, the progress
+ * value, and the once-per-close `onClosed`. Returns null while unmounted.
+ */
+function useSheetLifecycle({
+  visible,
+  onClosed,
+}: {
+  visible: boolean;
+  onClosed?: () => void;
 }) {
-  const { height } = useWindowDimensions();
   // Kept mounted through the close animation, then unmounted by the timer below.
   const [mounted, setMounted] = useState(visible);
   const progress = useSharedValue(0);
@@ -140,6 +168,20 @@ export function BottomSheet({
     };
   }, [visible, progress, fireClosed]);
 
+  return { mounted, progress, fireClosed };
+}
+
+export function BottomSheet({
+  visible,
+  onClose,
+  onClosed,
+  children,
+  style,
+  scrimColor = DEFAULT_SCRIM,
+}: SharedProps) {
+  const { height } = useWindowDimensions();
+  const { mounted, progress, fireClosed } = useSheetLifecycle({ visible, onClosed });
+
   const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
   const panelStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: (1 - progress.value) * height }],
@@ -170,6 +212,99 @@ export function BottomSheet({
         <Animated.View style={[{ flexShrink: 1 }, style, panelStyle]}>
           {children}
         </Animated.View>
+      </GestureHandlerRootView>
+    </Modal>
+  );
+}
+
+/**
+ * A panel that unfurls downward from `anchorY` — the distance, in points from the top
+ * of the window, of the bottom edge of whatever opened it.
+ *
+ * The region above `anchorY` is left clear so the anchor keeps reading as live; below,
+ * the scrim dims and a clipping view hides the panel's travel, so it appears to slide
+ * out from directly beneath the header rather than in from off-screen.
+ */
+export function TopSheet({
+  visible,
+  onClose,
+  onClosed,
+  children,
+  style,
+  scrimColor = DEFAULT_SCRIM,
+  anchorY,
+  aboveAnchor,
+}: SharedProps & {
+  anchorY: number;
+  /**
+   * Live controls to lay over the clear region — window-positioned by the caller, since
+   * only it knows where the originals sit. `box-none` here, so the layer itself stays
+   * transparent to touch and only what the caller draws in it takes a press.
+   */
+  aboveAnchor?: ReactNode;
+}) {
+  const { mounted, progress, fireClosed } = useSheetLifecycle({ visible, onClosed });
+
+  // The panel's own height, so it travels exactly its own length. Zero until the first
+  // layout pass, which `panelStyle` treats as "not ready" rather than "no travel".
+  const panelHeight = useSharedValue(0);
+
+  const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
+  const panelStyle = useAnimatedStyle(() => ({
+    opacity: panelHeight.value === 0 ? 0 : 1,
+    transform: [{ translateY: -(1 - progress.value) * panelHeight.value }],
+  }));
+
+  if (!mounted) return null;
+
+  return (
+    <Modal
+      visible
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      onDismiss={Platform.OS === "ios" ? fireClosed : undefined}
+    >
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        {/*
+          Clear, above the anchor. It exists only to catch the tap that re-presses the
+          anchor: the modal is over the whole window, so the anchor's own Pressable is
+          unreachable while this is open.
+        */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss"
+          onPress={onClose}
+          style={{ height: anchorY }}
+        />
+
+        <Animated.View style={{ flex: 1, overflow: "hidden" }}>
+          <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
+            onPress={onClose}
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: scrimColor },
+              scrimStyle,
+            ]}
+          />
+          <Animated.View
+            onLayout={(e) => {
+              panelHeight.value = e.nativeEvent.layout.height;
+            }}
+            style={[{ flexShrink: 1 }, style, panelStyle]}
+          >
+            {children}
+          </Animated.View>
+        </Animated.View>
+
+        {/* Last, so it takes the press before the clear dismiss region beneath it. */}
+        {aboveAnchor ? (
+          <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+            {aboveAnchor}
+          </View>
+        ) : null}
       </GestureHandlerRootView>
     </Modal>
   );

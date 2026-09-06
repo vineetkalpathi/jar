@@ -5,6 +5,7 @@ import { Screen } from "@/components/screen";
 import { SearchField } from "@/components/search-field";
 import { TitleRow } from "@/components/title-row";
 import { Body, Meta, ScreenTitle } from "@/components/text";
+import { HouseholdSwitcher } from "@/components/household-switcher";
 import {
   getPersonCredits,
   searchPeople,
@@ -161,6 +162,7 @@ export default function Explore() {
   return (
     <Screen gutter="form">
       <View className="gap-3 pb-4 pt-2">
+        <HouseholdSwitcher variant="eyebrow" prefix="Adding to" />
         <ScreenTitle>Explore</ScreenTitle>
         <Meta>Search TMDB, add what belongs in your library.</Meta>
         <SearchField

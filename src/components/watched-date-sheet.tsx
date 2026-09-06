@@ -26,7 +26,7 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
-import { BottomSheet } from "./bottom-sheet";
+import { BottomSheet } from "./sheet";
 import { DarkEyebrow, DarkMeta } from "./text";
 import { daysInMonth, MONTH_NAMES, type WatchPrecision } from "@/lib/time";
 import { accent, dark, font, paper } from "@/theme";

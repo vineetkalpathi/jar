@@ -47,9 +47,11 @@ there is no separate watchlist.
 _Avoid_: collection, catalogue, watchlist
 
 **Viewing**:
-A record that one User watched a Title on a given date — for a series, a single
-sitting rather than finishing the show. Rewatches are separate Viewings, so
-watched-ness, rewatch count, and recency are all derived rather than stored.
+A record that one User watched a Title on a given date, and which Household they
+watched it in — for a series, a single sitting rather than finishing the show.
+Rewatches are separate Viewings, so watched-ness, rewatch count, and recency are all
+derived rather than stored. The Household is the occasion, not the owner: the Viewing
+belongs to the User and outlives their membership.
 _Avoid_: watch, view, play, watch history entry
 
 ### Jars

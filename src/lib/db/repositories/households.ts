@@ -34,6 +34,24 @@ export const MEMBERS_OF_HOUSEHOLD = `
 `;
 
 /**
+ * Everyone in every Household the signed-in user belongs to, keyed by household — the
+ * switcher's second line, which names the people rather than counting them.
+ *
+ * One query rather than `MEMBERS_OF_HOUSEHOLD` per row: the switcher renders every
+ * household at once, so a query each would mean a variable number of hooks.
+ *
+ * Parameters: `[userId]`.
+ */
+export const MEMBERS_OF_MY_HOUSEHOLDS = `
+  select hm.household_id, u.id, u.display_name
+  from household_member me
+  join household_member hm on hm.household_id = me.household_id
+  join app_user u on u.id = hm.user_id
+  where me.user_id = ?
+  order by u.display_name
+`;
+
+/**
  * The Rating Categories a Household has activated, which is what the rating UI and the
  * filter builder offer. Archived Categories stay visible so existing Ratings and
  * Filters keep their meaning. Parameters: `[householdId]`.

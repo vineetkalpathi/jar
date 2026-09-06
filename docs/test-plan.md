@@ -16,7 +16,7 @@ theme/typography layer, the TMDB service and the offline/sync behaviour undernea
 
 Not built, so out of scope: Library (the browse-and-search-what-you-own screen —
 distinct from Add a title, which searches TMDB), filter builder, draw flow, Rating
-entry, Log, settings, sign-out UI, household switcher UI, navigation shell (tabs/swipe).
+entry, Log, settings, sign-out UI, navigation shell (tabs/swipe).
 
 ## 0. Pre-flight (automated)
 
@@ -146,9 +146,8 @@ Join household
 - [ ] **T5.1** Signed in with ≥1 household → `(app)` renders; no flash of `Loading`
       beyond a frame.
 - [ ] **T5.2** Belongs to two households → the persisted `jar.activeHouseholdId` decides
-      which; relaunch lands on the same one. (No switcher UI yet — set the key by
-      joining a second household and confirming it falls back to `all[0]` alphabetically
-      until `select` is wired to UI.)
+      which; relaunch lands on the same one. Switching is now reachable from the UI —
+      see §13.
 - [ ] **T5.3** Stored id names a household the user has left → falls back to the first,
       no blank screen.
 - [ ] **T5.4** Membership revoked while the app is open (delete `household_member` in
@@ -231,7 +230,7 @@ screen wiring, not TMDB's response shapes.
       Offline / bad token → rust error text, not a crash.
 - [ ] **T9.4** Row tap (poster + title, not the Add pill) opens the TMDB preview
       (`/title/tmdb/[tmdbId]`) before adding; after adding, the same tap opens the real
-      `/title/<id>` instead — confirm it's the *local* Title id, not the TMDB id.
+      `/title/<id>` instead — confirm it's the _local_ Title id, not the TMDB id.
 - [ ] **T9.5** Tap the outlined `+` circle → spinner, then solid green `✓`; never reverts
       after. Each row's status is its own `useQuery` against `library_entry`
       (`LIBRARY_ENTRY_FOR_TMDB_ID`), not locally-tracked state — confirm by adding a
@@ -259,16 +258,12 @@ screen wiring, not TMDB's response shapes.
       navigation to another screen. Meta line for a merged-in credit reads `year · role`
       (character, or job title for a crew-only credit); a literal title match keeps
       `year · Movie`/`TV series`. Merged list is one ranked list, not titles-then-credits.
-- [ ] **T9.11** The exact-match rule is deliberately narrow — confirm it holds:
-      - A bare, common word ("Tom") matches no person exactly → plain title search only,
-        no filmography merged in, even though TMDB returns several "Tom ___" people.
-      - A misspelled or partial name ("Tom Hank") → same: no exact match, no merge.
-      - A real one-word stage name that *is* an exact match ("Madonna") → merges, despite
-        being a single word — the rule is exact-match, not "looks like a full name."
-      - Typing an accented name without the accent ("Timothee Chalamet",
-        "Beyonce") still matches TMDB's accented canonical form — `foldName` strips
-        diacritics (and case) from both sides before comparing. An unrelated name close
-        in spelling ("Tom" vs "Tim") must still **not** match.
+- [ ] **T9.11** The exact-match rule is deliberately narrow — confirm it holds: - A bare, common word ("Tom") matches no person exactly → plain title search only,
+      no filmography merged in, even though TMDB returns several "Tom \_\_\_" people. - A misspelled or partial name ("Tom Hank") → same: no exact match, no merge. - A real one-word stage name that _is_ an exact match ("Madonna") → merges, despite
+      being a single word — the rule is exact-match, not "looks like a full name." - Typing an accented name without the accent ("Timothee Chalamet",
+      "Beyonce") still matches TMDB's accented canonical form — `foldName` strips
+      diacritics (and case) from both sides before comparing. An unrelated name close
+      in spelling ("Tom" vs "Tim") must still **not** match.
 - [ ] **T9.12** A title literally named after a person who also gets matched (rare, but
       possible) → the literal title match wins on a key collision, not the credit
       (`mergeRows`).
@@ -297,10 +292,10 @@ screen wiring, not TMDB's response shapes.
 - [ ] **T10.5** TMDB fetch failure (airplane mode) → "Couldn't reach TMDB for the
       overview.", rest of the screen (name, year, runtime, genres, tags, ratings) still
       works from the local replica.
-- [ ] **T10.6** Rating bars: one per the Household's *activated* Categories
+- [ ] **T10.6** Rating bars: one per the Household's _activated_ Categories
       (`CATEGORIES_FOR_HOUSEHOLD`), even ones with zero ratings on this Title (bar empty,
       "—"). Amber fill width matches `average / 10`. Eyebrow's rater count is the number
-      of *distinct users*, not the number of rating rows (one user across several
+      of _distinct users_, not the number of rating rows (one user across several
       categories counts once).
 - [ ] **T10.7** Rating written in Postgres while the screen is open → bar and average
       update live (plain `useQuery`, no manual refresh).
@@ -347,7 +342,141 @@ screen wiring, not TMDB's response shapes.
 - [ ] **T12.8** No screen renders as a blank grey page (the `SafeAreaView`/NativeWind
       regression the `Screen` doc warns about) — check every route.
 
-## 13. Platform matrix
+## 13. Multiple households
+
+The switcher, the context switch, and the two things deliberately _not_ switched — your
+Log and your Ratings. See
+[ADR-0010](./adr/0010-a-viewing-records-the-household-it-happened-in.md).
+
+**Setup:** you need at least two households with different contents, and a third account
+to leave one. Create household A in-app, create B from the switcher, and add a different
+handful of titles to each. At least one title must be in **both** libraries — several
+scenarios below turn on that case. Add a co-member to A (share the invite code) so the
+Log has more than one watcher.
+
+### 13a. The switcher itself
+
+- [x] **T13.1** The name is tappable on all three tabs — Household (`ScreenTitle`),
+      Jars (eyebrow), Explore ("Adding to …"). Each opens the same sheet.
+- [x] **T13.2** The panel unfurls from directly **beneath the name you tapped**, at three
+      visibly different heights. The anchor is measured per press, so this is the thing
+      most likely to be off by a few points — check each tab separately.
+- [x] **T13.3** The tapped name stays **lit** above the scrim; only the area below it
+      dims.
+- [x] **T13.4** The chevron turns to point up as the panel drops, and back on close.
+- [x] **T13.5** Three ways to dismiss, all working: tap the scrim, **re-tap the name**
+      (the modal covers the screen, so this goes through a transparent region rather
+      than the anchor's own `Pressable`), and Android's back button.
+- [x] **T13.6** Rows show the household name over its member names. The current one is
+      forest.
+- [x] **T13.7** Only one household → the sheet still opens, with one row plus Create and
+      Join.
+- [ ] **T13.8** Six or more households → the list scrolls after five rows (the sixth is
+      half-visible, so the list reads as scrollable), and **Create / Join stay pinned**
+      beneath the scroller rather than sinking below the fold.
+- [ ] **T13.9** Device with a large safe-area inset (notch/Dynamic Island), and OS text
+      size at maximum → the anchor is still correct, since it is measured in window
+      coordinates rather than assumed.
+- [x] **T13.10** Open the sheet, background the app, return → no invisible full-screen
+      modal swallowing touches (the `sheet.tsx` unmount-timer failure mode).
+
+### 13b. The context switch
+
+- [x] **T13.11** Switch from Jars → B's jars, and **you are still on the Jars tab**.
+      Same for Household and Explore.
+- [x] **T13.12** On the Household tab: library, count, tags, log and settings all become
+      B's.
+- [x] **T13.13** On Explore: the eyebrow updates to name B, and adding a result lands in
+      **B's** library.
+- [x] **T13.14** Relaunch → still in B (`jar.activeHouseholdId` persisted).
+- [x] **T13.15** Open Household Settings — the old "Switch household" list is gone, and
+      nothing else on that screen regressed.
+- [ ] **T13.16** Airplane mode → switching is instant and complete. Every household is
+      already replicated, so nothing should need the network.
+
+### 13c. What resets, and what doesn't
+
+- [x] **T13.17** On the Household tab, build an ad-hoc filter with a **tag chip** (a
+      household-scoped id), then switch. The draft clears and the full shelf shows.
+      **Fail if** you see "0 of N" beside a chip that still looks valid — that is the
+      regression the remount key exists to prevent.
+- [x] **T13.18** Type in the library search, then switch → the term clears.
+- [x] **T13.19** Search in Explore, then switch → the search **survives**, deliberately.
+      The eyebrow exists so you can retarget an in-flight add; wiping the results would
+      defeat it.
+
+### 13d. Gaining a household
+
+Before this feature there was no route to a second household at all, so all of this is
+new ground.
+
+- [ ] **T13.20** Sheet → Create a household → you land **in the new one**, not the one
+      you came from. It has no jars and the five starter rating axes.
+- [ ] **T13.21** Sheet → Join with a code → after sync you land in the joined household.
+- [ ] **T13.22** Join with a bad code → error on the form, and backing out leaves you in
+      the household you started in.
+- [ ] **T13.23** Back out of Create without submitting → unchanged, still in the original.
+- [ ] **T13.24** Create a household **offline** → works (it is one local transaction) and
+      you land in it.
+- [ ] **T13.25** The sheet's Create/Join push happens _after_ the panel has closed. On
+      iOS especially, confirm the next screen always presents — a dropped navigation here
+      is the `onClosed` race.
+
+### 13e. The Log
+
+- [ ] **T13.26** Default scope is "This household", and it shows nights stamped with this
+      household only.
+- [ ] **T13.27** **The double-count fix.** Take the title that is in both libraries, mark
+      it seen in A, then switch to B and open the Log. It must appear in **A's Log only**.
+      Before the stamp it appeared in both, as though watched twice.
+- [ ] **T13.28** "Mine, everywhere" lists your nights across every household, each
+      labelled with where it happened.
+- [ ] **T13.29** Two people mark the same film on the same date in A → one card, both
+      names.
+- [ ] **T13.30** The same film on the same date in **both** A and B → in "Mine,
+      everywhere" these are **two cards**, not one. Different occasions.
+- [ ] **T13.31** Amber edge appears only when every _current_ member of the household is
+      among the watchers. It is containment, not a headcount.
+- [ ] **T13.32** No amber edge in "Mine, everywhere" at any time.
+- [ ] **T13.33** Remove a member from A who has nights in its Log → their nights **stay**,
+      still showing their name (this needs the extended `app_user` sync stream; a
+      nameless card means that query isn't deployed).
+- [ ] **T13.34** Leave a household you have nights in → those nights stay in your "Mine,
+      everywhere" scope, **still showing that household's name** (extended `households`
+      stream).
+- [ ] **T13.35** Remove a title from a library you have watched it in → the night keeps
+      its **name and poster** in both scopes (extended `catalogue` stream). A card
+      reading "Untitled" with a blank poster means those two queries aren't deployed.
+- [ ] **T13.36** Empty states read correctly in each scope, and differ.
+
+### 13f. Ratings across households
+
+- [ ] **T13.37** Rate a title on an axis in A; add the same title to B; open it in B →
+      your score appears **below the "Rated in another household · not counted here"
+      divider**, muted but draggable.
+- [ ] **T13.38** Change that muted value in B → switch to A, the new value is there.
+- [ ] **T13.39** The muted axis does **not** move B's household average, nor the score on
+      B's library row. Only `household_category` axes count.
+- [ ] **T13.40** Switch to the "Household" mode in B → the orphan axis is absent.
+- [ ] **T13.41** Activate that axis in B (＋ Add a rating axis) → the capsule moves up
+      into the main group, the divider disappears if it was the only one, and it now
+      counts toward B's average.
+- [ ] **T13.42** A title with no cross-household scores shows no divider at all.
+
+### 13g. Draws, sync and regressions
+
+- [ ] **T13.43** Finish a draw as watched → every participant's Viewing is stamped with
+      **the jar's** household. Start a draw in A, back out, switch to B, return and
+      finish → still attributed to A.
+- [ ] **T13.44** Mark something seen offline, then reconnect → the Viewing uploads with
+      its `household_id` and is not dropped by the connector (watch for a
+      `[sync] dropping PUT on viewing/...` warning, which would mean the insert policy
+      rejected it).
+- [ ] **T13.45** `bottom-sheet.tsx` became `sheet.tsx`. Re-check every sheet still opens
+      and closes: pin-to-jar, draw setup, watched date, person picker, the generic picker,
+      and both sheets in Jar detail.
+
+## 14. Platform matrix
 
 |               | iOS sim | Android emulator | Physical device | Web |
 | ------------- | ------- | ---------------- | --------------- | --- |
@@ -361,12 +490,13 @@ screen wiring, not TMDB's response shapes.
   and the back button on every screen — especially that `replace` navigations don't
   leave a returnable form in the stack.
 
-## 14. Blockers to note before starting
+## 15. Blockers to note before starting
 
 1. **No sign-out UI** — T11.6 and repeated auth runs need a temporary button or an app
    reinstall between accounts.
-2. **No household switcher** — `ActiveHousehold.select` is unreachable from the UI, so
-   T5.2 is partially untestable.
+2. ~~**No household switcher**~~ — resolved. The household name is the switcher on
+   every tab that prints one (§13), and it is also the only route to creating or
+   joining a second household.
 3. **No Library browse screen** — titles can now be added in-app (Add a title, §9), but
    there's still no screen to browse or search what's already in the Library; a slip
    only becomes visible by landing in a jar whose filter matches it.

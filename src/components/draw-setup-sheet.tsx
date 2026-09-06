@@ -12,7 +12,7 @@
 import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { BottomSheet } from "@/components/bottom-sheet";
+import { BottomSheet } from "@/components/sheet";
 import { Meta } from "@/components/text";
 import { accent, font, ink, paper, radius } from "@/theme";
 

@@ -20,7 +20,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { BottomSheet } from "./bottom-sheet";
+import { BottomSheet } from "./sheet";
 import { IconTablet } from "./icon-tablet";
 import { Eyebrow, Meta } from "./text";
 import { jars, type JarRow } from "@/lib/db";

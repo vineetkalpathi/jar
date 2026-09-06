@@ -14,6 +14,7 @@ import * as Haptics from "expo-haptics";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import { WatchedDateSheet } from "./watched-date-sheet";
+import { useHousehold } from "@/lib/household/active";
 import { annotations, type ViewingRow } from "@/lib/db";
 import { watchedOnParts, type WatchPrecision } from "@/lib/time";
 import { accent, paper } from "@/theme";
@@ -142,6 +143,10 @@ export function ViewingStatus({
   userId: string;
 }) {
   const db = usePowerSync();
+  // Where the watching happened. Read here rather than passed in: every caller sits
+  // inside the household-scoped routes, so a prop would only be the same value spelled
+  // out at each call site and forgotten at the next one.
+  const household = useHousehold();
   const { data: viewings } = useQuery<ViewingRow>(
     annotations.VIEWINGS_BY_USER_FOR_TITLE,
     [userId, titleId],
@@ -158,7 +163,13 @@ export function ViewingStatus({
   }) => {
     try {
       if (latest) await annotations.setViewingDate(db, latest.id, on);
-      else await annotations.recordViewing(db, { userId, titleId, on });
+      else
+        await annotations.recordViewing(db, {
+          userId,
+          titleId,
+          householdId: household.id,
+          on,
+        });
     } catch (cause) {
       console.warn("[viewing] could not save date", cause);
     } finally {

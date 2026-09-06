@@ -9,9 +9,13 @@ import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
 import { SearchField } from "@/components/search-field";
 import { HouseholdScore } from "@/components/household-score";
+import {
+  HouseholdSwitcher,
+  type SwitcherAction,
+} from "@/components/household-switcher";
 import { SeenStatus } from "@/components/seen-status";
 import { TagStrip } from "@/components/tag";
-import { Body, Eyebrow, LayerTitle, Meta, ScreenTitle, TitleName } from "@/components/text";
+import { Body, Eyebrow, LayerTitle, Meta, TitleName } from "@/components/text";
 import { useUserId } from "@/lib/auth/session";
 import { annotations, jars, library, type TagRow } from "@/lib/db";
 import type { LibraryEntryView } from "@/lib/db/repositories/library";
@@ -57,12 +61,42 @@ const NO_MATCHES = "select null as id limit 0";
 const NO_PARAMS: never[] = [];
 
 /**
+ * The two glyphs beside the household name. They belong to this screen, but the switcher
+ * draws them: its sheet is a `Modal` covering the header, so a control it doesn't know
+ * about goes dead the moment the sheet opens. See `household-switcher.tsx`.
+ */
+const HEADER_ACTIONS: SwitcherAction[] = [
+  { label: "Viewing log", href: "/log", glyph: <LogGlyph /> },
+  {
+    label: "Household settings",
+    href: "/household-settings",
+    glyph: <SettingsGlyph />,
+  },
+];
+
+/**
+ * Remounts the shelf when the Household changes.
+ *
+ * This screen holds two pieces of state built from one Household's vocabulary: the
+ * search term, and the ad-hoc filter draft — whose tag ids and member ids are
+ * household-scoped. Carried into another Household they resolve to nothing, so the
+ * shelf reads "0 of 84" beside a chip that looks perfectly valid, with no way to tell
+ * why. A key is cheaper and more durable than pruning: it holds for whatever
+ * household-scoped state someone adds here next.
+ */
+export default function HouseholdTab() {
+  const household = useHousehold();
+  return <Household key={household.id} />;
+}
+
+/**
  * Household — the left tab, and the watch group's first-class home: the Library browse
- * and filter view, nothing else. The household name is the page identity; beside it the
- * log glyph opens the viewing history (`log.tsx`) and the gear opens the settings hub
+ * and filter view, nothing else. The household name is the page identity — and, via
+ * `HouseholdSwitcher`, the way to change household; beside it the log glyph opens the
+ * viewing history (`log.tsx`) and the gear opens the settings hub
  * (`household-settings.tsx`), where members, tags, rating axes and policy all live.
  */
-export default function Household() {
+function Household() {
   const db = usePowerSync();
   const household = useHousehold();
   const userId = useUserId();
@@ -132,28 +166,8 @@ export default function Household() {
 
   return (
     <Screen gutter="grid">
-      <View className="flex-row items-start justify-between pb-4 pt-2">
-        <ScreenTitle>{household.name}</ScreenTitle>
-        <View className="flex-row items-center gap-5 pt-3">
-          <Pressable
-            onPress={() => router.push("/log")}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Viewing log"
-            className="active:opacity-60"
-          >
-            <LogGlyph />
-          </Pressable>
-          <Pressable
-            onPress={() => router.push("/household-settings")}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Household settings"
-            className="active:opacity-60"
-          >
-            <SettingsGlyph />
-          </Pressable>
-        </View>
+      <View className="pb-4 pt-2">
+        <HouseholdSwitcher variant="title" actions={HEADER_ACTIONS} />
       </View>
 
       <FlatList
@@ -710,7 +724,11 @@ function LibraryRow({
   const markSeen = async () => {
     setMarking(true);
     try {
-      await annotations.recordViewing(db, { userId, titleId: row.id });
+      await annotations.recordViewing(db, {
+        userId,
+        titleId: row.id,
+        householdId,
+      });
     } catch (cause) {
       console.warn("[library] could not mark seen", row.id, cause);
     } finally {

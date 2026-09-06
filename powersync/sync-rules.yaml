@@ -56,6 +56,24 @@ streams:
       - SELECT app_user.* FROM app_user
         WHERE app_user.id = auth.user_id()
 
+      # Households I have watched something in, whether or not I am still a member.
+      # The Log's "Mine, everywhere" scope labels each night with where it happened, and
+      # leaving a group must not turn my own history into unlabelled rows. Membership is
+      # what puts a household in the switcher (HOUSEHOLDS_FOR_USER joins household_member),
+      # so a row arriving this way is readable but not selectable — which is right.
+      - SELECT household.* FROM household
+        INNER JOIN viewing v ON v.household_id = household.id
+        WHERE v.user_id = auth.user_id()
+
+      # Display names for anyone who has watched in one of my households — including a
+      # member who has since left, and, once Guests exist, someone who never was one.
+      # The household Log keeps their nights (VIEWINGS_FOR_HOUSEHOLD dropped its
+      # household_member join), so without this their cards render nameless.
+      - SELECT app_user.* FROM app_user
+        INNER JOIN viewing v ON v.user_id = app_user.id
+        INNER JOIN household_member me ON me.household_id = v.household_id
+        WHERE me.user_id = auth.user_id()
+
   # --- Library and vocabulary ------------------------------------------------
 
   library:
@@ -105,6 +123,25 @@ streams:
         INNER JOIN library_entry le ON le.title_id = tc.title_id
         INNER JOIN household_member hm ON hm.household_id = le.household_id
         WHERE hm.user_id = auth.user_id()
+
+      # Titles my own opinions outlive their library entry for.
+      #
+      # Ratings and Viewings are user-scoped and reference the Title directly, so they
+      # survive both a Title being taken off a shelf and me leaving the group whose
+      # shelf it was on (docs/data-model.md, "Removing a Title from a Library"). The
+      # queries above reach a title only through a *current* library entry of a *current*
+      # household, so in exactly those cases the row stops arriving and the Log's
+      # "Mine, everywhere" scope — the entries that most justify it — renders nameless
+      # and posterless.
+      #
+      # Bounded by my own history rather than by any library, which is small.
+      - SELECT title.* FROM title
+        INNER JOIN viewing v ON v.title_id = title.id
+        WHERE v.user_id = auth.user_id()
+
+      - SELECT title.* FROM title
+        INNER JOIN rating r ON r.title_id = title.id
+        WHERE r.user_id = auth.user_id()
 
   # Rating Categories are a small global catalogue — sync all of them so the filter
   # builder and rating UI can resolve any category a Rating references.

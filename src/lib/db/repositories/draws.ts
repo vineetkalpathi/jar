@@ -204,6 +204,11 @@ export async function survivors(
  *
  * Guests get one too. They own nothing in the Household, but they did watch the film,
  * and a Viewing belongs to a User rather than to a group.
+ *
+ * The Household each Viewing is stamped with comes from the Jar rather than from
+ * whatever the app happens to be showing: a Draw is an occasion in one specific group,
+ * and reading the active Household here would misattribute the night if it changed
+ * between starting the Draw and finishing it.
  */
 export async function finishAsWatched(
   db: AbstractPowerSyncDatabase,
@@ -213,6 +218,13 @@ export async function finishAsWatched(
 ): Promise<void> {
   const participants = await db.getAll<{ user_id: string }>(
     `select user_id from draw_participant where draw_id = ?`,
+    [drawId],
+  );
+
+  const jar = await db.get<{ household_id: string }>(
+    `select j.household_id
+       from draw d join jar j on j.id = d.jar_id
+      where d.id = ?`,
     [drawId],
   );
 
@@ -227,7 +239,12 @@ export async function finishAsWatched(
     day: watchedOn.getUTCDate(),
   };
   for (const participant of participants) {
-    await recordViewing(db, { userId: participant.user_id, titleId, on });
+    await recordViewing(db, {
+      userId: participant.user_id,
+      titleId,
+      householdId: jar.household_id,
+      on,
+    });
   }
 }
 

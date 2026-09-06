@@ -13,7 +13,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { BottomSheet } from "@/components/bottom-sheet";
+import { BottomSheet } from "@/components/sheet";
 import { Button } from "@/components/button";
 import { DrawSetupSheet } from "@/components/draw-setup-sheet";
 import { IconTablet } from "@/components/icon-tablet";

@@ -8,6 +8,22 @@
  * the slider is real liquid glass; everywhere else it's a forest-tinted highlight, the
  * same wash the jar fill uses.
  *
+ * ## Why the slider is positioned by layout, not by the animated value
+ *
+ * The obvious shape — one shared value holding the slider's absolute offset, written
+ * whenever the index changes — puts the resting position in animation state, and
+ * animation state is the one thing that does not reliably survive this screen being
+ * torn down and rebuilt. The tabs sit under a Stack: push a Jar, a Title or the Log and
+ * the whole tab screen is detached; pop back and it is re-attached, sometimes as fresh
+ * views. An offset that reset to zero then left the slider under Household while the
+ * labels correctly lit Explore — and nothing re-ran, because neither the index nor the
+ * track width had changed.
+ *
+ * So `left` carries the slot, straight from `state.index`: every render paints the
+ * slider where the focused tab is, with nothing to consult. The shared value carries
+ * only the distance still to travel, which is zero at rest — the same value it takes
+ * when it is created. Whatever happens to it, the slider lands in the right slot.
+ *
  * It consumes the standard React Navigation tab-bar contract, so it drops into
  * `<Tabs tabBar={…}>` without any screen below knowing it exists — which keeps the
  * shell swappable, per `(app)/_layout.tsx`.
@@ -59,24 +75,27 @@ export function FloatingTabBar({ state, navigation }: TabBarProps) {
   const [trackWidth, setTrackWidth] = useState(0);
   const slot = trackWidth > 0 ? trackWidth / state.routes.length : 0;
 
-  const x = useSharedValue(0);
-  const settled = useRef(false);
+  // Where the slider belongs, as plain layout rather than animation state — see the
+  // note on the slider at the top of this file.
+  const target = state.index * slot;
+
+  // How far it still has to travel, and zero at rest.
+  const offset = useSharedValue(0);
+  const from = useRef(state.index);
 
   useEffect(() => {
-    if (slot === 0) return;
-    const target = state.index * slot;
-    // First real measurement: place the slider, don't fly it in from the edge.
-    if (!settled.current) {
-      x.value = target;
-      settled.current = true;
-    } else {
-      x.value = withSpring(target, { damping: 18, stiffness: 200, mass: 0.7 });
-    }
-  }, [state.index, slot, x]);
+    const previous = from.current;
+    from.current = state.index;
+    // Nothing to glide: the first measurement, or a re-layout at the same index. The
+    // slider is already in the right slot because `left` put it there.
+    if (slot === 0 || previous === state.index) return;
+    // Start from the slot it was in, then spring home.
+    offset.value = (previous - state.index) * slot;
+    offset.value = withSpring(0, { damping: 18, stiffness: 200, mass: 0.7 });
+  }, [state.index, slot, offset]);
 
   const sliderStyle = useAnimatedStyle(() => ({
-    width: slot,
-    transform: [{ translateX: x.value }],
+    transform: [{ translateX: offset.value }],
   }));
 
   return (
@@ -115,7 +134,13 @@ export function FloatingTabBar({ state, navigation }: TabBarProps) {
             <Animated.View
               pointerEvents="none"
               style={[
-                { position: "absolute", top: SLIDER_INSET, bottom: SLIDER_INSET },
+                {
+                  position: "absolute",
+                  top: SLIDER_INSET,
+                  bottom: SLIDER_INSET,
+                  left: target,
+                  width: slot,
+                },
                 sliderStyle,
               ]}
             >

@@ -19,7 +19,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { BottomSheet } from "./bottom-sheet";
+import { BottomSheet } from "./sheet";
 import { Field } from "./field";
 import { Eyebrow, Meta } from "./text";
 import { searchPeople, type TmdbPersonResult } from "@/lib/tmdb/people";

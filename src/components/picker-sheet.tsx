@@ -33,7 +33,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { BottomSheet } from "./bottom-sheet";
+import { BottomSheet } from "./sheet";
 import { SearchField } from "./search-field";
 import { Eyebrow, Meta } from "./text";
 import { accent, font, ink } from "@/theme";

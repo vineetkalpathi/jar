@@ -25,6 +25,12 @@ Three scopes, and which one a row sits in is the model's central decision — se
 Nothing is scoped to one Household but readable by another, which is what keeps the RLS
 policies and PowerSync sync rules simple enough to keep in agreement.
 
+One user-scoped entity does name a Household: `Viewing.householdId` records *where* a
+night happened. That is the occasion, not the ownership — the row still belongs to its
+User and still travels with them — and it exists because attribution could otherwise
+only be guessed at, badly, once a User belongs to several Households. See
+[ADR-0010](./adr/0010-a-viewing-records-the-household-it-happened-in.md).
+
 ## People
 
 **User** — one person with an account. Identity comes from Supabase auth.
@@ -115,7 +121,9 @@ rows.
 | Field | Notes |
 | --- | --- |
 | `id`, `titleId`, `userId` | |
+| `householdId` | nullable — where it happened. Null once that Household is deleted; the night is kept, unattributed |
 | `watchedOn` | for a series, a single sitting rather than finishing it |
+| `watchedPrecision` | `year` \| `month` \| `day`; null means `day` |
 
 ## Jars
 
@@ -187,7 +195,7 @@ rejected.
 ## Constraints that carry meaning
 
 1. `Rating` keyed `(userId, titleId, categoryId)` — one score per person per axis, with no Household in it, so opinions travel.
-2. `Viewing` **not** unique per `(titleId, userId)` — rewatches are the point.
+2. `Viewing` **not** unique per `(titleId, userId)` — rewatches are the point. Its `householdId` is the occasion, never the ownership: it appears in no key, and a Viewing survives the Household being left or deleted.
 3. `RatingCategory.name` unique case-insensitively — comparability depends on it.
 4. `Title.tmdbId` unique where present — two Households adding the same film must converge on one row.
 5. `Title.ownerHouseholdId` set only for hand-entered Titles; null means globally visible.
@@ -229,7 +237,10 @@ for a new Household is a client write, because household creation must work offl
 
 **Removing a Title from a Library.** Ratings and Viewings are user-scoped and reference
 the Title directly, so they survive. Whether that is desirable — or whether removal
-should warn that history is being orphaned from the group's view — is undecided.
+should warn that history is being orphaned from the group's view — is undecided. What is
+now settled is that they stay *legible*: the `catalogue` sync stream replicates any Title
+a User has a Viewing of or a Rating on, independently of any Library, so an orphaned
+opinion still resolves to a name and a poster.
 
 **Concurrent creation of a global Title.** Two Households adding the same film at the
 same moment must converge; the unique constraint on `tmdbId` handles the database side,
