@@ -66,7 +66,7 @@ The app has two visual worlds, and keeping them distinct is the point.
 | Screens | Jars, Jar detail, Library, Log, Filter, Draw flow, Add | Title detail, Rating entry |
 | Ground | `paper.bg` (Fawn `#E9E1D6`) | `dark.bg` (`#312F29`) |
 | Belongs to | what the household owns and handles | what TMDB knows |
-| Type | display serif + handwriting on slips | display serif only, no handwriting |
+| Type | display serif for names, sans for the rest | the same two faces, dark ink |
 | Texture | subtle noise, hairline borders | flat, hairline dividers |
 
 They are related, not separate: **every dark tone is derived from the paper colour**, so the
@@ -91,18 +91,18 @@ Rules that matter more than the hex values:
 
 ### 3. Typography
 
-Three faces, each with one job.
+Two faces, each with one job.
 
 | Role | Face | Where |
 |---|---|---|
 | Display | **Vollkorn** 400/600 | jar names, screen titles, film titles, big numerals |
 | UI | **Alegreya Sans** 400/500/700 | buttons, labels, metadata, all small text |
-| Hand | **Caveat** 600/700 | titles written on slips — and nowhere else |
 
-The Caveat rule is the load-bearing one. Handwriting appears **only where a person wrote
-something down**: a slip in a jar, a candidate in the draw grid, the winner, a log entry.
-Never on a label, a button, a screen title, or any TMDB-sourced text. That restraint is what
-stops the app reading as a scrapbook theme.
+There was a third — Caveat, handwriting, restricted to titles a person had written on a
+slip. It was dropped: the rule needed constant policing, the face only ever appeared on
+TMDB-sourced titles anyway, and the app reads as more of a piece with one serif doing
+every naming job. **Do not reintroduce a third face.** A film title is set the same way
+on a slip, in the Library and in the Log.
 
 One further move, borrowed from the user's references: small text can be set in the *display
 serif*, uppercase, tracked to `0.18–0.28em`, instead of the sans. Use it for jar labels and
@@ -161,7 +161,7 @@ Enough detail to rebuild each; not an instruction to build all of them now.
 line-drawn jars, plus a dashed "＋ New jar" tile of matching height. Tap a jar → Jar detail.
 
 **Jar detail** (paper) — back link, jar name, filter summary as chips (one per predicate,
-plus a dashed "Edit filter"), stats line. Vertical list of slips: title in Caveat 21px, year
+plus a dashed "Edit filter"), stats line. Vertical list of slips: title in display serif, year
 and runtime beneath, and a **26px circled ⓘ** on the right that opens Title detail. The slip
 itself is the object; the link is an aside. Bottom: a fading gradient over a full-width
 "Shake the jar" button.
@@ -174,20 +174,20 @@ with a radio dot — one slip, straight out, no knockout. CTA text changes with 
 **Draw flow** (paper, own ground `paper.bg2`) — shake (jittering blank slips, 750ms) →
 knockout grid (2 columns; 1 column when n ≤ 3; tap to strike: rust rule, tilt, scale 0.94,
 opacity 0.34) → pause (single amber dot, 900ms) → reveal (winner on a taped card, animated
-amber glow, Caveat 42px). Saucy skips the grid entirely.
+amber glow, display serif 42px). Saucy skips the grid entirely.
 
 **Library** (paper) — search field, then rows: 42×62 poster placeholder, title in display
 serif, meta, tags, household score right-aligned.
 
-**Log** (paper) — reverse-chronological cards, date in tracked caps, title in Caveat, who
+**Log** (paper) — reverse-chronological cards, date in tracked caps, title in display serif, who
 watched, score. An amber left edge marks nights everyone attended.
 
 **Filter builder** (paper) — one card per predicate, each labelled with its kind (Tag / Title
 attribute / Viewing / Draw), joined by tappable AND/OR pills. Live match count at the bottom.
 The closed predicate catalogue is `docs/filter-leaves.md` — the UI must not exceed it.
 
-**Add a title** (paper, rises from the bottom) — search field showing typed text in Caveat,
-TMDB results with Add buttons. Note beneath: adding puts it in the Library; jars pick it up
+**Add a title** (paper, rises from the bottom) — search field, TMDB results with Add
+buttons. Note beneath: adding puts it in the Library; jars pick it up
 themselves if it matches their filter.
 
 **Title detail** (dark) — poster placeholder, title, year/runtime, genres, tags, TMDB
@@ -236,12 +236,14 @@ must not leak into type or function names.
 
 None. Every visual is CSS/RN primitives. Posters are placeholder blocks
 (`repeating-linear-gradient` at 135°, 5px stripes) awaiting TMDB images — see ADR-0003 for
-the attribution requirement. Fonts are Google Fonts: Vollkorn, Alegreya Sans, Caveat — load
+the attribution requirement. Fonts are Google Fonts: Vollkorn and Alegreya Sans — load
 via `expo-font`.
 
 ## Files
 
-- `Movie Jar v3.dc.html` — the prototype. Open in a browser. Palette, jar style, and type
+- `Movie Jar v3.dc.html` — the prototype. Open in a browser. It predates the drop of the
+  handwriting face (§3) and still sets slips in Caveat — read type off this file, not off
+  the prototype. Palette, jar style, and type
   pairing are live switchers in the right-hand panel; the panel also carries the reasoning
   behind each choice and the options that were rejected.
 - `src/theme/tokens.ts` — the tokens, now living in the app. Tailwind reads the same

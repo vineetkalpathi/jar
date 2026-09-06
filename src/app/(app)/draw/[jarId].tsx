@@ -45,7 +45,7 @@ import { Body, Eyebrow, Meta, TitleName } from "@/components/text";
 import { useUserId } from "@/lib/auth/session";
 import { draws, type TitleRow } from "@/lib/db";
 import { posterUrl } from "@/lib/tmdb";
-import { accent, font, ink, motion, paper, radius, shadow } from "@/theme";
+import { accent, font, ink, motion, paper, radius, shadow, type } from "@/theme";
 
 type Phase = "shake" | "knockout" | "pause" | "reveal";
 type CandidateRow = TitleRow & { knocked_out_at: string | null };
@@ -791,9 +791,7 @@ function RevealStage({
             />
             <Text
               style={{
-                fontFamily: font.hand,
-                fontSize: 42,
-                lineHeight: 44,
+                ...type.slipWinner,
                 color: ink.primary,
                 textAlign: "center",
               }}

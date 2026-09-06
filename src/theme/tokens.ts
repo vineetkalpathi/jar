@@ -97,11 +97,6 @@ export const font = {
   ui: 'AlegreyaSans',
   uiMedium: 'AlegreyaSans_500Medium',
   uiBold: 'AlegreyaSans_700Bold',
-  /**
-   * Titles written on slips, and NOWHERE else. Not on labels, buttons,
-   * screen titles, or any TMDB-sourced text.
-   */
-  hand: 'Caveat_600SemiBold',
 } as const;
 
 /** Base 16, major third (1.25). Sizes below are the ones actually in use. */
@@ -114,9 +109,8 @@ export const type = {
   sectionHeading: { fontFamily: font.displaySemi, fontSize: 21, lineHeight: 26 },
   jarName: { fontFamily: font.display, fontSize: 16, lineHeight: 18 },
 
-  slip: { fontFamily: font.hand, fontSize: 21, lineHeight: 24 },
-  slipDraw: { fontFamily: font.hand, fontSize: 22, lineHeight: 25 },
-  slipWinner: { fontFamily: font.hand, fontSize: 42, lineHeight: 44 },
+  /** The winner reveal, and nothing else — the one place type goes this large. */
+  slipWinner: { fontFamily: font.display, fontSize: 42, lineHeight: 44 },
 
   body: { fontFamily: font.ui, fontSize: 15, lineHeight: 23 },
   /** Body copy on read-it-carefully pages — settings rows, policy choices. */

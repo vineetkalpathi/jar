@@ -720,7 +720,7 @@ function PosterCell({
       <Text
         numberOfLines={1}
         style={{
-          fontFamily: font.hand,
+          fontFamily: font.display,
           fontSize: 14,
           lineHeight: 16,
           color: ink.primary,

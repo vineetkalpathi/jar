@@ -1,7 +1,7 @@
 import { Poster } from "@/components/poster";
 import { Screen } from "@/components/screen";
 import { Segmented } from "@/components/segmented";
-import { Body, Eyebrow, Hand, LayerTitle, Meta } from "@/components/text";
+import { Body, Eyebrow, LayerTitle, Meta, TitleName } from "@/components/text";
 import { useUserId } from "@/lib/auth/session";
 import { annotations, households } from "@/lib/db";
 import { useHousehold } from "@/lib/household/active";
@@ -218,7 +218,7 @@ function NightCard({ night, everyone }: { night: Night; everyone: boolean }) {
         <Text className="type-eyebrow text-ink-faint">
           {formatWatchedOn(night.watchedOn, night.precision)}
         </Text>
-        <Hand numberOfLines={1}>{night.titleName}</Hand>
+        <TitleName numberOfLines={1}>{night.titleName}</TitleName>
         {subtitle ? <Meta numberOfLines={1}>{subtitle}</Meta> : null}
       </View>
     </Pressable>

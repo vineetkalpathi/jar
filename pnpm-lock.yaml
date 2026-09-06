@@ -14,9 +14,6 @@ importers:
       '@expo-google-fonts/alegreya-sans':
         specifier: ^0.4.2
         version: 0.4.2
-      '@expo-google-fonts/caveat':
-        specifier: ^0.4.2
-        version: 0.4.2
       '@expo-google-fonts/vollkorn':
         specifier: ^0.4.1
         version: 0.4.1
@@ -632,9 +629,6 @@ packages:
 
   '@expo-google-fonts/alegreya-sans@0.4.2':
     resolution: {integrity: sha512-9yEcTYgpWEKVUxaXaAggMMJlCrQtkQyfVonO1GsOUdox0mCoSpm5vXPdHSgPIk+MHTELiTzzge9t14MpYbe/MQ==}
-
-  '@expo-google-fonts/caveat@0.4.2':
-    resolution: {integrity: sha512-kCG35tRUX8Wi+u0Jh5ck3K1u7vZkdLnwRTuKMrEnlVmikvxQFXN1KjF5cL2vqRG7Hwm7648Zl8xe1BWAoIsPCA==}
 
   '@expo-google-fonts/material-symbols@0.4.42':
     resolution: {integrity: sha512-KZmHZRcthJ3KFZZlpzHjopA9guZgWR9fb3uVZlTR0BNlvG2pw1bnYBCpkze2PB0vRllwGhAM7lWXsfmcWCbXYg==}
@@ -4791,8 +4785,6 @@ snapshots:
       '@types/hammerjs': 2.0.46
 
   '@expo-google-fonts/alegreya-sans@0.4.2': {}
-
-  '@expo-google-fonts/caveat@0.4.2': {}
 
   '@expo-google-fonts/material-symbols@0.4.42': {}
 

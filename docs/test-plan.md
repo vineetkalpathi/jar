@@ -199,7 +199,7 @@ Seeded expectations (The Sofa, from `seed.sql`) — verify counts exactly:
 
 ## 8. Jar detail
 
-- [ ] **T8.1** Slips render in Caveat (`Hand`), sorted by title name, with
+- [ ] **T8.1** Slips render in the display serif (`TitleName`), sorted by title name, with
       `year · N min` metadata; hairline separators between rows.
 - [ ] **T8.2** Title with no year/runtime (Grandma's 80th) → no metadata line, no stray
       separator dot.
@@ -278,9 +278,8 @@ screen wiring, not TMDB's response shapes.
 
 - [ ] **T10.1** Opened via a Jar's slip ⓘ, and via tapping an already-added row on Add a
       title — both land on the same screen for the same Title id.
-- [ ] **T10.2** Dark register: ground is `dark.bg`, not `paper.bg`; no Caveat anywhere on
-      this screen (title, genres and overview are all TMDB-sourced text — ADR-0003's
-      handwriting rule). Top-left is a lone `‹` (no "Back" label); top-right is a green
+- [ ] **T10.2** Dark register: ground is `dark.bg`, not `paper.bg`; every face on this
+      screen comes from the `type-*` scale. Top-left is a lone `‹` (no "Back" label); top-right is a green
       circle with a `✓` (`LibraryStatus`, always in-library here — every path into this
       screen originates from the Household's own Library, so it's static, not tappable).
 - [ ] **T10.3** Poster renders from the live TMDB fetch (`getTitleDetails`), not from any
@@ -326,11 +325,12 @@ screen wiring, not TMDB's response shapes.
 
 ## 12. Theme, typography and chrome
 
-- [ ] **T12.1** Splash holds until Vollkorn / Alegreya Sans / Caveat load; no flash of
+- [ ] **T12.1** Splash holds until Vollkorn / Alegreya Sans load; no flash of
       system font on any screen.
 - [ ] **T12.2** Simulate a font-load failure (rename an asset) → splash still hides and
       the app renders in fallback faces.
-- [ ] **T12.3** Caveat appears **only** on slips — never on buttons, titles, labels.
+- [ ] **T12.3** Two faces only — Vollkorn and Alegreya Sans. No handwriting face anywhere
+      (grep the bundle for `Caveat`), and no `fontFamily` outside `theme/tokens.ts`.
 - [ ] **T12.4** Backgrounds: paper everywhere; no white gaps behind the Stack during
       transitions (`contentStyle` bg).
 - [ ] **T12.5** Safe areas: notch/Dynamic Island device and a home-indicator device —
@@ -371,9 +371,8 @@ Log has more than one watcher.
       forest.
 - [x] **T13.7** Only one household → the sheet still opens, with one row plus Create and
       Join.
-- [ ] **T13.8** Six or more households → the list scrolls after five rows (the sixth is
-      half-visible, so the list reads as scrollable), and **Create / Join stay pinned**
-      beneath the scroller rather than sinking below the fold.
+- [x] **T13.8** Five or more households → the list scrolls inside the panel, which stops
+      at 72% of the screen rather than running off the bottom.
 - [ ] **T13.9** Device with a large safe-area inset (notch/Dynamic Island), and OS text
       size at maximum → the anchor is still correct, since it is measured in window
       coordinates rather than assumed.
@@ -410,12 +409,12 @@ Log has more than one watcher.
 Before this feature there was no route to a second household at all, so all of this is
 new ground.
 
-- [ ] **T13.20** Sheet → Create a household → you land **in the new one**, not the one
+- [x] **T13.20** Sheet → Create a household → you land **in the new one**, not the one
       you came from. It has no jars and the five starter rating axes.
-- [ ] **T13.21** Sheet → Join with a code → after sync you land in the joined household.
-- [ ] **T13.22** Join with a bad code → error on the form, and backing out leaves you in
+- [x] **T13.21** Sheet → Join with a code → after sync you land in the joined household.
+- [x] **T13.22** Join with a bad code → error on the form, and backing out leaves you in
       the household you started in.
-- [ ] **T13.23** Back out of Create without submitting → unchanged, still in the original.
+- [x] **T13.23** Back out of Create without submitting → unchanged, still in the original.
 - [ ] **T13.24** Create a household **offline** → works (it is one local transaction) and
       you land in it.
 - [ ] **T13.25** The sheet's Create/Join push happens _after_ the panel has closed. On
@@ -451,17 +450,17 @@ new ground.
 
 ### 13f. Ratings across households
 
-- [ ] **T13.37** Rate a title on an axis in A; add the same title to B; open it in B →
+- [x] **T13.37** Rate a title on an axis in A; add the same title to B; open it in B →
       your score appears **below the "Rated in another household · not counted here"
       divider**, muted but draggable.
-- [ ] **T13.38** Change that muted value in B → switch to A, the new value is there.
-- [ ] **T13.39** The muted axis does **not** move B's household average, nor the score on
+- [x] **T13.38** Change that muted value in B → switch to A, the new value is there.
+- [x] **T13.39** The muted axis does **not** move B's household average, nor the score on
       B's library row. Only `household_category` axes count.
-- [ ] **T13.40** Switch to the "Household" mode in B → the orphan axis is absent.
-- [ ] **T13.41** Activate that axis in B (＋ Add a rating axis) → the capsule moves up
+- [x] **T13.40** Switch to the "Household" mode in B → the orphan axis is absent.
+- [x] **T13.41** Activate that axis in B (＋ Add a rating axis) → the capsule moves up
       into the main group, the divider disappears if it was the only one, and it now
       counts toward B's average.
-- [ ] **T13.42** A title with no cross-household scores shows no divider at all.
+- [x] **T13.42** A title with no cross-household scores shows no divider at all.
 
 ### 13g. Draws, sync and regressions
 

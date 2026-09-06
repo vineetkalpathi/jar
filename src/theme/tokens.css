@@ -35,7 +35,6 @@
   --font-ui: AlegreyaSans;
   --font-ui-medium: AlegreyaSans_500Medium;
   --font-ui-bold: AlegreyaSans_700Bold;
-  --font-hand: Caveat_600SemiBold;
 
   --radius-card: 4px;
   --radius-button: 4px;
@@ -53,10 +52,6 @@
   --text-section-heading--line-height: 26px;
   --text-jar-name: 16px;
   --text-jar-name--line-height: 18px;
-  --text-slip: 21px;
-  --text-slip--line-height: 24px;
-  --text-slip-draw: 22px;
-  --text-slip-draw--line-height: 25px;
   --text-slip-winner: 42px;
   --text-slip-winner--line-height: 44px;
   --text-body: 15px;
@@ -107,20 +102,8 @@
   line-height: 18px;
 }
 
-@utility type-slip {
-  font-family: Caveat_600SemiBold;
-  font-size: 21px;
-  line-height: 24px;
-}
-
-@utility type-slip-draw {
-  font-family: Caveat_600SemiBold;
-  font-size: 22px;
-  line-height: 25px;
-}
-
 @utility type-slip-winner {
-  font-family: Caveat_600SemiBold;
+  font-family: Vollkorn;
   font-size: 42px;
   line-height: 44px;
 }

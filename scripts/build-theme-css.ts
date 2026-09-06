@@ -3,7 +3,7 @@
  *
  * Tailwind v4 is configured in CSS rather than JavaScript, which would normally mean
  * keeping the palette in two places. Instead the TypeScript tokens stay authoritative
- * and this emits the `@theme` block from them, so `bg-paper`, `text-ink`, `font-hand`
+ * and this emits the `@theme` block from them, so `bg-paper`, `text-ink`, `font-display`
  * and the rest all resolve to the same constants the components import.
  *
  * Run with `pnpm theme` after editing tokens.ts. Node runs this directly — the file is
@@ -57,14 +57,13 @@ const colors: Record<string, string> = {
   "dark-ink-faint": dark.textFaint,
 };
 
-/** `font-display`, `font-ui`, `font-hand` … */
+/** `font-display`, `font-ui`, `font-ui-bold` … */
 const fonts: Record<string, string> = {
   display: font.display,
   "display-semi": font.displaySemi,
   ui: font.ui,
   "ui-medium": font.uiMedium,
   "ui-bold": font.uiBold,
-  hand: font.hand,
 };
 
 /** `rounded-card`, `rounded-sheet`. The jar's asymmetric radii stay in TS. */
@@ -89,13 +88,11 @@ const textSizes = Object.entries(type).flatMap(([name, value]) => {
 });
 
 /**
- * One `type-*` utility per role in the scale — `type-screen-title`, `type-slip`,
+ * One `type-*` utility per role in the scale — `type-screen-title`, `type-body`,
  * `type-eyebrow` — carrying face, size, leading and tracking together.
  *
- * Binding the face to the role is the point. The design language's load-bearing rule is
- * that Caveat appears only where a person wrote something down, so `type-slip` shipping
- * its own `font-family` means a slip cannot be styled without it, and nothing else
- * reaches for the handwriting by accident.
+ * Binding the face to the role is the point: a role cannot be styled at the wrong size
+ * or in the wrong face, because the utility carries both.
  */
 const typeUtilities = Object.entries(type).map(([name, value]) => {
   const declarations = [`  font-family: ${value.fontFamily};`];

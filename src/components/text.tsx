@@ -5,10 +5,9 @@
  * leading together. These wrap the ones used often enough that repeating the className
  * would be the more error-prone option.
  *
- * `Hand` is the one that matters. Caveat appears only where a person wrote something
- * down — a slip, a candidate, a log entry — and never on a label, a button, a screen
- * title, or any TMDB-sourced text. Keeping it behind a named component makes that rule
- * visible at the call site instead of buried in a class list.
+ * Two faces only — the display serif for anything that names a thing, the UI sans for
+ * everything small. There is no third face: a title reads the same on a slip, in the
+ * Library and in the Log, which is the point.
  */
 
 import { Text, type TextProps } from "react-native";
@@ -41,15 +40,7 @@ export const Eyebrow = make("type-eyebrow text-ink-muted");
 /** Wider tracking still. Jar labels and section headers only. */
 export const EyebrowWide = make("type-eyebrow-wide text-ink-muted");
 
-/** Handwriting. A title someone wrote on a slip — and nowhere else. */
-export const Hand = make("type-slip text-ink");
-
-/**
- * A TMDB-sourced title where it isn't handwritten on a slip — search results, the
- * Library list. Display serif, same as `Hand`'s size, but never Caveat: the handwriting
- * rule is that Caveat marks a person having written something down, and nothing in a
- * TMDB result was.
- */
+/** A film title wherever one is named — slips, search results, Library, Log. */
 export const TitleName = make("type-title-large text-ink");
 
 // ---------------------------------------------------------------------------

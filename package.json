@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo-google-fonts/alegreya-sans": "^0.4.2",
-    "@expo-google-fonts/caveat": "^0.4.2",
     "@expo-google-fonts/vollkorn": "^0.4.1",
     "@expo/ui": "~57.0.7",
     "@op-engineering/op-sqlite": "^17.1.3",
