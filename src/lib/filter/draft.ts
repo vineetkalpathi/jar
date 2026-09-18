@@ -169,7 +169,7 @@ function rangePredicate(
 
 /**
  * Assembles the stored Filter for a draft, or `null` when nothing is set — which the
- * model reads as a hand-curated Jar / a clear Library view, never "match everything".
+ * model reads as a whole-Library Jar (ADR-0011) / a clear Library view.
  *
  * `currentUserId` resolves a rating rule scoped to "me" into a concrete id, so the Jar
  * means the same thing on every device (ADR-0009).

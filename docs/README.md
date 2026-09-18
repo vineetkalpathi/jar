@@ -52,10 +52,12 @@ records who took part, and remembers what got **Knocked Out** — which is what 
 | [0003](./adr/0003-tmdb-is-a-cached-enrichment-source.md) | TMDB is a cached enrichment source | Amended by 0007 |
 | [0004](./adr/0004-local-first-sync-on-supabase-and-powersync.md) | Local-first sync on Supabase + PowerSync | Amended by 0007 |
 | [0005](./adr/0005-households-own-the-catalogue-users-own-opinions.md) | Households own the catalogue, Users own opinions | Partially superseded by 0007 |
-| [0006](./adr/0006-filter-evaluation-semantics.md) | Filter evaluation semantics | Current |
+| [0006](./adr/0006-filter-evaluation-semantics.md) | Filter evaluation semantics | Amended by 0011 |
 | [0007](./adr/0007-every-watch-group-is-a-household.md) | Every watch group is a Household; Categories are global | Current |
 | [0008](./adr/0008-store-genre-and-language-as-names.md) | Store genre and language as names, not ids | Current |
 | [0009](./adr/0009-filter-json-encoding.md) | The JSON encoding of a Filter | Current |
+| [0010](./adr/0010-a-viewing-records-the-household-it-happened-in.md) | A Viewing records the Household it happened in | Current |
+| [0011](./adr/0011-a-jar-starts-as-the-whole-library.md) | A Jar starts as the whole Library; every Household has a Library Jar | Current |
 
 Superseded ADRs are kept rather than deleted — the reasoning still explains why the
 current design is shaped the way it is. Each carries a pointer to what replaced it.

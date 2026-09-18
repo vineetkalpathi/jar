@@ -59,9 +59,15 @@ _Avoid_: watch, view, play, watch history entry
 **Jar**:
 A named grouping of Titles a Household draws from at random. Its contents are
 everything in the Library matching its Filter, plus its Pins, minus its Exclusions — so
-a Jar with no Filter is a hand-curated list, and one with no Pins or Exclusions is
-purely automatic.
+a Jar with no Filter holds the whole Library, and a Filter only ever narrows it.
 _Avoid_: list, collection, playlist, bucket
+
+**Library Jar**:
+The one Jar every Household has from the moment it is created: no Filter, so it holds
+the whole Library. It cannot be filtered or deleted; every other Jar is a narrowing of
+it. Hiding a Title from it means "we have it, don't draw it" — unlike removing it from
+the Library.
+_Avoid_: default jar, main jar, all titles
 
 **Filter**:
 The boolean expression defining which Library Titles a Jar admits, evaluated over
@@ -75,7 +81,8 @@ closed.
 _Avoid_: condition, rule, clause, term
 
 **Pin**:
-A Title forced into a Jar regardless of its Filter.
+A Library Title forced into a Jar regardless of its Filter. Meaningless in the Library
+Jar, which already holds every one.
 _Avoid_: manual add, include, favourite
 
 **Exclusion**:

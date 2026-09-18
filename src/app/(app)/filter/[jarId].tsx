@@ -58,6 +58,9 @@ export default function EditJarFilter() {
 
   if (isLoading) return <Loading />;
   if (!jar) return <Loading note="That jar isn't here." />;
+  // Reachable only by a stale link: the Library Jar has no filter to edit (ADR-0011).
+  if (jars.isLibraryJar(jar))
+    return <Loading note="This jar always holds your whole library." />;
 
   const save = async () => {
     if (busy || !draft) return;

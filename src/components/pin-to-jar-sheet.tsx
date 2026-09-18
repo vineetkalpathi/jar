@@ -4,8 +4,8 @@
  *   - `JarCountBadge` — how many jars this Title is currently in, beside the library
  *     status at the top.
  *   - `PinToJarButton` — a pill that opens a sheet listing the household's jars with the
- *     Title's standing in each (already there via the filter, Pinned, or Hidden), and
- *     offers the Pin action only where none of those apply.
+ *     Title's standing in each. A jar holding it offers Hide; a jar leaving it out offers
+ *     Pin; an existing Pin or Hide shows filled and clears on tap (ADR-0011).
  *
  * The sheet stays paper though it opens over the dark Title screen: a jar is the
  * household's own thing, and the household's surfaces stay paper (as `picker-sheet.tsx`).
@@ -47,7 +47,10 @@ export function JarCountBadge({ standings }: { standings: JarStandings }) {
 
   if (jarRows.length === 0) return null;
 
-  const count = jarRows.filter((jar) => isIn(standing(jar.id))).length;
+  // The Library Jar holds every Library Title, so counting it would say nothing.
+  const count = jarRows.filter(
+    (jar) => !jars.isLibraryJar(jar) && isIn(standing(jar.id)),
+  ).length;
 
   return (
     <View className="flex-row items-center gap-1.5">
@@ -88,7 +91,9 @@ export function PinToJarButton({
   standings: JarStandings;
 }) {
   const [open, setOpen] = useState(false);
-  const anyJar = standings.jars.some((jar) => isIn(standings.standing(jar.id)));
+  const anyJar = standings.jars.some(
+    (jar) => !jars.isLibraryJar(jar) && isIn(standings.standing(jar.id)),
+  );
 
   return (
     <>
@@ -147,12 +152,15 @@ function PinToJarSheet({
         }}
       >
         <View className="flex-row items-center justify-between pb-1">
-          <Eyebrow>Pin to a jar</Eyebrow>
+          <Eyebrow>Jars</Eyebrow>
           <Pressable onPress={onClose} accessibilityRole="button" hitSlop={10}>
             <Text className="type-body text-navy">Done</Text>
           </Pressable>
         </View>
-        <Meta>Force this title into a jar, whatever its filter says.</Meta>
+        <Meta>
+          Hide this title from a jar it's in, or pin it into one whose filter leaves it
+          out.
+        </Meta>
 
         {jarRows.length === 0 ? (
           <View className="py-6">
@@ -180,8 +188,16 @@ function PinToJarSheet({
   );
 }
 
-/** One jar row: its name, and — where the Title isn't held by the filter — a thumbtack
- *  that pins it (outline) or unpins it (filled). Tapping inverts the state. */
+/**
+ * One jar row: its name and the one action that fits the Title's standing there.
+ *
+ *   - in the jar (by filter) → outline hide; tap hides it
+ *   - hidden                 → filled hide; tap un-hides
+ *   - left out by the filter → outline thumbtack; tap pins it
+ *   - pinned                 → filled thumbtack; tap unpins
+ *
+ * Hide is the common case now that every jar starts as the whole Library (ADR-0011).
+ */
 function JarPinRow({
   jar,
   titleId,
@@ -194,13 +210,18 @@ function JarPinRow({
   const db = usePowerSync();
   const [busy, setBusy] = useState(false);
 
-  const toggle = async () => {
+  const act = async () => {
     setBusy(true);
     try {
-      if (standing === "pinned") {
+      if (standing === "pinned" || standing === "hidden") {
         await jars.clearOverride(db, jar.id, titleId);
       } else {
-        await jars.setOverride(db, jar.id, titleId, "pin");
+        await jars.setOverride(
+          db,
+          jar.id,
+          titleId,
+          standing === "present" ? "exclusion" : "pin",
+        );
       }
     } catch (cause) {
       console.warn("[pin-to-jar] toggle failed", jar.id, cause);
@@ -209,50 +230,52 @@ function JarPinRow({
     }
   };
 
+  const name = jar.name ?? "Untitled";
+
+  // The Library Jar only leaves out a Title that isn't in the Library, and pinning can't
+  // change that — so it never offers Pin.
+  const pinnable = !jars.isLibraryJar(jar);
+
+  let control;
+  if (standing === "resolving" || (standing === "absent" && !pinnable)) {
+    control = (
+      <Text className="type-meta-small" style={{ color: ink.faint }}>
+        {standing === "resolving" ? "…" : "Not in this jar"}
+      </Text>
+    );
+  } else if (standing === "present" || standing === "hidden") {
+    const hidden = standing === "hidden";
+    control = (
+      <IconTablet
+        glyph="hide"
+        tone={accent.rust}
+        filled={hidden}
+        busy={busy}
+        onPress={act}
+        accessibilityLabel={hidden ? `Un-hide from ${name}` : `Hide from ${name}`}
+      />
+    );
+  } else {
+    const pinned = standing === "pinned";
+    control = (
+      <IconTablet
+        glyph="pin"
+        tone={accent.forest}
+        filled={pinned}
+        busy={busy}
+        onPress={act}
+        accessibilityLabel={pinned ? `Unpin from ${name}` : `Pin to ${name}`}
+      />
+    );
+  }
+
   return (
     <View className="flex-row items-center justify-between border-b border-hairline py-3">
       <Text className="type-body flex-1 pr-3 text-ink" numberOfLines={1}>
-        {jar.name ?? "Untitled"}
+        {name}
       </Text>
-
-      {standing === "absent" || standing === "pinned" ? (
-        <IconTablet
-          glyph="pin"
-          tone={accent.forest}
-          filled={standing === "pinned"}
-          busy={busy}
-          onPress={toggle}
-          accessibilityLabel={
-            standing === "pinned"
-              ? `Unpin from ${jar.name}`
-              : `Pin to ${jar.name}`
-          }
-        />
-      ) : (
-        <StandingLabel standing={standing} />
-      )}
+      {control}
     </View>
-  );
-}
-
-function StandingLabel({
-  standing,
-}: {
-  standing: "hidden" | "present" | "resolving";
-}) {
-  const map: Record<
-    "hidden" | "present" | "resolving",
-    { text: string; color: string }
-  > = {
-    hidden: { text: "Hidden", color: accent.rust },
-    present: { text: "In this jar", color: ink.muted },
-    resolving: { text: "…", color: ink.faint },
-  };
-  const { text, color } = map[standing];
-  return (
-    <Text className="type-meta-small" style={{ color }}>
-      {text}
-    </Text>
   );
 }
 

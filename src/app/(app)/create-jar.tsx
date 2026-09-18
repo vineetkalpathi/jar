@@ -17,9 +17,9 @@ import { usePreviewFilter } from "@/lib/filter/use-preview-filter";
 import { useHousehold } from "@/lib/household/active";
 
 /**
- * A new Jar. The filter is the jar: you name it, say what falls in, and the two are
- * saved together. Leaving the builder untouched makes a hand-curated Jar — its Pins
- * alone, empty until something is pinned — which is a real state, not a placeholder.
+ * A new Jar. It starts as the whole Library and each filter narrows it (ADR-0011) —
+ * which is what the match count has always shown. Leaving the builder untouched makes a
+ * second whole-library Jar, which is allowed; the filter can be added later.
  */
 export default function CreateJar() {
   const db = usePowerSync();
@@ -39,7 +39,7 @@ export default function CreateJar() {
     setBusy(true);
     setError(null);
     try {
-      // An untouched builder resolves to `null` — a hand-curated jar, no separate opt-out.
+      // An untouched builder resolves to `null` — the whole Library.
       const filter = await resolveDraftFilter(db, draft, userId);
       const jarId = await jars.createJar(db, {
         householdId: household.id,
@@ -94,8 +94,8 @@ export default function CreateJar() {
           <Eyebrow>New jar</Eyebrow>
           <LayerTitle>What's it for?</LayerTitle>
           <Body>
-            Name it for the mood, then say what goes in. Everything in your library that
-            matches falls in on its own.
+            Name it for the mood. It starts with your whole library — each filter you
+            add narrows it down.
           </Body>
         </View>
 

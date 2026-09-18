@@ -175,6 +175,8 @@ export default function JarDetail() {
   if (!jar)
     return deleting ? <Loading /> : <Loading note="That jar isn't here." />;
 
+  const isLibrary = jars.isLibraryJar(jar);
+
   const tileW = Math.floor((width - 40 - GRID_GAP * 2) / 3);
   const tileH = Math.round(tileW * 1.48);
 
@@ -284,17 +286,22 @@ export default function JarDetail() {
       </View>
 
       <View className="flex-row flex-wrap gap-2 pb-3">
-        <PillButton
-          label={jar.filter ? "Edit filter" : "Add a filter"}
-          color={accent.navy}
-          onPress={() => router.push(`/filter/${jar.id}`)}
-        />
-        <PillButton
-          label="Pin a title"
-          mark="＋"
-          color={accent.forest}
-          onPress={() => setPicker("pin")}
-        />
+        {/* The Library Jar holds everything: nothing to filter, nothing to pin in. */}
+        {isLibrary ? null : (
+          <>
+            <PillButton
+              label={jar.filter ? "Edit filter" : "Add a filter"}
+              color={accent.navy}
+              onPress={() => router.push(`/filter/${jar.id}`)}
+            />
+            <PillButton
+              label="Pin a title"
+              mark="＋"
+              color={accent.forest}
+              onPress={() => setPicker("pin")}
+            />
+          </>
+        )}
         <PillButton
           label="Hide a title"
           mark="－"
@@ -324,7 +331,7 @@ export default function JarDetail() {
           needle ? (
             <Body className="pt-2">No matches for "{needle}".</Body>
           ) : (
-            <EmptyJar jarId={jar.id} />
+            <EmptyJar jarId={jar.id} isLibrary={isLibrary} />
           )
         }
         renderItem={({ item }) => (
@@ -378,6 +385,7 @@ export default function JarDetail() {
       <JarOptionsSheet
         visible={optionsOpen}
         jarName={jar.name ?? "Jar"}
+        deletable={!isLibrary}
         onClose={() => {
           setOptionsOpen(false);
           setPending(null);
@@ -409,12 +417,15 @@ export default function JarDetail() {
 function JarOptionsSheet({
   visible,
   jarName,
+  deletable,
   onClose,
   onClosed,
   onSelect,
 }: {
   visible: boolean;
   jarName: string;
+  /** False for the Library Jar, which lives as long as its Household (ADR-0011). */
+  deletable: boolean;
   onClose: () => void;
   /** Fired once this sheet is gone — where the picked action actually runs. */
   onClosed?: () => void;
@@ -445,14 +456,17 @@ function JarOptionsSheet({
         <OptionRow label="Edit jar title" onPress={() => onSelect("rename")} />
         <OptionRow
           label="Pinned & hidden titles"
+          last={!deletable}
           onPress={() => onSelect("manual")}
         />
-        <OptionRow
-          label="Delete jar"
-          destructive
-          last
-          onPress={() => onSelect("delete")}
-        />
+        {deletable ? (
+          <OptionRow
+            label="Delete jar"
+            destructive
+            last
+            onPress={() => onSelect("delete")}
+          />
+        ) : null}
       </View>
     </BottomSheet>
   );
@@ -1351,17 +1365,29 @@ function RemoveTitleModal({
   );
 }
 
-function EmptyJar({ jarId }: { jarId: string }) {
+function EmptyJar({ jarId, isLibrary }: { jarId: string; isLibrary: boolean }) {
+  // A jar starts as the whole library (ADR-0011), so empty means either the library is
+  // empty or this jar's filter narrows it to nothing.
+  if (isLibrary) {
+    return (
+      <View className="gap-3 py-6">
+        <Eyebrow>Empty</Eyebrow>
+        <Body>
+          Your library is empty. Everything you add to it lands in this jar.
+        </Body>
+      </View>
+    );
+  }
+
   return (
     <View className="gap-3 py-6">
       <Eyebrow>Empty</Eyebrow>
       <Body>
-        Nothing falls into this jar yet. Give it a filter and everything in your
-        library that matches turns up here on its own — or pin a title in by
-        hand.
+        Nothing in your library matches this jar's filter right now. Loosen the
+        filter, or pin a title in by hand.
       </Body>
       <Button
-        label="Build a filter"
+        label="Edit filter"
         pill
         onPress={() => router.push(`/filter/${jarId}`)}
       />

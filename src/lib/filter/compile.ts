@@ -70,12 +70,11 @@ type Sql = () => string;
  * Title ids in the Household's Library matching `filter`.
  *
  * This is the Filter half only. Jar contents are
- * `(Library ∩ filter) ∪ Pins − Exclusions` — use `compileJarContents`.
+ * `(Library ∩ filter) ∪ (Library ∩ Pins) − Exclusions` — use `compileJarContents`.
  *
- * `filter` is required. A Jar with no Filter is not one whose Filter matches
- * everything; it is a hand-curated list of its Pins, and only `compileJarContents`
- * knows that. Accepting null here meant one absent Filter compiled to the whole Library
- * through this entry point and to nothing through the other.
+ * `filter` is required. A Jar with no Filter holds the whole Library (ADR-0011), and
+ * `compileJarContents` is the one place that `null` is interpreted, so there is no
+ * second entry point to disagree with it.
  */
 export function compileFilter(filter: Filter, ctx: CompileContext): CompiledQuery {
   const c = new Compiler(ctx);
@@ -91,10 +90,11 @@ export function compileFilter(filter: Filter, ctx: CompileContext): CompiledQuer
 }
 
 /**
- * The contents of a Jar: `(Library ∩ filter) ∪ Pins − Exclusions`.
+ * The contents of a Jar: `(Library ∩ filter) ∪ (Library ∩ Pins) − Exclusions`.
  *
- * A Jar with no Filter is its Pins alone, which is how a hand-entered Title with no
- * attributes reaches a Jar at all (ADR-0006).
+ * A Jar with no Filter holds the whole Library; Filters only narrow (ADR-0011). Pins
+ * are how a Title a Filter leaves out — a hand-entered one with no attributes, above
+ * all (ADR-0006) — gets back in.
  */
 export function compileJarContents(
   jar: { id: string; filter: Filter | null },
@@ -102,18 +102,19 @@ export function compileJarContents(
 ): CompiledQuery {
   const c = new Compiler({ ...ctx, jarId: jar.id });
 
-  // A null filter must contribute nothing rather than everything: "no filter" means a
-  // hand-curated Jar, not the whole Library.
-  const matched = jar.filter
-    ? `select le.title_id\n` +
-      `from library_entry le\n` +
-      `join title t on t.id = le.title_id\n` +
-      `where le.household_id = ${c.param(ctx.householdId)}\n` +
-      `  and (${c.node(jar.filter.root)})`
-    : `select null as title_id where 0`;
+  const matched =
+    `select le.title_id\n` +
+    `from library_entry le\n` +
+    `join title t on t.id = le.title_id\n` +
+    `where le.household_id = ${c.param(ctx.householdId)}` +
+    (jar.filter ? `\n  and (${c.node(jar.filter.root)})` : ``);
 
+  // Bounded by the Library: a Title taken off the shelf must not linger in a Jar because
+  // it was once pinned there. The override row survives and applies again on re-adding.
   const pinned =
     `select jo.title_id from jar_override jo\n` +
+    `join library_entry le on le.title_id = jo.title_id\n` +
+    `  and le.household_id = ${c.param(ctx.householdId)}\n` +
     `where jo.jar_id = ${c.param(jar.id)} and jo.kind = 'pin'`;
 
   const excluded =

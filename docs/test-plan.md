@@ -160,12 +160,13 @@ Seeded expectations (The Sofa, from `seed.sql`) — verify counts exactly:
 
 | Jar                  | Expected slips                                     |
 | -------------------- | -------------------------------------------------- |
-| Short weeknight pick | 1 (Friends)                                        |
-| Cozy night in        | 1 (WALL·E — Spirited Away is excluded by override) |
+| Everything           | 6 (Library Jar — the whole Library, shown first)   |
 | Comfort rewatch      | 0 (Heat fails `coverage: all` on Rewatchability)   |
-| Family archive       | 1 (Grandma's 80th, via pin — no filter)            |
+| Cozy night in        | 1 (WALL·E — Spirited Away is excluded by override) |
+| Short weeknight pick | 2 (Friends; Grandma's 80th via pin)                |
 
 - [ ] **T6.1** Counts above match on both the tile and the detail header.
+- [ ] **T6.13** Library Jar tile is first in the grid, whatever its name sorts as.
 - [ ] **T6.2** Empty household → "Nothing to draw from yet", explanatory paragraph, and
       only the dashed New jar tile.
 - [ ] **T6.3** Grid parity: with 1, 2, 3 and 4 jars, the last row's tiles stay
@@ -192,8 +193,11 @@ Seeded expectations (The Sofa, from `seed.sql`) — verify counts exactly:
 - [ ] **T7.2** Disabled until non-empty; whitespace trimmed.
 - [ ] **T7.3** Cancel returns to the grid with nothing created.
 - [ ] **T7.4** Created offline → appears in the grid instantly, syncs later.
-- [ ] **T7.5** New jar has `filter = NULL` in Postgres (not `{}`), and detail shows the
-      empty-jar copy.
+- [ ] **T7.5** New jar with an untouched builder has `filter = NULL` in Postgres (not
+      `{}`) and holds the whole Library; match count before saving equals the slips after.
+- [ ] **T7.7** Create a Household (also offline) → an `Everything` jar with
+      `is_library = true` appears immediately and syncs; grid shows it with the Library
+      count.
 - [ ] **T7.6** Keyboard: `autoFocus` fires, `go` submits, KeyboardAvoidingView keeps the
       button visible on a small device (iPhone SE).
 
@@ -210,9 +214,17 @@ Seeded expectations (The Sofa, from `seed.sql`) — verify counts exactly:
 - [ ] **T8.6** Jar deleted in Postgres while open → "That jar isn't here."
 - [ ] **T8.7** Navigate to `/jar/<random-uuid>` → same message, no crash.
 - [ ] **T8.8** Unreadable filter (as T6.8) → list stays empty, warning logged, no crash.
-- [ ] **T8.9** **Known copy bug to confirm:** a jar that _has_ a filter but matches
-      nothing (Comfort rewatch) shows "This jar has no filter yet, so nothing falls into
-      it" — wrong for that case. Log it rather than fixing blind.
+- [ ] **T8.9** A filtered jar matching nothing (Comfort rewatch) → "Nothing in your
+      library matches this jar's filter" with an Edit filter button.
+- [ ] **T8.11** Library Jar detail → no Edit filter / Pin pills, Hide still present;
+      ⋯ sheet has no Delete. `/filter/<library jar id>` shows "always holds your whole
+      library". Postgres refuses `delete from jar` / `update jar set is_library = false`
+      on it; deleting the Household still removes it.
+- [ ] **T8.12** Remove a pinned Title from the Library → it leaves the jar; re-add → the
+      pin applies again.
+- [ ] **T8.13** Title screen jar sheet: jars holding the Title offer Hide, jars not
+      holding it offer Pin (Library Jar never offers Pin); filled icons clear on tap.
+      "N jars" badge does not count the Library Jar.
 - [ ] **T8.10** Rapid back/forward between grid and detail → no stale contents from the
       previously-viewed jar (the `active` guard in the effect).
 
@@ -464,14 +476,14 @@ new ground.
 
 ### 13g. Draws, sync and regressions
 
-- [ ] **T13.43** Finish a draw as watched → every participant's Viewing is stamped with
+- [x] **T13.43** Finish a draw as watched → every participant's Viewing is stamped with
       **the jar's** household. Start a draw in A, back out, switch to B, return and
       finish → still attributed to A.
 - [ ] **T13.44** Mark something seen offline, then reconnect → the Viewing uploads with
       its `household_id` and is not dropped by the connector (watch for a
       `[sync] dropping PUT on viewing/...` warning, which would mean the insert policy
       rejected it).
-- [ ] **T13.45** `bottom-sheet.tsx` became `sheet.tsx`. Re-check every sheet still opens
+- [x] **T13.45** `bottom-sheet.tsx` became `sheet.tsx`. Re-check every sheet still opens
       and closes: pin-to-jar, draw setup, watched date, person picker, the generic picker,
       and both sheets in Jar detail.
 

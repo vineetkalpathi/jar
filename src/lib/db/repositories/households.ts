@@ -14,6 +14,8 @@ import { newId } from "../ids";
 import { findOrInsert } from "../upsert";
 import { supabase } from "../supabase";
 import { timestamp } from "../../time";
+// A cycle (jars imports households back), safe because it is only read at call time.
+import { LIBRARY_JAR_NAME } from "./jars";
 
 /** Households the signed-in user belongs to. Parameters: `[userId]`. */
 export const HOUSEHOLDS_FOR_USER = `
@@ -97,10 +99,10 @@ export async function findOrCreateCategory(
 }
 
 /**
- * Creates a Household, makes its creator the first member, and activates the starter
- * Rating Categories.
+ * Creates a Household, makes its creator the first member, activates the starter
+ * Rating Categories, and creates its Library Jar (ADR-0011).
  *
- * All three in one local transaction, and all three on the device. Doing this as a
+ * All four in one local transaction, and all four on the device. Doing this as a
  * Postgres function would be tempting and wrong: writes go through PowerSync's upload
  * queue, so an RPC would need connectivity and household creation must work offline.
  *
@@ -139,6 +141,13 @@ export async function createHousehold(
         [newId(), householdId, category.id],
       );
     }
+
+    // No filter: the whole Library, which is the first thing a new group wants to draw.
+    await tx.execute(
+      `insert into jar (id, household_id, name, filter, is_library, created_at)
+       values (?, ?, ?, null, 1, ?)`,
+      [newId(), householdId, LIBRARY_JAR_NAME, now],
+    );
   });
 
   return householdId;

@@ -222,19 +222,23 @@ insert into jar (id, household_id, name, filter) values
        "op":"gte","value":7,"coverage":"all","aggregator":"min"}
     ]}}'::jsonb),
 
-  -- No Filter at all: contents are its Pins alone, which is how an unlinked Title
-  -- reaches a Jar.
-  ('7a120000-0000-4000-8000-000000000004', '50fa0000-0000-4000-8000-000000000001',
-   'Family archive', null),
-
   ('7a120000-0000-4000-8000-000000000005', 'c1bb0000-0000-4000-8000-000000000002',
    'Club picks',
    '{"version":1,"root":{"kind":"group","op":"and","children":[
       {"kind":"predicate","leaf":"mediaType","op":"is","value":"movie"}
     ]}}'::jsonb);
 
+-- Each Household's Library Jar: no Filter, so the whole Library (ADR-0011).
+insert into jar (id, household_id, name, is_library) values
+  ('7a120000-0000-4000-8000-000000000004', '50fa0000-0000-4000-8000-000000000001',
+   'Everything', true),
+  ('7a120000-0000-4000-8000-000000000006', 'c1bb0000-0000-4000-8000-000000000002',
+   'Everything', true);
+
 insert into jar_override (jar_id, title_id, kind) values
-  ('7a120000-0000-4000-8000-000000000004', '7171e000-0000-4000-8000-00000000000f', 'pin'),
+  -- Unlinked, so it has no runtime and fails the Filter; the Pin is how it gets in
+  -- (ADR-0006).
+  ('7a120000-0000-4000-8000-000000000001', '7171e000-0000-4000-8000-00000000000f', 'pin'),
   -- Excluded despite matching, rather than mis-tagging it to keep it out.
   ('7a120000-0000-4000-8000-000000000002', '7171e000-0000-4000-8000-000000000005', 'exclusion');
 

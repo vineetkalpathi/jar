@@ -87,7 +87,7 @@ export function FilterBuilder({
     <View className="gap-4">
       {chips.length === 0 ? (
         <Meta style={{ fontSize: 14 }}>
-          No filters yet — with none, the jar stays empty until you pin titles to it.
+          No filters yet — with none, the jar holds your whole library.
         </Meta>
       ) : (
         <View className="gap-2">

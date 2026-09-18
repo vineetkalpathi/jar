@@ -132,14 +132,16 @@ rows.
 | Field | Notes |
 | --- | --- |
 | `id`, `householdId`, `name`, `createdAt` | |
-| `filter` | boolean tree, stored as JSON. General tree even though the v1 builder produces only ANY-groups ANDed together — see [ADR-0002](./adr/0002-filter-stored-as-tree-ui-limited-to-two-levels.md) |
+| `filter` | boolean tree, stored as JSON. General tree even though the v1 builder produces only ANY-groups ANDed together — see [ADR-0002](./adr/0002-filter-stored-as-tree-ui-limited-to-two-levels.md). Null means the whole Library |
+| `isLibrary` | true for the Household's one Library Jar — never filtered, never deleted. See [ADR-0011](./adr/0011-a-jar-starts-as-the-whole-library.md) |
 
 **JarOverride** — key `(jarId, titleId)` with `kind` of `pin` or `exclusion`. Pins and
 Exclusions share one table so that "a Title may not be both Pinned and Excluded in the
 same Jar" is enforced by the primary key rather than by a trigger.
 
-Contents are `(Library ∩ filter) ∪ Pins − Exclusions`, evaluated as SQL against the
-local SQLite replica.
+Contents are `(Library ∩ filter) ∪ (Library ∩ Pins) − Exclusions`, evaluated as SQL
+against the local SQLite replica. A null filter is the whole Library; a Pin on a Title
+no longer in the Library has no effect until it is re-added.
 
 A group that wants a hand-picked jar curates its Household's Library and filters that —
 no separate concept is needed.
@@ -204,6 +206,7 @@ rejected.
 8. `RatingCategory.archivedAt` is set, never deleted, while Ratings referencing it exist.
 9. A Filter referencing an archived RatingCategory still resolves.
 10. `DrawParticipant.userId` need not be a `HouseholdMember` — this is what a Guest is.
+11. At most one `Jar` per Household has `isLibrary`, it carries no Filter, and it can be neither deleted nor un-flagged while its Household exists — partial unique index, check constraint and trigger.
 
 ## Deliberately deferred to development
 

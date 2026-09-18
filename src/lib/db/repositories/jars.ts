@@ -15,16 +15,26 @@ import {
   type SqlValue,
 } from "../../filter";
 import type { JarRow, TitleRow } from "../schema";
-import { requiredText } from "../constraints";
+import { ConstraintError, requiredText } from "../constraints";
 import { NotFoundError } from "../errors";
 import { newId } from "../ids";
 import { timestamp } from "../../time";
 import { getHousehold, memberIds } from "./households";
 
-/** Jars belonging to a Household. Parameters: `[householdId]`. */
+/**
+ * Jars belonging to a Household, the Library Jar first. Parameters: `[householdId]`.
+ */
 export const JARS_FOR_HOUSEHOLD = `
-  select * from jar where household_id = ? order by name
+  select * from jar where household_id = ? order by coalesce(is_library, 0) desc, name
 `;
+
+/** The name a new Household's Library Jar starts with. Renameable like any Jar. */
+export const LIBRARY_JAR_NAME = "Everything";
+
+/** Whether a Jar is its Household's Library Jar — never filtered, never deleted. */
+export function isLibraryJar(jar: Pick<JarRow, "is_library">): boolean {
+  return jar.is_library === 1;
+}
 
 /**
  * A Jar's manual overrides — the Titles Pinned into it or Excluded from it — with
@@ -118,8 +128,8 @@ export async function loadCompileContext(
  * Parses a Jar's stored filter.
  *
  * A stored Filter that no longer validates is an error rather than a null filter.
- * Treating it as "no filter" would quietly turn the Jar into its Pins alone, which
- * looks like data loss and gives no clue why.
+ * Treating it as "no filter" would quietly fill the Jar with the whole Library, which
+ * looks like the Filter was lost and gives no clue why.
  */
 export function parseJarFilter(
   jar: Pick<JarRow, "id" | "filter">,
@@ -278,12 +288,13 @@ export async function renameJar(
   ]);
 }
 
-/** Replaces a Jar's Filter. `null` makes it hand-curated: its Pins alone. */
+/** Replaces a Jar's Filter. `null` widens it back to the whole Library. */
 export async function setJarFilter(
   db: AbstractPowerSyncDatabase,
   jarId: string,
   filter: Filter | null,
 ): Promise<void> {
+  await refuseLibraryJar(db, jarId, "filtered");
   await db.execute(`update jar set filter = ? where id = ?`, [
     serialiseFilter(filter),
     jarId,
@@ -294,6 +305,8 @@ export async function deleteJar(
   db: AbstractPowerSyncDatabase,
   jarId: string,
 ): Promise<void> {
+  await refuseLibraryJar(db, jarId, "deleted");
+
   // No cascade locally — SQLite has no foreign keys here, so the overrides and draws
   // Postgres would clean up have to be removed explicitly.
   await db.writeTransaction(async (tx) => {
@@ -345,6 +358,25 @@ export async function clearOverride(
     `delete from jar_override where jar_id = ? and title_id = ?`,
     [jarId, titleId],
   );
+}
+
+/**
+ * The Library Jar holds the whole Library for as long as its Household exists
+ * (ADR-0011). Postgres refuses these writes too; checking here fails the call instead of
+ * letting the upload be rejected later, after the local replica already agreed.
+ */
+async function refuseLibraryJar(
+  db: AbstractPowerSyncDatabase,
+  jarId: string,
+  action: "filtered" | "deleted",
+): Promise<void> {
+  const jar = await db.getOptional<Pick<JarRow, "is_library">>(
+    `select is_library from jar where id = ?`,
+    [jarId],
+  );
+  if (jar && isLibraryJar(jar)) {
+    throw new ConstraintError(`The library jar can't be ${action}.`);
+  }
 }
 
 /**

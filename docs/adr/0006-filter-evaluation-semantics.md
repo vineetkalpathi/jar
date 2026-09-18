@@ -20,7 +20,9 @@ opposite — and because they would drop unlinked Titles into a `runtime <= 100`
 that has no idea how long they are.
 
 Unlinked Titles are meant to reach a Jar by being **Pinned**, not by matching an
-attribute Filter.
+attribute Filter. (Since [ADR-0011](./0011-a-jar-starts-as-the-whole-library.md), a Jar
+with no Filter — the Library Jar included — holds them anyway; this applies to Jars an
+attribute Filter narrows.)
 
 ## Viewings are closed-world
 

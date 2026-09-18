@@ -182,6 +182,7 @@ const jar = new Table(
     household_id: column.text,
     name: column.text,
     filter: column.text, // the ADR-0009 tree, as JSON text
+    is_library: column.integer, // 1 for the Household's Library Jar (ADR-0011)
     created_at: column.text,
   },
   { indexes: { household: ["household_id"] } },

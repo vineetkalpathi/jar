@@ -28,7 +28,7 @@ export class FilterDraftInvalid extends Error {
 /**
  * Resolves every unresolved person in `draft`, assembles the Filter, and validates it.
  *
- * Returns `null` when the draft carries no rules — a hand-curated Jar, or a cleared
+ * Returns `null` when the draft carries no rules — a whole-Library Jar, or a cleared
  * Library view. Throws `FilterDraftInvalid` if the assembled tree somehow fails the
  * validator, which would be a builder bug rather than user error.
  */

@@ -549,7 +549,9 @@ describe("jar contents", () => {
     db.exec(`
       insert into jar_override (jar_id, title_id, kind) values
         ('jar-1', 'unlinked', 'pin'),
-        ('jar-1', 'friends', 'exclusion');
+        ('jar-1', 'friends', 'exclusion'),
+        -- A Title no Library holds: the pin must not reach the Jar.
+        ('jar-1', 'shelved', 'pin');
     `);
   });
 
@@ -563,13 +565,25 @@ describe("jar contents", () => {
     expect(contents(filter)).toEqual(["sunrise", "unlinked", "walle"]);
   });
 
-  it("is pins alone when there is no filter", () => {
-    // Which is the only way a Title with no attributes reaches a Jar.
-    expect(contents(null)).toEqual(["unlinked"]);
+  it("is the whole Library, less exclusions, when there is no filter", () => {
+    // ADR-0011: a Jar starts as the Library and Filters only narrow.
+    expect(contents(null)).toEqual(["heat", "sunrise", "unlinked", "walle"]);
+    expect(contents(null, "jar-2")).toEqual([
+      "friends",
+      "heat",
+      "sunrise",
+      "unlinked",
+      "walle",
+    ]);
   });
 
-  it("excludes a pinned Title if it is also excluded", () => {
-    expect(contents(null, "jar-2")).toEqual([]);
+  it("drops a pin whose Title is not in the Library", () => {
+    const filter: Filter = {
+      version: 1,
+      root: { kind: "predicate", leaf: "runtime", op: "lte", value: 110 },
+    };
+    expect(contents(filter)).not.toContain("shelved");
+    expect(contents(null)).not.toContain("shelved");
   });
 
   /**
@@ -627,9 +641,11 @@ describe("jar contents", () => {
     expect(isIn(filter, "heat")).toBe(false); // 170 minutes
   });
 
-  it("answers membership with no filter, where the Jar is its pins alone", () => {
+  it("answers membership with no filter, where the Jar is the whole Library", () => {
     expect(isIn(null, "unlinked")).toBe(true);
-    expect(isIn(null, "walle")).toBe(false);
+    expect(isIn(null, "walle")).toBe(true);
+    expect(isIn(null, "friends")).toBe(false); // excluded from jar-1
+    expect(isIn(null, "shelved")).toBe(false); // pinned, but not in the Library
   });
 
   it("unions one membership test per Jar, keeping each Jar's parameters its own", () => {
@@ -649,10 +665,11 @@ describe("jar contents", () => {
 
     // Bound values must not bleed between the union's branches — the failure mode of
     // getting the parameter order wrong is every Jar answering with another's filter.
-    expect(jarsHolding(entries, "walle")).toEqual([JAR]); // 98 min
-    expect(jarsHolding(entries, "heat")).toEqual(["jar-2"]); // 170 min
-    expect(jarsHolding(entries, "friends")).toEqual([]); // 22 min, but excluded from jar-1
-    expect(jarsHolding(entries, "unlinked")).toEqual([JAR]); // no runtime; pinned into jar-1
+    // jar-3 has no filter, so it holds every Library Title.
+    expect(jarsHolding(entries, "walle")).toEqual([JAR, "jar-3"]); // 98 min
+    expect(jarsHolding(entries, "heat")).toEqual(["jar-2", "jar-3"]); // 170 min
+    expect(jarsHolding(entries, "friends")).toEqual(["jar-3"]); // 22 min, but excluded from jar-1
+    expect(jarsHolding(entries, "unlinked")).toEqual([JAR, "jar-3"]); // no runtime; pinned into jar-1
 
     // And each branch agrees with the single-Jar form it is built from.
     for (const jar of entries) {
